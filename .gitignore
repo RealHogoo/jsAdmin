@@ -14,3 +14,11 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Eclipse workspace (절대 커밋 금지)
+.metadata/
+
+# Eclipse project files (원하면 제외)
+.settings/
+bin/
+*.log
