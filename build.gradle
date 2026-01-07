@@ -1,0 +1,53 @@
+plugins {
+    id "java"
+    id "war"
+    id "eclipse-wtp"
+}
+
+group = "com.realhogoo"
+version = "0.0.1-SNAPSHOT"
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven {
+        url "https://maven.egovframe.go.kr/maven"
+    }
+}
+
+dependencies {
+    implementation("org.egovframe.rte:org.egovframe.rte.ptl.mvc:4.3.0") {
+        exclude group: "javax.json.bind", module: "javax.json.bind-api"
+    }
+    implementation "org.egovframe.rte:org.egovframe.rte.psl.dataaccess:4.3.0"
+    implementation "org.egovframe.rte:org.egovframe.rte.fdl.idgnr:4.3.0"
+    implementation "org.egovframe.rte:org.egovframe.rte.fdl.property:4.3.0"
+
+    // JSON은 Jackson으로 (대부분 Spring/WebMVC가 이미 끌고 오지만 확실히 하려면 명시)
+    implementation "com.fasterxml.jackson.core:jackson-databind:2.15.3"
+    
+    implementation "javax.servlet.jsp.jstl:jstl-api:1.2"
+    implementation "org.apache.taglibs:taglibs-standard-impl:1.2.5"
+
+    // Tomcat이 제공(컴파일만 필요)
+    compileOnly "javax.servlet:javax.servlet-api:4.0.1"
+
+    testImplementation "junit:junit:4.13.2"
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = "UTF-8"
+}
+
+tasks.named("wrapper") {
+    gradleVersion = "8.7"
+}
+
+war {
+    archiveFileName = "jsAdmin.war"
+}
