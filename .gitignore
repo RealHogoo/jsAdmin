@@ -9,6 +9,9 @@ build/
 bin/
 target/
 
+# STS / Spring Tool Suite
+.springBeans
+
 # OS
 .DS_Store
 Thumbs.db
@@ -23,3 +26,7 @@ Thumbs.db
 .settings/
 bin/
 *.log
+
+# Tomcat work/temp (필요시 경로 맞게 수정)
+work/
+temp/
