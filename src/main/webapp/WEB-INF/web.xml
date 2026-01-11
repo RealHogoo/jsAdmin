@@ -17,15 +17,25 @@
     <servlet-mapping>
         <servlet-name>dispatcher</servlet-name>
         <url-pattern>*.do</url-pattern>
+        <url-pattern>*.json</url-pattern>
     </servlet-mapping>
+	<filter-mapping>
+	    <filter-name>traceIdFilter</filter-name>
+	    <url-pattern>*.json</url-pattern>
+	</filter-mapping>
     
 	<filter>
 	    <filter-name>traceIdFilter</filter-name>
 	    <filter-class>com.realhogoo.jsadmin.api.TraceIdFilter</filter-class>
 	</filter>
-	<filter-mapping>
-	    <filter-name>traceIdFilter</filter-name>
-	    <url-pattern>*.json</url-pattern>
-	</filter-mapping>
+	
+	<context-param>
+	  <param-name>contextConfigLocation</param-name>
+	  <param-value>/WEB-INF/spring/root-context.xml</param-value>
+	</context-param>
+	
+	<listener>
+	  <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+	</listener>
 
 </web-app>

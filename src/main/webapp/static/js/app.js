@@ -112,6 +112,7 @@
         }
         var html = await postText(url, data);
         renderHtml(html);
+        executeScripts(document.getElementById("app"));
     }
 
 	async function call(url, data) {
@@ -201,6 +202,29 @@
             alert(err.message);
         }
     });
+    
+	function executeScripts(rootEl) {
+	  const scripts = Array.from(rootEl.querySelectorAll("script"));
+	
+	  for (const oldScript of scripts) {
+	    const newScript = document.createElement("script");
+	
+	    // type 유지 (module 포함)
+	    if (oldScript.type) newScript.type = oldScript.type;
+	
+	    // src 스크립트 처리
+	    if (oldScript.src) {
+	      newScript.src = oldScript.src;
+	      newScript.async = false; // 순서 보장
+	    } else {
+	      newScript.text = oldScript.textContent;
+	    }
+	
+	    // 원본 제거 후 새로 삽입(삽입 시 실행됨)
+	    oldScript.parentNode.removeChild(oldScript);
+	    rootEl.appendChild(newScript);
+	  }
+	}
 
     // 전역 공개
     window.jsAdminSpa = {
