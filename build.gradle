@@ -35,7 +35,12 @@ dependencies {
     implementation "org.apache.taglibs:taglibs-standard-impl:1.2.5"
 
     // Tomcat이 제공(컴파일만 필요)
-    compileOnly "javax.servlet:javax.servlet-api:4.0.1"
+    compileOnly "javax.servlet:javax.servlet-api:3.1.0"
+    /*
+    Servlet 4.0에서는 Filter.init()/destroy()가 “default method(또는 구현 생략 가능)”처럼 동작하는 조합이 있어 doFilter()만 구현해도 컴파일이 통과할 수 있습니다.
+	하지만 Tomcat 8.5(3.1) 런타임에서는 init(FilterConfig)가 abstract라서, 실행 시점에 TraceIdFilter에 해당 메서드가 없으면 **AbstractMethodError**가 납니다.
+	*/
+    //compileOnly "javax.servlet:javax.servlet-api:4.0.1"
 
     testImplementation "junit:junit:4.13.2"
 }

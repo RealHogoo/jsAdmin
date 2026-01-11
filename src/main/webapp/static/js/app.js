@@ -114,12 +114,49 @@
         renderHtml(html);
     }
 
-    async function call(url, data) {
-        if (!isJson(url)) {
-            throw new Error("call(url): url must end with .json (got: " + url + ")");
-        }
-        return await postJson(url, data);
-    }
+	async function call(url, data) {
+	    if (!isJson(url)) {
+	        throw new Error("call(url): url must end with .json (got: " + url + ")");
+	    }
+	
+	    var res = await fetch(url, {
+	        method: "POST",
+	        headers: {
+	            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+	            "Accept": "application/json"
+	        },
+	        body: toFormBody(data),
+	        credentials: "same-origin"
+	    });
+	
+	    var text = await res.text();
+	    var body = text && text.trim().length > 0 ? JSON.parse(text) : null;
+	
+	    if (res.status === 401) {
+	        // 인증 필요: 로그인 조각 로딩 규칙이 있으면 여기서 통일
+	        if (window.jsAdminSpa && typeof window.jsAdminSpa.load === "function") {
+	            await window.jsAdminSpa.load("/login.do");
+	        }
+	        throw new Error("AUTH_REQUIRED");
+	    }
+	
+	    if (!res.ok) {
+	        throw new Error("HTTP " + res.status + "\n" + text);
+	    }
+	
+	    // 표준 envelope 해석
+	    if (!body || typeof body.ok !== "boolean") {
+	        throw new Error("INVALID_API_RESPONSE");
+	    }
+	
+	    if (!body.ok) {
+	        var msg = (body.code || "ERROR") + ": " + (body.message || "failed");
+	        throw new Error(msg);
+	    }
+	
+	    return body.data;
+	}
+
 
     /* =========================
      * 화면 이벤트 바인딩
