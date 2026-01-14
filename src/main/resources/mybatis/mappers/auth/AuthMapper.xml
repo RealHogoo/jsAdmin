@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.auth.mapper.AuthMapper">
+
+  <resultMap id="LoginUserMap" type="com.realhogoo.jsadmin.auth.dto.LoginUser">
+    <result property="userId" column="LOGIN_ID"/>
+    <result property="userPw" column="PWD_HASH"/>
+    <!-- roles는 별도 select로 가져오는 게 정석이지만, 최소 단계에서는 컬렉션 매핑 생략하고 서비스에서 2번 조회해도 됨 -->
+  </resultMap>
+
+  <select id="selectUserForLogin" resultMap="LoginUserMap">
+    SELECT LOGIN_ID, PWD_HASH
+      FROM ADM_USER_MST
+     WHERE LOGIN_ID = #{user_id}
+       AND USE_YN = 'Y'
+  </select>
+
+</mapper>

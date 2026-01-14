@@ -31,6 +31,13 @@ dependencies {
     // JSON은 Jackson으로 (대부분 Spring/WebMVC가 이미 끌고 오지만 확실히 하려면 명시)
     implementation "com.fasterxml.jackson.core:jackson-databind:2.15.3"
     
+    //JWT 라이브러리
+    implementation "com.auth0:java-jwt:4.4.0"
+
+    //패스워드 해싱을 쓰려면 Spring Security crypto만 가볍게
+    implementation "org.springframework.security:spring-security-crypto:5.8.12"
+    
+    //JSTL
     implementation "javax.servlet.jsp.jstl:jstl-api:1.2"
     implementation "org.apache.taglibs:taglibs-standard-impl:1.2.5"
 

@@ -14,6 +14,7 @@
         <property name="locations">
             <list>
                 <value>classpath:db/jdbc.properties</value>
+                <value>classpath:app.properties</value>
             </list>
         </property>
     </bean>
@@ -45,4 +46,11 @@
         <property name="dataSource" ref="dataSource"/>
     </bean>
     <tx:annotation-driven transaction-manager="txManager"/>
+    
+    <!-- JWT -->
+    <bean id="jwtProvider" class="com.realhogoo.jsadmin.auth.jwt.JwtProvider">
+	  <constructor-arg value="${jwt.secret}"/>
+	  <constructor-arg value="${jwt.issuer}"/>
+	  <constructor-arg value="${jwt.exp_seconds}"/>
+	</bean>
 </beans>

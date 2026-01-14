@@ -1,16 +1,17 @@
-<%@ page contentType="text/html; charset=UTF-8" %>
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 
-<html>
+<!doctype html>
+<html lang="ko">
 <head>
-    <title>jsAdmin</title>
     <meta charset="UTF-8"/>
+    <title>jsAdmin</title>
 </head>
 
 <body>
     <%@ include file="/WEB-INF/jsp/common/header.jspf" %>
 
-    <div style="display:flex; min-height: 80vh;">
+    <div style="display:flex; min-height:80vh;">
         <div style="width:240px; border-right:1px solid #ddd; padding:12px;">
             <%@ include file="/WEB-INF/jsp/common/sidebar.jspf" %>
         </div>
@@ -22,22 +23,30 @@
     </div>
 
     <%@ include file="/WEB-INF/jsp/common/footer.jspf" %>
-	<script type="module">
-    	import { UX } from "<c:url value='/static/js/ux.js'/>";
 
-    	// 1) 객체로 접근: UX.NVL(), UX.SUBSTR() ...
-    	window.UX = UX;
+    <!-- contextPath 전역 1개만 -->
+    <script>
+        window.CTX = "${pageContext.request.contextPath}";
+    </script>
 
-    	// 2) (선택) DB/백/프론트 동일 함수명 직접 호출: NVL(), SUBSTR() ...
-    	//    원하면 이 줄을 켜고, 싫으면 주석 유지.
-    	Object.assign(window, UX);
-	</script>
-	
-	<script src="<c:url value='/static/js/app.js'/>"></script>
-	
-	<script>
-	    // 최초 진입 시 기본 화면(POST *.do)
-	    window.jsAdminSpa.load("/home.do");
-	</script>
+    <!-- app.jsp는 UX + APP만 로딩 -->
+    <script src="<c:url value='/static/js/ux.js'/>"></script>
+    <script src="<c:url value='/static/js/app.js'/>"></script>
+
+    <!-- 최초 진입 화면: *.do (POST 고정은 app.js 내부 load가 처리) -->
+    <script>
+        (function () {
+            // app.js에 load()가 있으면 그걸 우선 사용
+            if (typeof window.load === "function") {
+                window.load("/main.do");   // 필요하면 /home.do 로 바꿔도 됨
+                return;
+            }
+
+            // 기존에 jsAdminSpa.load(...) 형태면 그걸 사용
+            if (window.jsAdminSpa && typeof window.jsAdminSpa.load === "function") {
+                window.jsAdminSpa.load("/main.do");
+            }
+        })();
+    </script>
 </body>
 </html>
