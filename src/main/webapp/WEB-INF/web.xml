@@ -19,16 +19,29 @@
         <url-pattern>*.do</url-pattern>
         <url-pattern>*.json</url-pattern>
     </servlet-mapping>
-	<filter-mapping>
-	    <filter-name>traceIdFilter</filter-name>
-	    <url-pattern>*.json</url-pattern>
-	</filter-mapping>
     
-	<filter>
-	    <filter-name>traceIdFilter</filter-name>
-	    <filter-class>com.realhogoo.jsadmin.api.TraceIdFilter</filter-class>
-	</filter>
-	
+    <!-- filters (선언이 먼저) -->
+    <filter>
+        <filter-name>traceIdFilter</filter-name>
+        <filter-class>com.realhogoo.jsadmin.api.TraceIdFilter</filter-class>
+    </filter>
+
+    <filter>
+        <filter-name>jwtAuthFilter</filter-name>
+        <filter-class>com.realhogoo.jsadmin.auth.jwt.JwtAuthFilter</filter-class>
+    </filter>
+
+    <!-- filters mapping (TraceId -> JwtAuth 순서 권장) -->
+    <filter-mapping>
+        <filter-name>traceIdFilter</filter-name>
+        <url-pattern>*.json</url-pattern>
+    </filter-mapping>
+
+    <filter-mapping>
+        <filter-name>jwtAuthFilter</filter-name>
+        <url-pattern>*.json</url-pattern>
+    </filter-mapping>
+		
 	<context-param>
 	  <param-name>contextConfigLocation</param-name>
 	  <param-value>/WEB-INF/spring/root-context.xml</param-value>

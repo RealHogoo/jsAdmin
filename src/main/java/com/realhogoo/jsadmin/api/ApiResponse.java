@@ -1,5 +1,7 @@
 package com.realhogoo.jsadmin.api;
 
+import javax.servlet.http.HttpServletRequest;
+
 public class ApiResponse<T> {
 
     private boolean ok;
@@ -26,6 +28,14 @@ public class ApiResponse<T> {
         r.data = null;
         r.meta = ApiMeta.now(traceId);
         return r;
+    }
+    
+    private String getTraceId(HttpServletRequest req) {
+        Object v = req.getAttribute("traceId");
+        if (v == null) v = req.getAttribute("TRACE_ID");
+        if (v == null) v = req.getHeader("X-Trace-Id");
+        if (v == null) v = req.getHeader("X-Request-Id");
+        return v != null ? String.valueOf(v) : java.util.UUID.randomUUID().toString();
     }
 
     public boolean isOk() { return ok; }

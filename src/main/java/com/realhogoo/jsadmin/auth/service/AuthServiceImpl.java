@@ -4,7 +4,6 @@ import com.realhogoo.jsadmin.auth.dto.LoginUser;
 import com.realhogoo.jsadmin.auth.jwt.JwtProvider;
 import com.realhogoo.jsadmin.auth.mapper.AuthMapper;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.*;
 
@@ -21,15 +20,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public Map<String, Object> login(String userId, String userPw) {
-    	System.out.println("--3--");
-    	System.out.println(userId);
-    	System.out.println();
-    	System.out.println();
         LoginUser u = authMapper.selectUserForLogin(userId);
-    	System.out.println("--3.5--");
-    	System.out.println(u);
-    	System.out.println();
-    	System.out.println();
         if (u == null) {
             return fail("LOGIN_FAIL", "사용자 정보가 올바르지 않습니다.");
         }
@@ -39,10 +30,6 @@ public class AuthServiceImpl implements AuthService {
             return fail("LOGIN_FAIL", "사용자 정보가 올바르지 않습니다.");
         }
 
-    	System.out.println("--4--");
-    	System.out.println(userId);
-    	System.out.println();
-    	System.out.println();
         // 권한: 최소 단계에서는 고정 or 추후 roles 조회 추가
         List<String> roles = Arrays.asList("ROLE_ADMIN");
 

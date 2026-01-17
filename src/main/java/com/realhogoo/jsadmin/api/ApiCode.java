@@ -7,7 +7,9 @@ public enum ApiCode {
     FORBIDDEN("forbidden"),
     NOT_FOUND("not found"),
     BIZ_ERROR("business rule violated"),
-    SERVER_ERROR("server error");
+    SERVER_ERROR("unexpected server error"),
+    UNAUTHORIZED("login required"),
+	METHOD_NOT_ALLOWED("method not allowed");
 
     private final String defaultMessage;
 

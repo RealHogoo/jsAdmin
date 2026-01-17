@@ -21,19 +21,10 @@ public class LoginController {
     public Map<String, Object> login(@RequestBody Map<String, Object> body) {
         String userId = body.get("user_id") == null ? null : String.valueOf(body.get("user_id"));
         String userPw = body.get("user_pw") == null ? null : String.valueOf(body.get("user_pw"));
-    	System.out.println("--1--");
-    	System.out.println(userId);
-    	System.out.println(userPw);
-    	System.out.println();
         if (userId == null || userId.trim().isEmpty() || userPw == null) {
             return Map.of("ok", false, "code", "BAD_REQUEST", "message", "user_id/user_pw 필요", "data", null);
         }
 
-    	System.out.println("--2--");
-    	System.out.println(userId.trim());
-    	System.out.println(userPw);
-    	System.out.println();
-    	System.out.println("authService=" + authService);
         return authService.login(userId.trim(), userPw);
     }
 }

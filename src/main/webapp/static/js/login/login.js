@@ -66,10 +66,15 @@
 
                 setMsg("로그인 성공", true);
 
-                // 화면 이동은 *.do 규칙 (POST 고정은 load()가 처리)
-                if (typeof global.load === "function") {
-                    global.load("/main.do");
-                }
+				// 헤더 갱신 이벤트
+				try { document.dispatchEvent(new CustomEvent("jsadmin:authChanged")); } catch (e) {}
+				
+				if (window.jsAdminSpa && typeof window.jsAdminSpa.load === "function") {
+				    window.jsAdminSpa.load("/home.do");
+				} else {
+				    // SPA가 준비 안 된 경우라도, 쉘로 재진입해서 app.jsp boot 로직으로 home 호출
+				    location.href = (ctx() + "/main.do");
+				}
             })
             .catch(function (e) {
                 setMsg(String(e && e.message ? e.message : e), false);

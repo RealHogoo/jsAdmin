@@ -1,3 +1,7 @@
-<div style="padding:12px; border-bottom:1px solid #ddd;">
+<div style="padding:12px; border-bottom:1px solid #ddd; display:flex; align-items:center; justify-content:space-between;">
     <strong>jsAdmin</strong>
+
+    <div style="display:flex; align-items:center; gap:12px;">
+        <a href="#" id="authBtn" data-spa="/login.do">Login</a>
+    </div>
 </div>

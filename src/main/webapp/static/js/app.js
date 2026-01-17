@@ -46,23 +46,23 @@
     }
 
     async function postText(url, data) {
-        var res = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
-            },
-            body: toFormBody(data),
-            credentials: "same-origin"
-        });
-
-        var text = await res.text();
-
-        if (!res.ok) {
-            throw new Error("HTTP " + res.status + "\n" + text);
-        }
-
-        return text;
-    }
+	    var res = await fetch(url, {
+	        method: "POST",
+	        headers: {
+	            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+	        },
+	        body: toFormBody(data),
+	        credentials: "same-origin"
+	    });
+	
+	    var text = await res.text();
+	
+	    if (!res.ok) {
+	        throw new Error("HTTP " + res.status + "\n" + text);
+	    }
+	
+	    return text;
+	}
 
     async function postJson(url, data) {
         var res = await fetch(url, {
@@ -100,46 +100,67 @@
         if (!el) throw new Error("#app not found");
         el.innerHTML = html;
     }
-
+    
     /* =========================
      * jsAdmin SPA 공개 API
      * - 규칙: *.do, *.json 둘 다 POST 고정
      * ========================= */
 
     async function load(url, data) {
+	    // 실수 방지: main.do는 SPA 조각 대상이 아니므로 home.do로 치환
+	    if (url === "/main.do" || url === "main.do") {
+	        url = "/home.do";
+	    }
+	    
         if (!isDo(url)) {
             throw new Error("load(url): url must end with .do (got: " + url + ")");
         }
         var html = await postText(url, data);
         renderHtml(html);
         executeScripts(document.getElementById("app"));
+		// 화면 로드 완료 이벤트(화면별 JS/헤더가 여기서 반응)
+		document.dispatchEvent(new CustomEvent("jsadmin:pageLoaded", {
+		    detail: { url: url }
+		}));
     }
 
 	async function call(url, data) {
 	    if (!isJson(url)) {
 	        throw new Error("call(url): url must end with .json (got: " + url + ")");
 	    }
-	
+		var headers = {
+		    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+		    "Accept": "application/json"
+		};
+
+		var token = localStorage.getItem("JWT");
+		if (token) {
+		    headers["Authorization"] = "Bearer " + token;
+		}
 	    var res = await fetch(url, {
-	        method: "POST",
-	        headers: {
-	            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-	            "Accept": "application/json"
-	        },
-	        body: toFormBody(data),
-	        credentials: "same-origin"
-	    });
+		    method: "POST",
+		    headers: headers,
+		    body: toFormBody(data),
+		    credentials: "same-origin"
+		});
 	
 	    var text = await res.text();
 	    var body = text && text.trim().length > 0 ? JSON.parse(text) : null;
 	
-	    if (res.status === 401) {
-	        // 인증 필요: 로그인 조각 로딩 규칙이 있으면 여기서 통일
-	        if (window.jsAdminSpa && typeof window.jsAdminSpa.load === "function") {
-	            await window.jsAdminSpa.load("/login.do");
-	        }
-	        throw new Error("AUTH_REQUIRED");
-	    }
+		if (res.status === 401) {
+		    try { localStorage.removeItem("JWT"); } catch (e) {}
+		    try { localStorage.removeItem("LOGIN_USER"); } catch (e) {}
+		
+		    // auth 변경 이벤트(헤더/화면별 JS가 반응)
+		    document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+		
+		    // 공통 정책: 401이면 로그인 화면 유도
+		    if (window.jsAdminSpa && typeof window.jsAdminSpa.load === "function") {
+		        await window.jsAdminSpa.load("/login.do");
+		    }
+		
+		    return null;
+		}
 	
 	    if (!res.ok) {
 	        throw new Error("HTTP " + res.status + "\n" + text);
@@ -194,7 +215,7 @@
 
         try {
             var result = await call(url, data);
-
+			if (result === null) return;
             // 기본 후처리 훅(필요하면 form에 data-onsuccess="..." 같은 식으로 확장 가능)
             console.log("JSON result:", result);
         } catch (err) {
@@ -225,14 +246,15 @@
 	    rootEl.appendChild(newScript);
 	  }
 	}
-
-    // 전역 공개
-    window.jsAdminSpa = {
-        // 화면 조각 로드 (*.do)
-        load: load,
-        // JSON 호출 (*.json)
-        call: call,
-        // 내부 유틸도 노출(원하면 사용)
-        NORM: NORM
-    };
+	
+	// 전역 공개(기존 객체 재사용)
+	window.jsAdminSpa = window.jsAdminSpa || {};
+	window.jsAdminSpa.load = load;   // 화면 조각 로드 (*.do)
+	window.jsAdminSpa.call = call;   // JSON 호출 (*.json)
+	window.jsAdminSpa.NORM = NORM;   // 내부 유틸
+	
+	// 공통 http 유틸(필요한 것만 노출)
+	window.jsAdminSpa.http = window.jsAdminSpa.http || {};
+	window.jsAdminSpa.http.postText = postText;
 })();
+

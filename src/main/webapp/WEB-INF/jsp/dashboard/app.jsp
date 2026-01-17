@@ -7,7 +7,28 @@
     <meta charset="UTF-8"/>
     <title>jsAdmin</title>
 </head>
+<script>
+(function () {
+    function boot() {
+        var token = null;
+        try { token = localStorage.getItem("JWT"); } catch (e) {}
 
+        if (window.jsAdminSpa && typeof window.jsAdminSpa.load === "function") {
+            if (token && token.trim().length > 0) {
+                window.jsAdminSpa.load("/home.do");
+            } else {
+                window.jsAdminSpa.load("/login.do");
+            }
+        }
+    }
+
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", boot);
+    } else {
+        boot();
+    }
+})();
+</script>
 <body>
     <%@ include file="/WEB-INF/jsp/common/header.jspf" %>
 
@@ -30,8 +51,14 @@
     </script>
 
     <!-- app.jsp는 UX + APP만 로딩 -->
-    <script src="<c:url value='/static/js/ux.js'/>"></script>
-    <script src="<c:url value='/static/js/app.js'/>"></script>
+    <script src="${pageContext.request.contextPath}/static/js/ux.js"></script>
+	<script src="${pageContext.request.contextPath}/static/js/app.js"></script>
+	
+	<script src="${pageContext.request.contextPath}/static/js/header/header.js"></script>
+	
+	<script src="${pageContext.request.contextPath}/static/js/footer/footer.js"></script>
+	<script src="${pageContext.request.contextPath}/static/js/sidebar/sidebar.js"></script>
+
 
     <!-- 최초 진입 화면: *.do (POST 고정은 app.js 내부 load가 처리) -->
     <script>
