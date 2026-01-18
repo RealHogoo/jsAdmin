@@ -63,8 +63,18 @@ dependencies {
 	하지만 Tomcat 8.5(3.1) 런타임에서는 init(FilterConfig)가 abstract라서, 실행 시점에 TraceIdFilter에 해당 메서드가 없으면 **AbstractMethodError**가 납니다.
 	*/
     //compileOnly "javax.servlet:javax.servlet-api:4.0.1"
-
+    
+   // ★ SLF4J 2.x 브릿지 (중요)
+    runtimeOnly "org.apache.logging.log4j:log4j-slf4j2-impl:2.23.1"
+	runtimeOnly "org.apache.logging.log4j:log4j-api:2.23.1"
+	runtimeOnly "org.apache.logging.log4j:log4j-core:2.23.1"
+	runtimeOnly "org.apache.logging.log4j:log4j-web:2.23.1"
+    
     testImplementation "junit:junit:4.13.2"
+}
+// ★ 기존에 들어가 있던 1.7용 바인더는 제거/exclude 필요
+configurations.all {
+    exclude group: "org.apache.logging.log4j", module: "log4j-slf4j-impl"
 }
 
 tasks.withType(JavaCompile).configureEach {

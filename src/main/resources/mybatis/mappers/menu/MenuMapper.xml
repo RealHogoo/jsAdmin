@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.menu.mapper.MenuMapper">
+
+  <!-- userId 기준: sys_auth_user -> sys_auth_menu -> sys_menu -->
+  <select id="selectMenuListByUserId" parameterType="string" resultType="map">
+	WITH
+	U AS (
+	    SELECT USER_SEQ
+	    FROM ADM_USER_MST
+	    WHERE LOGIN_ID = #{user_id}
+	      AND NVL(USE_YN, 'Y') = 'Y'
+	),
+	UG AS (
+	    SELECT GU.AUTH_GROUP_SEQ
+	    FROM ADM_AUTH_GROUP_USER GU
+	    JOIN U ON U.USER_SEQ = GU.USER_SEQ
+	    WHERE NVL(GU.USE_YN, 'Y') = 'Y'
+	),
+	G_MENU AS (
+	    SELECT AM.MENU_SEQ,
+	           MAX(NVL(AM.PERM_LVL, 0)) AS PERM_LVL
+	    FROM ADM_AUTH_MENU AM
+	    JOIN UG ON UG.AUTH_GROUP_SEQ = AM.AUTH_GROUP_SEQ
+	    WHERE NVL(AM.USE_YN, 'Y') = 'Y'
+	    GROUP BY AM.MENU_SEQ
+	),
+	U_EX AS (
+	    SELECT AU.MENU_SEQ,
+	           MAX(CASE WHEN AU.ACCESS_YN = 'N' THEN 1 ELSE 0 END) AS DENY_YN,
+	           MAX(CASE WHEN AU.ACCESS_YN = 'Y' THEN NVL(AU.PERM_LVL, 0) ELSE 0 END) AS ALLOW_LVL
+	    FROM ADM_AUTH_USER AU
+	    JOIN U ON U.USER_SEQ = AU.USER_SEQ
+	    GROUP BY AU.MENU_SEQ
+	),
+	ALLOW_MENU AS (
+	    SELECT
+	        M.MENU_SEQ,
+	        GREATEST(NVL(GM.PERM_LVL, 0), NVL(UE.ALLOW_LVL, 0)) AS PERM_LVL
+	    FROM ADM_MENU_MST M
+	    LEFT JOIN G_MENU GM ON GM.MENU_SEQ = M.MENU_SEQ
+	    LEFT JOIN U_EX   UE ON UE.MENU_SEQ = M.MENU_SEQ
+	    WHERE NVL(M.USE_YN, 'Y') = 'Y'
+	      AND NVL(UE.DENY_YN, 0) = 0
+	      AND (NVL(GM.PERM_LVL, 0) &gt; 0 OR NVL(UE.ALLOW_LVL, 0) &gt; 0)
+	),
+	TREE_MENU AS (
+	    SELECT DISTINCT M.MENU_SEQ
+	    FROM ADM_MENU_MST M
+	    START WITH M.MENU_SEQ IN (SELECT MENU_SEQ FROM ALLOW_MENU)
+	    CONNECT BY PRIOR M.UP_MENU_SEQ = M.MENU_SEQ
+	)
+	SELECT
+	    M.MENU_SEQ,
+	    M.UP_MENU_SEQ,
+	    M.MENU_NM,
+	    M.MENU_URL,
+	    NVL(M.SORT_ORD, 0) AS SORT_ORD,
+	    NVL(A.PERM_LVL, 0) AS PERM_LVL,
+	    M.MENU_TYPE_CD,
+	    M.ICON_CLASS
+	FROM ADM_MENU_MST M
+	JOIN TREE_MENU T ON T.MENU_SEQ = M.MENU_SEQ
+	LEFT JOIN ALLOW_MENU A ON A.MENU_SEQ = M.MENU_SEQ
+	WHERE NVL(M.USE_YN, 'Y') = 'Y'
+	ORDER BY NVL(M.SORT_ORD, 0), M.MENU_SEQ
+  </select>
+
+</mapper>

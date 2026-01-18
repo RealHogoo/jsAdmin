@@ -1,4 +1,5 @@
 <ul style="list-style:none; padding-left:0;">
-    <li><a href="#" data-spa="/home.do">Home</a></li>
-    <li><a href="#" data-spa="/dashboard/health.do">health</a></li>
+	<nav id="sidebar">
+	    <div id="sidebarMenu"></div>
+	</nav>
 </ul>

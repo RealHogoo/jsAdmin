@@ -153,10 +153,22 @@
 		
 		    // auth 변경 이벤트(헤더/화면별 JS가 반응)
 		    document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+		    
+		    // 이미 리다이렉트 중이면 추가 처리 금지(무한루프 방지)
+		    if (window.__JSADMIN_AUTH_REDIRECTING) return null;
+		    
+			// 현재 화면이 로그인 조각이면 다시 login.do 로드하지 않기
+		    var app = document.getElementById("app");
+		    var isLoginFragment = app && app.querySelector("#loginForm, form[data-page='login']");
 		
-		    // 공통 정책: 401이면 로그인 화면 유도
-		    if (window.jsAdminSpa && typeof window.jsAdminSpa.load === "function") {
-		        await window.jsAdminSpa.load("/login.do");
+		    if (!isLoginFragment) {
+		        window.__JSADMIN_AUTH_REDIRECTING = true;
+		        try {
+		            await load("/login.do");
+		        } finally {
+		            // login.do 로드 완료 후 플래그 해제
+		            window.__JSADMIN_AUTH_REDIRECTING = false;
+		        }
 		    }
 		
 		    return null;
@@ -246,6 +258,7 @@
 	    rootEl.appendChild(newScript);
 	  }
 	}
+	window.__JSADMIN_AUTH_REDIRECTING = window.__JSADMIN_AUTH_REDIRECTING || false;
 	
 	// 전역 공개(기존 객체 재사용)
 	window.jsAdminSpa = window.jsAdminSpa || {};
