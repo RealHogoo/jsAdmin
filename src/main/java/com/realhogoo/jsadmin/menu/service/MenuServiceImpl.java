@@ -74,4 +74,10 @@ public class MenuServiceImpl implements MenuService {
         if (v instanceof Number) return ((Number) v).intValue();
         return Integer.parseInt(String.valueOf(v));
     }
+    
+    @Override
+    public List<Map<String, Object>> selectMenuListAll() {
+        return menuMapper.selectMenuListAll();
+    }
+
 }

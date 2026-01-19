@@ -43,11 +43,7 @@
 
     <!-- 4) Mapper 스캔(인터페이스 자동 프록시) -->
     <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
-        <property name="basePackage" value="com.realhogoo.jsadmin"/>
-        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
-
-	    <!-- ★ 핵심: @Mapper 붙은 인터페이스만 MyBatis Mapper로 등록 -->
-	    <property name="annotationClass" value="org.apache.ibatis.annotations.Mapper"/>
+    <property name="basePackage" value="com.realhogoo.jsadmin.**.mapper"/>
     </bean>
 
     <!-- 5) 트랜잭션 -->

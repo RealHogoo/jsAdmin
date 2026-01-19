@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.code.mapper.CodeMapper">
+
+    <select id="selectCodeListAll" resultType="map">
+        SELECT
+            CODE_SEQ,
+            CODE_GRP_CD,
+            CODE_CD,
+            CODE_NM,
+            CODE_DESC,
+            NVL(SORT_ORD, 0) AS SORT_ORD,
+            NVL(USE_YN, 'Y') AS USE_YN
+        FROM ADM_CODE_MST
+        WHERE NVL(USE_YN, 'Y') = 'Y'
+        ORDER BY CODE_GRP_CD, NVL(SORT_ORD, 0), CODE_SEQ
+    </select>
+
+</mapper>
