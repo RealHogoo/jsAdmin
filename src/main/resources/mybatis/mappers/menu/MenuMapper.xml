@@ -8,64 +8,107 @@
   <select id="selectMenuListByUserId" parameterType="string" resultType="map">
 	WITH
 	U AS (
-	    SELECT USER_SEQ
-	    FROM ADM_USER_MST
-	    WHERE LOGIN_ID = #{user_id}
-	      AND NVL(USE_YN, 'Y') = 'Y'
+	    SELECT USER_SEQ, DEPT_SEQ
+	      FROM ADM_USER_MST
+	     WHERE LOGIN_ID = #{user_id}
+	       AND USE_YN = 'Y'
 	),
-	UG AS (
-	    SELECT GU.AUTH_GROUP_SEQ
-	    FROM ADM_AUTH_GROUP_USER GU
-	    JOIN U ON U.USER_SEQ = GU.USER_SEQ
-	    WHERE NVL(GU.USE_YN, 'Y') = 'Y'
+	USER_GROUPS AS (
+	    -- 사용자 직접 그룹
+	    SELECT AGU.AUTH_GROUP_SEQ
+	      FROM ADM_AUTH_GROUP_USER AGU
+	      JOIN U ON U.USER_SEQ = AGU.USER_SEQ
+	     WHERE AGU.USE_YN = 'Y'
+	    UNION
+	    -- 부서 그룹
+	    SELECT AGD.AUTH_GROUP_SEQ
+	      FROM ADM_AUTH_GROUP_DEPT AGD
+	      JOIN U ON U.DEPT_SEQ = AGD.DEPT_SEQ
+	     WHERE AGD.USE_YN = 'Y'
 	),
-	G_MENU AS (
-	    SELECT AM.MENU_SEQ,
-	           MAX(NVL(AM.PERM_LVL, 0)) AS PERM_LVL
-	    FROM ADM_AUTH_MENU AM
-	    JOIN UG ON UG.AUTH_GROUP_SEQ = AM.AUTH_GROUP_SEQ
-	    WHERE NVL(AM.USE_YN, 'Y') = 'Y'
-	    GROUP BY AM.MENU_SEQ
+	BASE_PERM AS (
+	    SELECT AAM.MENU_SEQ,
+	           MAX(NVL(AAM.PERM_LVL, 0)) AS BASE_PERM_LVL
+	      FROM ADM_AUTH_MENU AAM
+	      JOIN USER_GROUPS UG
+	        ON UG.AUTH_GROUP_SEQ = AAM.AUTH_GROUP_SEQ
+	     WHERE AAM.USE_YN = 'Y'
+	     GROUP BY AAM.MENU_SEQ
 	),
-	U_EX AS (
+	USER_DENY AS (
+	    SELECT AU.MENU_SEQ
+	      FROM ADM_AUTH_USER AU
+	      JOIN U ON U.USER_SEQ = AU.USER_SEQ
+	     WHERE AU.ACCESS_YN = 'N'
+	),
+	USER_ALLOW AS (
 	    SELECT AU.MENU_SEQ,
-	           MAX(CASE WHEN AU.ACCESS_YN = 'N' THEN 1 ELSE 0 END) AS DENY_YN,
-	           MAX(CASE WHEN AU.ACCESS_YN = 'Y' THEN NVL(AU.PERM_LVL, 0) ELSE 0 END) AS ALLOW_LVL
-	    FROM ADM_AUTH_USER AU
-	    JOIN U ON U.USER_SEQ = AU.USER_SEQ
-	    GROUP BY AU.MENU_SEQ
+	           MAX(NVL(AU.PERM_LVL, 0)) AS ALLOW_PERM_LVL
+	      FROM ADM_AUTH_USER AU
+	      JOIN U ON U.USER_SEQ = AU.USER_SEQ
+	     WHERE AU.ACCESS_YN = 'Y'
+	     GROUP BY AU.MENU_SEQ
 	),
-	ALLOW_MENU AS (
-	    SELECT
-	        M.MENU_SEQ,
-	        GREATEST(NVL(GM.PERM_LVL, 0), NVL(UE.ALLOW_LVL, 0)) AS PERM_LVL
-	    FROM ADM_MENU_MST M
-	    LEFT JOIN G_MENU GM ON GM.MENU_SEQ = M.MENU_SEQ
-	    LEFT JOIN U_EX   UE ON UE.MENU_SEQ = M.MENU_SEQ
-	    WHERE NVL(M.USE_YN, 'Y') = 'Y'
-	      AND NVL(UE.DENY_YN, 0) = 0
-	      AND (NVL(GM.PERM_LVL, 0) &gt; 0 OR NVL(UE.ALLOW_LVL, 0) &gt; 0)
+	FINAL_SELF AS (
+	    -- 메뉴별 자기 자신 최종 권한
+	    SELECT M.MENU_SEQ,
+	           CASE
+	               WHEN D.MENU_SEQ IS NOT NULL THEN 0
+	               ELSE GREATEST(NVL(B.BASE_PERM_LVL, 0), NVL(A.ALLOW_PERM_LVL, 0))
+	           END AS FINAL_PERM_LVL
+	      FROM ADM_MENU_MST M
+	      LEFT JOIN BASE_PERM B ON B.MENU_SEQ = M.MENU_SEQ
+	      LEFT JOIN USER_ALLOW A ON A.MENU_SEQ = M.MENU_SEQ
+	      LEFT JOIN USER_DENY  D ON D.MENU_SEQ = M.MENU_SEQ
+	     WHERE M.USE_YN = 'Y'
 	),
-	TREE_MENU AS (
+	DENY_TREE AS (
+	    -- DENY 메뉴의 하위 전체(네비게이션 차단 범위)
+	    SELECT M.MENU_SEQ
+	      FROM ADM_MENU_MST M
+	     WHERE M.USE_YN = 'Y'
+	     START WITH M.MENU_SEQ IN (SELECT MENU_SEQ FROM USER_DENY)
+	     CONNECT BY PRIOR M.MENU_SEQ = M.UP_MENU_SEQ
+	),
+	ALLOWED_LEAF AS (
+	    -- 접근 가능 메뉴(DENY 하위 제외)
+	    SELECT FS.MENU_SEQ,
+	           FS.FINAL_PERM_LVL
+	      FROM FINAL_SELF FS
+	     WHERE FS.FINAL_PERM_LVL > 0
+	       AND FS.MENU_SEQ NOT IN (SELECT MENU_SEQ FROM DENY_TREE)
+	),
+	ALLOWED_WITH_PARENTS AS (
+	    -- 접근 가능 메뉴의 조상 포함(DENY 하위 제외)
 	    SELECT DISTINCT M.MENU_SEQ
-	    FROM ADM_MENU_MST M
-	    START WITH M.MENU_SEQ IN (SELECT MENU_SEQ FROM ALLOW_MENU)
-	    CONNECT BY PRIOR M.UP_MENU_SEQ = M.MENU_SEQ
+	      FROM ADM_MENU_MST M
+	     WHERE M.USE_YN = 'Y'
+	     START WITH M.MENU_SEQ IN (SELECT MENU_SEQ FROM ALLOWED_LEAF)
+	     CONNECT BY PRIOR M.UP_MENU_SEQ = M.MENU_SEQ
+	),
+	INCLUDED_MENU AS (
+	    SELECT AWP.MENU_SEQ
+	      FROM ALLOWED_WITH_PARENTS AWP
+	     WHERE AWP.MENU_SEQ NOT IN (SELECT MENU_SEQ FROM DENY_TREE)
 	)
 	SELECT
-	    M.MENU_SEQ,
-	    M.UP_MENU_SEQ,
-	    M.MENU_NM,
-	    M.MENU_URL,
-	    NVL(M.SORT_ORD, 0) AS SORT_ORD,
-	    NVL(A.PERM_LVL, 0) AS PERM_LVL,
-	    M.MENU_TYPE_CD,
-	    M.ICON_CLASS
-	FROM ADM_MENU_MST M
-	JOIN TREE_MENU T ON T.MENU_SEQ = M.MENU_SEQ
-	LEFT JOIN ALLOW_MENU A ON A.MENU_SEQ = M.MENU_SEQ
-	WHERE NVL(M.USE_YN, 'Y') = 'Y'
-	ORDER BY NVL(M.SORT_ORD, 0), M.MENU_SEQ
+	    M.MENU_SEQ      AS MENU_SEQ,
+	    M.MENU_NM       AS MENU_NM,
+	    M.MENU_URL      AS MENU_URL,
+	    M.UP_MENU_SEQ   AS UP_MENU_SEQ,
+	    M.SORT_ORD      AS SORT_NO,
+	
+	    -- 최종 PERM: 자기 자신 권한이 있으면 그대로, 부모 자동 포함은 최소 1
+	    CASE
+	        WHEN NVL(FS.FINAL_PERM_LVL, 0) > 0 THEN FS.FINAL_PERM_LVL
+	        ELSE 1
+	    END AS PERM_LVL
+	  FROM ADM_MENU_MST M
+	  JOIN INCLUDED_MENU IM
+	    ON IM.MENU_SEQ = M.MENU_SEQ
+	  LEFT JOIN FINAL_SELF FS
+	    ON FS.MENU_SEQ = M.MENU_SEQ
+	 ORDER BY M.SORT_ORD, M.MENU_SEQ
   </select>
   
 	<select id="selectMenuListAll" resultType="map">
@@ -82,6 +125,71 @@
 	    WHERE NVL(USE_YN, 'Y') = 'Y'
 	    ORDER BY NVL(SORT_ORD, 0), MENU_SEQ
 	</select>
-
+	
+	<select id="selectMenuDetail" parameterType="long" resultType="map">
+		SELECT
+		    MENU_SEQ    AS menu_seq,
+		    UP_MENU_SEQ AS up_menu_seq,
+		    MENU_NM     AS menu_nm,
+		    MENU_URL    AS menu_url,
+		    MENU_TYPE_CD AS menu_type_cd,
+		    ICON_CLASS  AS icon_class,
+		    SORT_ORD    AS sort_no,
+		    USE_YN      AS use_yn
+		FROM ADM_MENU_MST
+		WHERE MENU_SEQ = #{menuSeq}
+	</select>
+	
+	<insert id="insertMenu" parameterType="map">
+	    <selectKey keyProperty="menu_seq" resultType="long" order="BEFORE">
+	        SELECT ADM_MENU_MST_SEQ.NEXTVAL FROM DUAL
+	    </selectKey>
+	    INSERT INTO ADM_MENU_MST (
+	        MENU_SEQ, UP_MENU_SEQ, MENU_NM, MENU_URL, MENU_TYPE_CD, ICON_CLASS,
+	        SORT_ORD, USE_YN, CREATED_AT, CREATED_BY, UPDATED_AT, UPDATED_BY
+	    ) VALUES (
+	        #{menu_seq},
+	        #{up_menu_seq},
+	        #{menu_nm},
+	        #{menu_url},
+	        #{menu_type_cd},
+	        #{icon_class},
+	        NVL(#{sort_ord}, 0),
+	        NVL(#{use_yn}, 'Y'),
+	        SYSTIMESTAMP,
+	        #{created_by},
+	        NULL,
+	        NULL
+	    )
+	</insert>
+	
+	<update id="updateMenu" parameterType="map">
+	    UPDATE ADM_MENU_MST
+	       SET UP_MENU_SEQ  = #{up_menu_seq},
+	           MENU_NM      = #{menu_nm},
+	           MENU_URL     = #{menu_url},
+	           MENU_TYPE_CD = #{menu_type_cd},
+	           ICON_CLASS   = #{icon_class},
+	           SORT_ORD     = NVL(#{sort_ord}, 0),
+	           USE_YN       = NVL(#{use_yn}, 'Y'),
+	           UPDATED_AT   = SYSTIMESTAMP,
+	           UPDATED_BY   = #{updated_by}
+	     WHERE MENU_SEQ = #{menu_seq}
+	</update>
+	
+	<select id="countChildMenu" parameterType="long" resultType="int">
+	    SELECT COUNT(1)
+	      FROM ADM_MENU_MST
+	     WHERE UP_MENU_SEQ = #{menuSeq}
+	       AND USE_YN = 'Y'
+	</select>
+	
+	<update id="deleteMenu" parameterType="map">
+	    UPDATE ADM_MENU_MST
+	       SET USE_YN = 'N',
+	           UPDATED_AT = SYSTIMESTAMP,
+	           UPDATED_BY = #{updated_by}
+	     WHERE MENU_SEQ = #{menu_seq}
+	</update>
 
 </mapper>

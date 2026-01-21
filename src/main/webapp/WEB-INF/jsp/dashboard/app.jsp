@@ -6,6 +6,7 @@
 <head>
     <meta charset="UTF-8"/>
     <title>jsAdmin</title>
+    <link rel="stylesheet" href="/static/css/common.css">
 </head>
 <script>
 (function () {

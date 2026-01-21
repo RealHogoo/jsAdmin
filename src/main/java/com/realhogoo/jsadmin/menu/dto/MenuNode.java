@@ -9,6 +9,8 @@ public class MenuNode {
     private String menuUrl;      // 예: "/health.do"
     private Long upMenuSeq;      // 부모 메뉴
     private Integer sortNo;      // 정렬
+    private Integer permLvl;
+    
     private List<MenuNode> children = new ArrayList<>();
 
     public Long getMenuSeq() { return menuSeq; }
@@ -26,6 +28,9 @@ public class MenuNode {
     public Integer getSortNo() { return sortNo; }
     public void setSortNo(Integer sortNo) { this.sortNo = sortNo; }
 
+    public Integer getPermLvl() { return permLvl; }
+    public void setPermLvl(Integer permLvl) { this.permLvl = permLvl; }
+    
     public List<MenuNode> getChildren() { return children; }
     public void setChildren(List<MenuNode> children) { this.children = children; }
 }

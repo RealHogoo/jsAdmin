@@ -1,0 +1,45 @@
+/* common-buttons.css */
+
+.btns {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* 공통 버튼 룩앤필 */
+.btns .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 6px 10px;
+    border: 1px solid #cfcfcf;
+    border-radius: 6px;
+
+    text-decoration: none;
+    cursor: pointer;
+    user-select: none;
+
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* hover/focus */
+.btns .btn:hover {
+    filter: brightness(0.98);
+}
+
+.btns .btn:focus {
+    outline: 2px solid rgba(0, 0, 0, 0.2);
+    outline-offset: 2px;
+}
+
+/* 권한 부족/비활성 상태: applyPerm에서 data-disabled 또는 aria-disabled로 처리 */
+.btns .btn[aria-disabled="true"],
+.btns .btn.is-disabled,
+.btns .btn[data-disabled="true"] {
+    opacity: 0.45;
+    pointer-events: none; /* 클릭 완전 차단 */
+    cursor: default;
+}

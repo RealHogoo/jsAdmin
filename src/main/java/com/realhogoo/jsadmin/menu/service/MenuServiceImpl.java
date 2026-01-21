@@ -28,6 +28,8 @@ public class MenuServiceImpl implements MenuService {
             n.setMenuUrl((String) r.get("menu_url"));
             n.setUpMenuSeq(toLongNullable(r.get("up_menu_seq")));
             n.setSortNo(toInt(r.get("sort_no")));
+            n.setPermLvl(toInt(r.get("perm_lvl")));
+            
             map.put(n.getMenuSeq(), n);
         }
 
@@ -46,6 +48,11 @@ public class MenuServiceImpl implements MenuService {
         sortTree(roots);
         return roots;
     }
+    
+    @Override
+    public List<Map<String, Object>> selectMenuListAll() {
+        return menuMapper.selectMenuListAll();
+    }
 
     private void sortTree(List<MenuNode> nodes) {
         nodes.sort(Comparator
@@ -57,7 +64,54 @@ public class MenuServiceImpl implements MenuService {
             }
         }
     }
+    @Override
+    public Map<String, Object> selectMenuDetail(Long menuSeq) {
+        return menuMapper.selectMenuDetail(menuSeq);
+    }
 
+    @Override
+    public Long saveMenu(Map<String, Object> param, String userId) {
+        if (param == null) throw new IllegalArgumentException("param is null");
+
+        // snake_case 유지 전제
+        Object menuSeqObj = param.get("menu_seq");
+        Long menuSeq = menuSeqObj == null ? null : Long.valueOf(String.valueOf(menuSeqObj));
+
+        param.put("updated_by", userId);
+        if (menuSeq == null) {
+            param.put("created_by", userId);
+            menuMapper.insertMenu(param); // selectKey로 menu_seq 세팅
+            Object newSeq = param.get("menu_seq");
+            return newSeq == null ? null : Long.valueOf(String.valueOf(newSeq));
+        }
+
+        menuMapper.updateMenu(param);
+        return menuSeq;
+    }
+
+    @Override
+    public int deleteMenu(Long menuSeq, String userId) {
+        int childCnt = menuMapper.countChildMenu(menuSeq);
+        if (childCnt > 0) {
+            throw new IllegalStateException("하위 메뉴가 존재하여 삭제할 수 없습니다.");
+        }
+        
+        Map<String, Object> p = new HashMap<>();
+        p.put("menu_seq", menuSeq);
+        p.put("updated_by", userId);
+        return menuMapper.deleteMenu(p); // soft delete
+    }
+
+    private void normalizeNullable(Map<String, Object> param, String key) {
+        Object v = param.get(key);
+        if (v == null) {
+            return;
+        }
+        String s = String.valueOf(v).trim();
+        if (s.isEmpty() || "null".equalsIgnoreCase(s)) {
+            param.put(key, null);
+        }
+    }
     private Long toLong(Object v) {
         if (v instanceof Number) return ((Number) v).longValue();
         return Long.parseLong(String.valueOf(v));
@@ -73,11 +127,6 @@ public class MenuServiceImpl implements MenuService {
         if (v == null) return 0;
         if (v instanceof Number) return ((Number) v).intValue();
         return Integer.parseInt(String.valueOf(v));
-    }
-    
-    @Override
-    public List<Map<String, Object>> selectMenuListAll() {
-        return menuMapper.selectMenuListAll();
     }
 
 }

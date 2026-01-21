@@ -27,22 +27,21 @@
     }
 
     function toFormBody(data) {
-        var params = new URLSearchParams();
-        if (!data) return params.toString();
-
-        Object.keys(data).forEach(function (k) {
-            var v = data[k];
-
-            // 폼 전송 일관성: undefined는 제외, null은 제외(서버에서 null은 "파라미터 없음"으로 취급)
-            if (v === undefined) return;
-
-            v = NORM(v);
-            if (v === null) return;
-
-            params.append(k, String(v));
-        });
-
-        return params.toString();
+	    // form 전송과 동일 정책: undefined 제외, NORM 적용 후 null 제외
+	    var obj = {};
+	    if (!data) return "{}";
+	
+	    Object.keys(data).forEach(function (k) {
+	        var v = data[k];
+	        if (v === undefined) return;
+	
+	        v = NORM(v);
+	        if (v === null) return;
+	
+	        obj[k] = v;
+	    });
+	
+	    return JSON.stringify(obj);
     }
 
     async function postText(url, data) {
@@ -129,7 +128,7 @@
 	        throw new Error("call(url): url must end with .json (got: " + url + ")");
 	    }
 		var headers = {
-		    "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+        	"Content-Type": "application/json; charset=UTF-8",
 		    "Accept": "application/json"
 		};
 
