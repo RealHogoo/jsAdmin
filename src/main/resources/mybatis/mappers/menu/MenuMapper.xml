@@ -112,18 +112,27 @@
   </select>
   
 	<select id="selectMenuListAll" resultType="map">
-	    SELECT
-	        MENU_SEQ,
-	        UP_MENU_SEQ,
-	        MENU_NM,
-	        MENU_URL,
-	        MENU_TYPE_CD,
-	        ICON_CLASS,
-	        NVL(SORT_ORD, 0) AS SORT_ORD,
-        NVL(USE_YN, 'Y') AS USE_YN
-	    FROM ADM_MENU_MST
-	    WHERE NVL(USE_YN, 'Y') = 'Y'
-	    ORDER BY NVL(SORT_ORD, 0), MENU_SEQ
+		SELECT
+		    M.MENU_SEQ,
+		    M.UP_MENU_SEQ,
+		    M.MENU_NM,
+		    M.MENU_URL,
+		    M.MENU_TYPE_CD,
+		    M.ICON_CLASS,
+		    M.SORT_ORD,
+		    M.USE_YN,
+		    LEVEL AS TREE_LVL
+		FROM ADM_MENU_MST M
+		WHERE M.USE_YN = 'Y'
+		START WITH M.UP_MENU_SEQ IS NULL
+		   OR NOT EXISTS (
+		        SELECT 1
+		          FROM ADM_MENU_MST P
+		         WHERE P.MENU_SEQ = M.UP_MENU_SEQ
+		           AND P.USE_YN = 'Y'
+		   )
+		CONNECT BY PRIOR M.MENU_SEQ = M.UP_MENU_SEQ
+		ORDER SIBLINGS BY M.SORT_ORD, M.MENU_SEQ
 	</select>
 	
 	<select id="selectMenuDetail" parameterType="long" resultType="map">
