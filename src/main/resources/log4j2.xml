@@ -32,8 +32,12 @@
             <AppenderRef ref="RollingFile"/>
         </Logger>
 
-        <!-- MyBatis SQL 보고 싶으면 TRACE/DEBUG 조절 -->
-        <Logger name="org.mybatis" level="info" additivity="false">
+        <!-- MyBatis SQL/파라미터 로그 확인용 -->
+        <Logger name="org.mybatis" level="debug" additivity="false">
+            <AppenderRef ref="Console"/>
+            <AppenderRef ref="RollingFile"/>
+        </Logger>
+        <Logger name="org.apache.ibatis" level="debug" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="RollingFile"/>
         </Logger>

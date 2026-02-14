@@ -83,7 +83,13 @@
         try {
             // ★ 중요: jsAdminSpa.call()은 표준응답 envelope가 아니라 data만 반환한다(app.js 기준)
             var tree = await global.jsAdminSpa.call("/menu/tree.json", {});
-            if (!Array.isArray(tree)) tree = [];
+            // 401 등으로 call()이 null을 반환한 경우:
+            // 빈 메뉴를 "성공"으로 확정하면 로그인 후에도 재시도가 막힐 수 있음
+            if (!Array.isArray(tree)) {
+                loadedOnce = false;
+                clearMenu(container);
+                return;
+            }
 
             // 컨테이너가 ul이면 li만 넣어야 함
             if (container.tagName && container.tagName.toLowerCase() === "ul") {
@@ -130,6 +136,17 @@
     function init() {
         loadMenuTree();          // 토큰 이미 있으면 즉시 1회 호출
         bootstrapAfterLogin();   // 로그인 후 토큰 생기면 1회 호출
+        
+        // 로그인/로그아웃 시점에 메뉴를 즉시 동기화
+        document.addEventListener("jsadmin:authChanged", function () {
+            loadedOnce = false;
+            loadMenuTree();
+        });
+
+        // 화면 전환 후에도 사이드바 컨테이너가 다시 그려질 수 있어 재확인
+        document.addEventListener("jsadmin:pageLoaded", function () {
+            if (!loadedOnce) loadMenuTree();
+        });
     }
 
     if (document.readyState === "loading") {
