@@ -40,4 +40,28 @@ public class AdminAuthServiceImpl implements AdminAuthService {
         // 정상
         return user;
     }
+    
+    @Service("adminAuthService")
+    public class AdminAuthServiceImpl implements AdminAuthService {
+
+        @Resource(name = "adminAuthDAO")
+        private AdminAuthDAO adminAuthDAO;
+
+        @Override
+        public AdminUserVO login(String loginId, String password) throws Exception {
+            // 기존 로그인 로직 그대로 사용 (id/pw 확인)
+            ...
+        }
+
+        @Override
+        public List<String> getUserRoleCodes(Long userId) throws Exception {
+            return adminAuthDAO.selectUserRoleCodes(userId);
+        }
+
+        @Override
+        public List<AdminMenuVO> getUserMenuList(Long userId) throws Exception {
+            return adminAuthDAO.selectUserMenuList(userId);
+        }
+    }
+
 }

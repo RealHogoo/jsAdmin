@@ -2,6 +2,7 @@ package msa.admin.auth.web;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.annotation.Resource;
@@ -26,6 +27,8 @@ public class LoginController {
     private static final Logger LOGGER = LoggerFactory.getLogger(LoginController.class);
 
     public static final String SESSION_KEY_LOGIN_USER = "LOGIN_USER";
+    public static final String SESSION_KEY_LOGIN_USER_ROLES = "LOGIN_USER_ROLES";
+    public static final String SESSION_KEY_LOGIN_USER_MENUS = "LOGIN_USER_MENUS";
 
     @Resource(name = "adminAuthService")
     private AdminAuthService adminAuthService;
@@ -53,38 +56,43 @@ public class LoginController {
     @RequestMapping(value = "/login.json", method = RequestMethod.POST)
     @ResponseBody
     public Map<String, Object> login(HttpServletRequest request) {
+        Map<String, Object> result = new HashMap<>();
+        Map<String, Object> data   = new HashMap<>();
 
         String loginId  = request.getParameter("loginId");
         String password = request.getParameter("password");
-
-        Map<String, Object> result = new HashMap<String, Object>();
-        Map<String, Object> data   = new HashMap<String, Object>();
 
         try {
             AdminUserVO loginUser = adminAuthService.login(loginId, password);
 
             if (loginUser == null) {
-                // 실패
                 result.put("success", Boolean.FALSE);
                 result.put("message", "아이디 또는 비밀번호가 올바르지 않습니다.");
                 result.put("data", null);
                 return result;
             }
 
-            // 성공 → 세션 저장
+            // --- 여기부터 추가: ROLE / MENU 조회 ---
+            String userId = loginUser.getUserId();
+
+            List<String> roleList = adminAuthService.getUserRoleCodes(userId);
+            List<AdminMenuVO> menuList = adminAuthService.getUserMenuList(userId);
+
             HttpSession session = request.getSession(true);
-            session.setAttribute(SESSION_KEY_LOGIN_USER, loginUser);
+            session.setAttribute(SESSION_KEY_LOGIN_USER,       loginUser);
+            session.setAttribute(SESSION_KEY_LOGIN_USER_ROLES, roleList);
+            session.setAttribute(SESSION_KEY_LOGIN_USER_MENUS, menuList);
+            // --- 추가 끝 ---
 
             data.put("loginId", loginUser.getLoginId());
             data.put("userNm",  loginUser.getUserNm());
-            data.put("roles",   Collections.emptyList()); // 추후 권한 연동
+            data.put("roles",   roleList); // 프론트에서 쓰고 싶으면 포함
 
             result.put("success", Boolean.TRUE);
             result.put("message", "");
             result.put("data", data);
 
         } catch (Exception e) {
-            LOGGER.error("로그인 처리 중 예외", e);
             result.put("success", Boolean.FALSE);
             result.put("message", "로그인 처리 중 오류가 발생했습니다.");
             result.put("data", null);

@@ -17,4 +17,12 @@ public class AdminAuthDAO extends EgovAbstractMapper {
     public List<String> selectUserRoles(String userId) {
         return selectList("adminAuth.selectUserRoles", userId);
     }
+    public List<String> selectUserRoleCodes(Long userId) {
+        return selectList("adminAuth.selectUserRoleCodes", userId);
+    }
+
+    public List<AdminMenuVO> selectUserMenuList(Long userId) {
+        return selectList("adminAuth.selectUserMenuList", userId);
+    }
+
 }
