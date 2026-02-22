@@ -1,16 +1,26 @@
+<<<<<<< HEAD
 # Maven / Gradle build
 target/
+=======
+# Gradle
+.gradle/
+>>>>>>> origin/main
 build/
 
 # Eclipse
 .classpath
 .project
 .settings/
+<<<<<<< HEAD
 
 # IntelliJ
 .idea/
 *.iml
 out/
+=======
+bin/
+target/
+>>>>>>> origin/main
 
 # STS / Spring Tool Suite
 .springBeans
@@ -20,9 +30,25 @@ out/
 Thumbs.db
 
 # Logs
+<<<<<<< HEAD
 logs/
 *.log
 
 # Tomcat work/temp (필요시 경로 맞춰서)
 work/
 temp/
+=======
+*.log
+
+# Eclipse workspace (절대 커밋 금지)
+.metadata/
+
+# Eclipse project files (원하면 제외)
+.settings/
+bin/
+*.log
+
+# Tomcat work/temp (필요시 경로 맞게 수정)
+work/
+temp/
+>>>>>>> origin/main

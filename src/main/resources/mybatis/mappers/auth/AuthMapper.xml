@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.auth.mapper.AuthMapper">
+ 
+    <!-- =========================
+         TAB A: 그룹-메뉴 권한
+         ========================= -->
+
+    <!-- 권한그룹 목록 (ADM_AUTH_GROUP) -->
+    <select id="selectAuthGroupList" parameterType="map" resultType="map">
+        SELECT
+            ag.auth_group_seq,
+            ag.auth_group_cd,
+            ag.auth_group_nm,
+            ag.auth_group_desc,
+            ag.use_yn
+        FROM adm_auth_group ag
+        WHERE 1=1
+        <if test="keyword != null and keyword != ''">
+            AND (
+                ag.auth_group_nm LIKE '%' || #{keyword} || '%'
+                OR ag.auth_group_cd LIKE '%' || #{keyword} || '%'
+            )
+        </if>
+        ORDER BY ag.auth_group_seq
+    </select>
+
+    <!-- 그룹별 메뉴 권한 (계층형 쿼리 결과 = 평면 + tree_lvl) -->
+    <select id="selectGroupMenuPermList" parameterType="long" resultType="map">
+        SELECT
+            m.menu_seq,
+            m.up_menu_seq,
+            m.menu_nm,
+            m.menu_url,
+            m.menu_type_cd,
+            m.icon_class,
+            m.sort_ord,
+            m.use_yn,
+            LEVEL AS tree_lvl,
+
+            /* 그룹-메뉴 매핑 상태 */
+            NVL(aam.perm_lvl, 0) AS perm_lvl,
+            NVL(aam.use_yn, 'N') AS map_use_yn
+        FROM adm_menu_mst m
+        LEFT JOIN adm_auth_menu aam
+            ON aam.auth_group_seq = #{authGroupSeq}
+           AND aam.menu_seq = m.menu_seq
+        START WITH m.up_menu_seq IS NULL
+        CONNECT BY PRIOR m.menu_seq = m.up_menu_seq
+        ORDER SIBLINGS BY m.sort_ord, m.menu_seq
+    </select>
+
+    <!-- 해당 그룹의 기존 권한 전부 USE_YN='N' -->
+    <update id="disableAllGroupMenuPerm" parameterType="map">
+        UPDATE adm_auth_menu
+           SET use_yn     = 'N',
+               updated_at = SYSTIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE auth_group_seq = #{auth_group_seq}
+    </update>
+
+    <!-- 그룹-메뉴 권한 UPSERT -->
+    <update id="mergeGroupMenuPerm" parameterType="map">
+        MERGE INTO adm_auth_menu t
+        USING (
+            SELECT
+                #{auth_group_seq} AS auth_group_seq,
+                #{menu_seq}       AS menu_seq
+            FROM dual
+        ) s
+        ON (
+            t.auth_group_seq = s.auth_group_seq
+            AND t.menu_seq   = s.menu_seq
+        )
+        WHEN MATCHED THEN
+            UPDATE SET
+                t.perm_lvl   = #{perm_lvl},
+                t.use_yn     = #{use_yn},
+                t.updated_at = SYSTIMESTAMP,
+                t.updated_by = #{updated_by}
+        WHEN NOT MATCHED THEN
+            INSERT (
+                auth_group_seq,
+                menu_seq,
+                perm_lvl,
+                use_yn,
+                created_at,
+                created_by,
+                updated_at,
+                updated_by
+            ) VALUES (
+                #{auth_group_seq},
+                #{menu_seq},
+                #{perm_lvl},
+                #{use_yn},
+                SYSTIMESTAMP,
+                #{created_by},
+                SYSTIMESTAMP,
+                #{updated_by}
+            )
+    </update>
+    
+  <resultMap id="LoginUserMap" type="com.realhogoo.jsadmin.auth.dto.LoginUser">
+    <result property="userId" column="LOGIN_ID"/>
+    <result property="userPw" column="PWD_HASH"/>
+    <!-- roles는 별도 select로 가져오는 게 정석이지만, 최소 단계에서는 컬렉션 매핑 생략하고 서비스에서 2번 조회해도 됨 -->
+  </resultMap>
+
+  <select id="selectUserForLogin" resultMap="LoginUserMap">
+    SELECT LOGIN_ID, PWD_HASH
+      FROM ADM_USER_MST
+     WHERE LOGIN_ID = #{user_id}
+       AND USE_YN = 'Y'
+  </select>
+
+</mapper>

@@ -1,0 +1,178 @@
+ /* common-buttons.css */
+ 
+body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", Arial, sans-serif;
+    color: #1f2937;
+    background: #f8fafc;
+}
+
+.page-root {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.page-title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.btns {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.toolbar {
+    justify-content: flex-start;
+}
+
+.toolbar .meta {
+    margin-left: auto;
+    font-size: 13px;
+    color: #4b5563;
+}
+
+/* 공통 버튼 룩앤필 */
+.btns .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 6px 10px;
+    border: 1px solid #cfcfcf;
+    border-radius: 6px;
+    background: #fff;
+    color: #111827;
+
+    text-decoration: none;
+    cursor: pointer;
+    user-select: none;
+
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* hover/focus */
+.btns .btn:hover {
+    filter: brightness(0.98);
+}
+
+.btns .btn:focus {
+    outline: 2px solid rgba(0, 0, 0, 0.2);
+    outline-offset: 2px;
+}
+
+/* 권한 부족/비활성 상태: applyPerm에서 data-disabled 또는 aria-disabled로 처리 */
+.btns .btn[aria-disabled="true"],
+.btns .btn.is-disabled,
+.btns .btn[data-disabled="true"] {
+    opacity: 0.45;
+    pointer-events: none; /* 클릭 완전 차단 */
+    cursor: default;
+}
+
+.tabs {
+    display: flex;
+    gap: 8px;
+    border-bottom: 1px solid #d1d5db;
+    padding-bottom: 8px;
+}
+
+.tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #d1d5db;
+    border-radius: 999px;
+    padding: 6px 12px;
+    color: #374151;
+    background: #fff;
+    text-decoration: none;
+}
+
+.tab.is-active {
+    background: #2563eb;
+    border-color: #2563eb;
+    color: #fff;
+    font-weight: 600;
+}
+
+.grid-2col {
+    display: grid;
+    grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+    gap: 12px;
+}
+
+.panel {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    padding: 10px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.panel-title {
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.tbl {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.tbl th,
+.tbl td {
+    border: 1px solid #e5e7eb;
+    padding: 8px;
+    text-align: left;
+    font-size: 13px;
+    vertical-align: middle;
+}
+
+.tbl thead th {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.tbl tbody tr:hover {
+    background: #f9fafb;
+}
+
+.tbl tbody tr.is-selected {
+    background: #eff6ff;
+}
+
+.tbl tbody tr.is-dirty {
+    box-shadow: inset 3px 0 0 #f59e0b;
+}
+
+.tbl select {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 5px 6px;
+    background: #fff;
+}
+
+.muted {
+    color: #6b7280;
+    font-size: 13px;
+}
+
+@media (max-width: 1024px) {
+    .toolbar .meta {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .grid-2col {
+        grid-template-columns: 1fr;
+    }
+}
