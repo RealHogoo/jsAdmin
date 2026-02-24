@@ -7,6 +7,7 @@
 
     var loadedOnce = false;
     var inFlight = false;
+    var activeSpaUrl = "";
 
     function esc(s) {
         return String(s == null ? "" : s).replace(/[&<>"']/g, function (m) {
@@ -62,6 +63,33 @@
         container.innerHTML = "";
     }
 
+    function normalizeSpaUrl(url) {
+        if (!url) return "";
+        var s = String(url).trim();
+        if (!s) return "";
+        var q = s.indexOf("?");
+        if (q >= 0) s = s.substring(0, q);
+        if (s.charAt(0) !== "/") s = "/" + s;
+        return s;
+    }
+
+    function markActive(url) {
+        activeSpaUrl = normalizeSpaUrl(url);
+        var links = document.querySelectorAll("#sidebarMenu a[data-spa]");
+        for (var i = 0; i < links.length; i++) {
+            var a = links[i];
+            var spa = normalizeSpaUrl(a.getAttribute("data-spa"));
+            var active = !!activeSpaUrl && spa === activeSpaUrl;
+            if (active) {
+                a.classList.add("is-active");
+                a.setAttribute("aria-current", "page");
+            } else {
+                a.classList.remove("is-active");
+                a.removeAttribute("aria-current");
+            }
+        }
+    }
+
     async function loadMenuTree() {
         var container = resolveContainer();
         if (!container) return;
@@ -97,6 +125,10 @@
                 container.innerHTML = tree.map(renderNode).join("");
             } else {
                 container.innerHTML = '<ul class="menu-root">' + tree.map(renderNode).join("") + "</ul>";
+            }
+
+            if (activeSpaUrl) {
+                markActive(activeSpaUrl);
             }
 
             loadedOnce = true;
@@ -146,6 +178,17 @@
         // 화면 전환 후에도 사이드바 컨테이너가 다시 그려질 수 있어 재확인
         document.addEventListener("jsadmin:pageLoaded", function () {
             if (!loadedOnce) loadMenuTree();
+        });
+
+        document.addEventListener("jsadmin:pageLoaded", function (e) {
+            var url = e && e.detail ? e.detail.url : "";
+            if (url) markActive(url);
+        });
+
+        document.addEventListener("click", function (e) {
+            var a = e.target && e.target.closest ? e.target.closest("#sidebarMenu a[data-spa]") : null;
+            if (!a) return;
+            markActive(a.getAttribute("data-spa"));
         });
     }
 

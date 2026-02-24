@@ -157,16 +157,16 @@
 	        MENU_SEQ, UP_MENU_SEQ, MENU_NM, MENU_URL, MENU_TYPE_CD, ICON_CLASS,
 	        SORT_ORD, USE_YN, CREATED_AT, CREATED_BY, UPDATED_AT, UPDATED_BY
 	    ) VALUES (
-	        #{menu_seq},
-	        #{up_menu_seq},
-	        #{menu_nm},
-	        #{menu_url},
-	        #{menu_type_cd},
-	        #{icon_class},
-	        NVL(#{sort_ord}, 0),
-	        NVL(#{use_yn}, 'Y'),
+	        #{menu_seq,jdbcType=NUMERIC},
+	        #{up_menu_seq,jdbcType=NUMERIC},
+	        #{menu_nm,jdbcType=VARCHAR},
+	        #{menu_url,jdbcType=VARCHAR},
+	        #{menu_type_cd,jdbcType=VARCHAR},
+	        #{icon_class,jdbcType=VARCHAR},
+	        NVL(#{sort_ord,jdbcType=NUMERIC}, 0),
+	        NVL(#{use_yn,jdbcType=VARCHAR}, 'Y'),
 	        SYSTIMESTAMP,
-	        #{created_by},
+	        #{created_by,jdbcType=VARCHAR},
 	        NULL,
 	        NULL
 	    )
@@ -174,16 +174,16 @@
 	
 	<update id="updateMenu" parameterType="map">
 	    UPDATE ADM_MENU_MST
-	       SET UP_MENU_SEQ  = #{up_menu_seq},
-	           MENU_NM      = #{menu_nm},
-	           MENU_URL     = #{menu_url},
-	           MENU_TYPE_CD = #{menu_type_cd},
-	           ICON_CLASS   = #{icon_class},
-	           SORT_ORD     = NVL(#{sort_ord}, 0),
-	           USE_YN       = NVL(#{use_yn}, 'Y'),
+	       SET UP_MENU_SEQ  = #{up_menu_seq,jdbcType=NUMERIC},
+	           MENU_NM      = #{menu_nm,jdbcType=VARCHAR},
+	           MENU_URL     = #{menu_url,jdbcType=VARCHAR},
+	           MENU_TYPE_CD = #{menu_type_cd,jdbcType=VARCHAR},
+	           ICON_CLASS   = #{icon_class,jdbcType=VARCHAR},
+	           SORT_ORD     = NVL(#{sort_ord,jdbcType=NUMERIC}, 0),
+	           USE_YN       = NVL(#{use_yn,jdbcType=VARCHAR}, 'Y'),
 	           UPDATED_AT   = SYSTIMESTAMP,
-	           UPDATED_BY   = #{updated_by}
-	     WHERE MENU_SEQ = #{menu_seq}
+	           UPDATED_BY   = #{updated_by,jdbcType=VARCHAR}
+	     WHERE MENU_SEQ = #{menu_seq,jdbcType=NUMERIC}
 	</update>
 	
 	<select id="countChildMenu" parameterType="long" resultType="int">

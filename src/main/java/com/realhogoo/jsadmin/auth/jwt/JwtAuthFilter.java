@@ -1,5 +1,3 @@
-// 파일: src/main/java/com/realhogoo/jsadmin/auth/jwt/JwtAuthFilter.java
-
 package com.realhogoo.jsadmin.auth.jwt;
 
 import com.auth0.jwt.exceptions.JWTVerificationException;
@@ -7,15 +5,25 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.realhogoo.jsadmin.api.ApiCode;
 import com.realhogoo.jsadmin.api.ApiResponse;
-
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.context.support.WebApplicationContextUtils;
+import org.springframework.web.servlet.FrameworkServlet;
 
-import javax.servlet.*;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class JwtAuthFilter implements Filter {
 
@@ -26,13 +34,12 @@ public class JwtAuthFilter implements Filter {
 
     private final ObjectMapper om = new ObjectMapper();
     private JwtProvider jwtProvider;
+    private ServletContext servletContext;
 
     @Override
     public void init(FilterConfig filterConfig) {
-        // root-context.xml + ContextLoaderListener 구조이므로 여기서 Bean을 꺼내는 방식이 정석
-        WebApplicationContext ctx =
-            WebApplicationContextUtils.getRequiredWebApplicationContext(filterConfig.getServletContext());
-        this.jwtProvider = ctx.getBean(JwtProvider.class);
+        this.servletContext = filterConfig.getServletContext();
+        this.jwtProvider = resolveJwtProvider();
     }
 
     @Override
@@ -42,21 +49,17 @@ public class JwtAuthFilter implements Filter {
         HttpServletRequest req = (HttpServletRequest) request;
         HttpServletResponse resp = (HttpServletResponse) response;
 
-        // POST 고정 규칙
         if (!"POST".equalsIgnoreCase(req.getMethod())) {
             writeJson(resp, 405, ApiResponse.fail(ApiCode.METHOD_NOT_ALLOWED, "POST only", getTraceId(req)));
             return;
         }
 
         String path = getPath(req);
-
-        // permit 통과
         if (PERMIT.contains(path)) {
             chain.doFilter(request, response);
             return;
         }
 
-        // Authorization 검사
         String auth = req.getHeader("Authorization");
         if (auth == null || auth.isBlank() || !auth.startsWith("Bearer ")) {
             writeUnauthorized(req, resp);
@@ -70,23 +73,24 @@ public class JwtAuthFilter implements Filter {
         }
 
         try {
-            // Auth0 verifier가 서명/issuer/exp까지 검증 (만료면 예외 발생)
-            DecodedJWT jwt = jwtProvider.verify(token);
-
-            // createToken()에서 userId는 subject에 들어감
+            JwtProvider provider = (jwtProvider != null) ? jwtProvider : resolveJwtProvider();
+            if (provider == null) {
+                writeJson(resp, 500, ApiResponse.fail(ApiCode.SERVER_ERROR, "auth provider not ready", getTraceId(req)));
+                return;
+            }
+            DecodedJWT jwt = provider.verify(token);
             String userId = jwt.getSubject();
 
-            // roles claim은 List<String>
             List<String> roles = jwt.getClaim("roles").asList(String.class);
-            if (roles == null) roles = Collections.emptyList();
+            if (roles == null) {
+                roles = Collections.emptyList();
+            }
 
             req.setAttribute("user_id", userId);
             req.setAttribute("roles", roles);
 
             chain.doFilter(request, response);
-
         } catch (JWTVerificationException e) {
-            // 서명 오류/만료 등
             writeUnauthorized(req, resp);
         } catch (Exception e) {
             writeUnauthorized(req, resp);
@@ -94,7 +98,30 @@ public class JwtAuthFilter implements Filter {
     }
 
     @Override
-    public void destroy() {}
+    public void destroy() {
+    }
+
+    private JwtProvider resolveJwtProvider() {
+        if (servletContext == null) {
+            return null;
+        }
+        WebApplicationContext ctx = WebApplicationContextUtils.getWebApplicationContext(servletContext);
+        if (ctx == null) {
+            Object dispatcherCtx = servletContext.getAttribute(FrameworkServlet.SERVLET_CONTEXT_PREFIX + "dispatcher");
+            if (dispatcherCtx instanceof WebApplicationContext) {
+                ctx = (WebApplicationContext) dispatcherCtx;
+            }
+        }
+        if (ctx == null) {
+            return null;
+        }
+        try {
+            jwtProvider = ctx.getBean(JwtProvider.class);
+            return jwtProvider;
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     private void writeUnauthorized(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         writeJson(resp, 401, ApiResponse.fail(ApiCode.UNAUTHORIZED, "login required", getTraceId(req)));
@@ -114,10 +141,13 @@ public class JwtAuthFilter implements Filter {
     }
 
     private String getTraceId(HttpServletRequest req) {
-        // TraceIdFilter.java가 현재 "trace_id"로 세팅 중
         Object v = req.getAttribute("trace_id");
-        if (v == null) v = req.getHeader("X-Trace-Id");
-        if (v == null) v = req.getHeader("X-Request-Id");
+        if (v == null) {
+            v = req.getHeader("X-Trace-Id");
+        }
+        if (v == null) {
+            v = req.getHeader("X-Request-Id");
+        }
         return v != null ? String.valueOf(v) : java.util.UUID.randomUUID().toString();
     }
 }

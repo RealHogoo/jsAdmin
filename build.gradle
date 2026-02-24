@@ -2,6 +2,8 @@ plugins {
     id "java"
     id "war"
     id "eclipse-wtp"
+    id "org.springframework.boot" version "2.7.18"
+    id "io.spring.dependency-management" version "1.1.6"
 }
 
 group = "com.realhogoo"
@@ -13,6 +15,14 @@ java {
     }
 }
 
+sourceSets {
+    main {
+        java {
+            exclude "msa/**"
+        }
+    }
+}
+
 repositories {
     mavenCentral()
     maven {
@@ -21,6 +31,12 @@ repositories {
 }
 
 dependencies {
+    implementation("org.springframework.boot:spring-boot-starter") {
+        exclude group: "org.springframework.boot", module: "spring-boot-starter-logging"
+    }
+    implementation "org.springframework.boot:spring-boot-starter-tomcat"
+    implementation "org.apache.tomcat.embed:tomcat-embed-jasper"
+
     implementation("org.egovframe.rte:org.egovframe.rte.ptl.mvc:4.3.0") {
         exclude group: "javax.json.bind", module: "javax.json.bind-api"
     }
@@ -29,7 +45,7 @@ dependencies {
     implementation "org.egovframe.rte:org.egovframe.rte.fdl.property:4.3.0"
 
     // JSON은 Jackson으로 (대부분 Spring/WebMVC가 이미 끌고 오지만 확실히 하려면 명시)
-    implementation "com.fasterxml.jackson.core:jackson-databind:2.15.3"
+    implementation "com.fasterxml.jackson.core:jackson-databind:2.13.5"
     
     //JWT 라이브러리
     implementation "com.auth0:java-jwt:4.4.0"
@@ -65,7 +81,7 @@ dependencies {
     //compileOnly "javax.servlet:javax.servlet-api:4.0.1"
     
    // ★ SLF4J 2.x 브릿지 (중요)
-    runtimeOnly "org.apache.logging.log4j:log4j-slf4j2-impl:2.23.1"
+    runtimeOnly "org.apache.logging.log4j:log4j-slf4j-impl:2.23.1"
 	runtimeOnly "org.apache.logging.log4j:log4j-api:2.23.1"
 	runtimeOnly "org.apache.logging.log4j:log4j-core:2.23.1"
 	runtimeOnly "org.apache.logging.log4j:log4j-web:2.23.1"
@@ -73,10 +89,6 @@ dependencies {
     testImplementation "junit:junit:4.13.2"
 }
 // ★ 기존에 들어가 있던 1.7용 바인더는 제거/exclude 필요
-configurations.all {
-    exclude group: "org.apache.logging.log4j", module: "log4j-slf4j-impl"
-}
-
 tasks.withType(JavaCompile).configureEach {
     options.encoding = "UTF-8"
 }
@@ -87,4 +99,12 @@ tasks.named("wrapper") {
 
 war {
     archiveFileName = "jsAdmin.war"
+}
+
+bootJar {
+    enabled = false
+}
+
+bootWar {
+    enabled = true
 }

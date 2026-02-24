@@ -6,7 +6,11 @@ import com.realhogoo.jsadmin.auth.mapper.AuthMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service("authService")
 public class AuthServiceImpl implements AuthService {
@@ -19,10 +23,6 @@ public class AuthServiceImpl implements AuthService {
         this.jwtProvider = jwtProvider;
     }
 
-    /* =========================
-     * TAB A: 그룹-메뉴 권한
-     * ========================= */
-
     @Override
     public List<Map<String, Object>> getAuthGroupList(Map<String, Object> param) {
         if (param == null) param = new HashMap<>();
@@ -31,9 +31,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public List<Map<String, Object>> getGroupMenuPermList(Long authGroupSeq) {
-        if (authGroupSeq == null) {
-            return Collections.emptyList();
-        }
+        if (authGroupSeq == null) return Collections.emptyList();
         return authMapper.selectGroupMenuPermList(authGroupSeq);
     }
 
@@ -43,50 +41,47 @@ public class AuthServiceImpl implements AuthService {
         if (authGroupSeq == null) {
             throw new IllegalArgumentException("auth_group_seq is required");
         }
-
-        // 1) 일괄 비활성화
-        Map<String, Object> p = new HashMap<>();
-        p.put("auth_group_seq", authGroupSeq);
-        p.put("updated_by", actor);
-        authMapper.disableAllGroupMenuPerm(p);
-
-        // 2) 활성(Y) + perm>0 만 MERGE
-        if (items == null || items.isEmpty()) {
-            return 0;
+        if (items == null) {
+            throw new IllegalArgumentException("items is required");
         }
+        String safeActor = (actor == null || actor.trim().isEmpty()) ? "SYSTEM" : actor.trim();
 
         int saved = 0;
         for (Map<String, Object> it : items) {
             if (it == null) continue;
 
-            Long menuSeq = toLong(it.get("menu_seq"));
-            Integer permLvl = toInt(it.get("perm_lvl"));
-            String useYn = toStr(it.get("use_yn"), "Y");
+            Long menuSeq = toLong(firstNonNull(it, "menu_seq", "menuSeq"));
+            Integer permLvl = toInt(firstNonNull(it, "perm_lvl", "permLvl"));
+            String useYn = toStr(firstNonNull(it, "use_yn", "useYn"), "Y");
 
             if (menuSeq == null) continue;
 
-            // 저장 대상 필터
-            if (!"Y".equalsIgnoreCase(useYn)) continue;
-            if (permLvl == null || permLvl <= 0) continue;
+            if (!"Y".equalsIgnoreCase(useYn) || permLvl == null || permLvl <= 0) {
+                Map<String, Object> disableOne = new HashMap<>();
+                disableOne.put("auth_group_seq", authGroupSeq);
+                disableOne.put("menu_seq", menuSeq);
+                disableOne.put("updated_by", safeActor);
+                authMapper.disableGroupMenuPerm(disableOne);
+                continue;
+            }
 
-            Map<String, Object> m = new HashMap<>();
-            m.put("auth_group_seq", authGroupSeq);
-            m.put("menu_seq", menuSeq);
-            m.put("perm_lvl", permLvl);
-            m.put("use_yn", "Y");
-            m.put("updated_by", actor);
-            m.put("created_by", actor);
-
-            authMapper.mergeGroupMenuPerm(m);
-            saved++;
+            Map<String, Object> upsert = new HashMap<>();
+            upsert.put("auth_group_seq", authGroupSeq);
+            upsert.put("menu_seq", menuSeq);
+            upsert.put("perm_lvl", permLvl);
+            upsert.put("use_yn", "Y");
+            upsert.put("updated_by", safeActor);
+            upsert.put("created_by", safeActor);
+            int affected = authMapper.updateGroupMenuPerm(upsert);
+            if (affected == 0) {
+                affected = authMapper.insertGroupMenuPerm(upsert);
+            }
+            if (affected > 0) {
+                saved++;
+            }
         }
-
         return saved;
     }
-
-    /* =========================
-     * TAB B: 사용자 예외 (네 기존 구현 있으면 그대로 사용해도 됨)
-     * ========================= */
 
     @Override
     public List<Map<String, Object>> searchUsers(Map<String, Object> param) {
@@ -103,7 +98,6 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void saveUserExceptions(Long userSeq, List<Map<String, Object>> exceptions, String actor) {
-        // TAB B는 다음 단계에서 확정하자 (mapper/xml까지 같이 맞춰야 함)
         authMapper.saveUserExceptions(userSeq, exceptions, actor);
     }
 
@@ -111,6 +105,30 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public void deleteUserException(Long userSeq, Long menuSeq) {
         authMapper.deleteUserException(userSeq, menuSeq);
+    }
+
+    @Override
+    public Map<String, Object> login(String userId, String userPw) {
+        LoginUser u = authMapper.selectUserForLogin(userId);
+        if (u == null) {
+            return fail("LOGIN_FAIL", "사용자 정보가 올바르지 않습니다.");
+        }
+
+        if (u.getUserPw() == null || !u.getUserPw().equals(userPw)) {
+            return fail("LOGIN_FAIL", "사용자 정보가 올바르지 않습니다.");
+        }
+
+        List<String> roles = Arrays.asList("ROLE_ADMIN");
+        String token = jwtProvider.createToken(u.getUserId(), roles);
+
+        Map<String, Object> user = new HashMap<>();
+        user.put("user_id", u.getUserId());
+        user.put("roles", roles);
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("token", token);
+        data.put("user", user);
+        return ok(data);
     }
 
     private Long toLong(Object v) {
@@ -130,33 +148,13 @@ public class AuthServiceImpl implements AuthService {
         String s = String.valueOf(v).trim();
         return s.isEmpty() ? def : s;
     }
-    
-    @Override
-    public Map<String, Object> login(String userId, String userPw) {
-        LoginUser u = authMapper.selectUserForLogin(userId);
-        if (u == null) {
-            return fail("LOGIN_FAIL", "사용자 정보가 올바르지 않습니다.");
+
+    private Object firstNonNull(Map<String, Object> map, String... keys) {
+        for (String key : keys) {
+            Object v = map.get(key);
+            if (v != null) return v;
         }
-
-        // 최소 기능: 우선 평문 비교(운영에선 해시 필수)
-        if (u.getUserPw() == null || !u.getUserPw().equals(userPw)) {
-            return fail("LOGIN_FAIL", "사용자 정보가 올바르지 않습니다.");
-        }
-
-        // 권한: 최소 단계에서는 고정 or 추후 roles 조회 추가
-        List<String> roles = Arrays.asList("ROLE_ADMIN");
-
-        String token = jwtProvider.createToken(u.getUserId(), roles);
-
-        Map<String, Object> user = new HashMap<>();
-        user.put("user_id", u.getUserId());
-        user.put("roles", roles);
-
-        Map<String, Object> data = new HashMap<>();
-        data.put("token", token);
-        data.put("user", user);
-
-        return ok(data);
+        return null;
     }
 
     private Map<String, Object> ok(Object data) {
