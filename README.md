@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # MSA 관리자 서비스 (admin-service)
 
 Synology NAS 기반 MSA 프로젝트 중 **1번 관리자 서비스** 소스 코드 저장소.
@@ -44,8 +43,4 @@ src/main/webapp/WEB-INF/views
   ├─ auth                  # 로그인 화면 + auth.md
   ├─ main                  # 메인 화면 + main.md
   └─ admin-service.md      # 관리자 서비스 전체 개요
-=======
-# jsAdmin
-
-eGovFrame 4.3 + JSP(SPA) + Gradle 기반 관리자 서비스
->>>>>>> origin/main
+```
