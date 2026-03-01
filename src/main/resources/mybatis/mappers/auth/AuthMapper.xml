@@ -34,7 +34,10 @@
             m.sort_ord,
             m.use_yn,
             LEVEL AS tree_lvl,
-            NVL(aam.perm_lvl, 0) AS perm_lvl,
+            CASE
+                WHEN NVL(aam.use_yn, 'N') = 'Y' THEN NVL(aam.perm_lvl, 0)
+                ELSE 0
+            END AS perm_lvl,
             NVL(aam.use_yn, 'N') AS map_use_yn
         FROM adm_menu_mst m
         LEFT JOIN adm_auth_menu aam
@@ -55,7 +58,8 @@
 
     <update id="disableGroupMenuPerm" parameterType="map">
         UPDATE adm_auth_menu
-           SET use_yn     = 'N',
+           SET perm_lvl   = 0,
+               use_yn     = 'N',
                updated_at = SYSTIMESTAMP,
                updated_by = #{updated_by}
          WHERE auth_group_seq = #{auth_group_seq}
@@ -93,6 +97,51 @@
             #{updated_by}
         )
     </insert>
+
+    <update id="upsertGroupMenuPerm" parameterType="map">
+        MERGE INTO adm_auth_menu t
+        USING (
+            SELECT
+                #{auth_group_seq} AS auth_group_seq,
+                #{menu_seq} AS menu_seq,
+                #{perm_lvl} AS perm_lvl,
+                #{use_yn} AS use_yn,
+                #{created_by} AS created_by,
+                #{updated_by} AS updated_by
+            FROM dual
+        ) s
+        ON (
+            t.auth_group_seq = s.auth_group_seq
+            AND t.menu_seq = s.menu_seq
+        )
+        WHEN MATCHED THEN
+            UPDATE SET
+                t.perm_lvl = s.perm_lvl,
+                t.use_yn = s.use_yn,
+                t.updated_at = SYSTIMESTAMP,
+                t.updated_by = s.updated_by
+        WHEN NOT MATCHED THEN
+            INSERT (
+                auth_group_seq,
+                menu_seq,
+                perm_lvl,
+                use_yn,
+                created_at,
+                created_by,
+                updated_at,
+                updated_by
+            )
+            VALUES (
+                s.auth_group_seq,
+                s.menu_seq,
+                s.perm_lvl,
+                s.use_yn,
+                SYSTIMESTAMP,
+                s.created_by,
+                SYSTIMESTAMP,
+                s.updated_by
+            )
+    </update>
 
     <resultMap id="LoginUserMap" type="com.realhogoo.jsadmin.auth.dto.LoginUser">
         <result property="userId" column="LOGIN_ID"/>

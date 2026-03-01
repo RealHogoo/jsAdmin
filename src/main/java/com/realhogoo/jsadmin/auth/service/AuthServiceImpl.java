@@ -56,29 +56,20 @@ public class AuthServiceImpl implements AuthService {
 
             if (menuSeq == null) continue;
 
-            if (!"Y".equalsIgnoreCase(useYn) || permLvl == null || permLvl <= 0) {
-                Map<String, Object> disableOne = new HashMap<>();
-                disableOne.put("auth_group_seq", authGroupSeq);
-                disableOne.put("menu_seq", menuSeq);
-                disableOne.put("updated_by", safeActor);
-                authMapper.disableGroupMenuPerm(disableOne);
-                continue;
-            }
-
             Map<String, Object> upsert = new HashMap<>();
             upsert.put("auth_group_seq", authGroupSeq);
             upsert.put("menu_seq", menuSeq);
-            upsert.put("perm_lvl", permLvl);
-            upsert.put("use_yn", "Y");
+            if ("Y".equalsIgnoreCase(useYn) && permLvl != null && permLvl > 0) {
+                upsert.put("perm_lvl", permLvl);
+                upsert.put("use_yn", "Y");
+            } else {
+                upsert.put("perm_lvl", 0);
+                upsert.put("use_yn", "N");
+            }
             upsert.put("updated_by", safeActor);
             upsert.put("created_by", safeActor);
-            int affected = authMapper.updateGroupMenuPerm(upsert);
-            if (affected == 0) {
-                affected = authMapper.insertGroupMenuPerm(upsert);
-            }
-            if (affected > 0) {
-                saved++;
-            }
+            authMapper.upsertGroupMenuPerm(upsert);
+            saved++;
         }
         return saved;
     }

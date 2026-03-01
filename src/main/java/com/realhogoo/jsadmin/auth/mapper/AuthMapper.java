@@ -23,6 +23,7 @@ public interface AuthMapper {
     // 해당 그룹의 기존 권한을 전부 USE_YN='N'으로 내림
     int disableAllGroupMenuPerm(Map<String, Object> param);
     int disableGroupMenuPerm(Map<String, Object> param);
+    int upsertGroupMenuPerm(Map<String, Object> param);
 
     // 넘어온 (menu_seq, perm_lvl)만 USE_YN='Y'로 MERGE
     int updateGroupMenuPerm(Map<String, Object> param);

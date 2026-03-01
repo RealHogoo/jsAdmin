@@ -1,7 +1,7 @@
 (function (global) {
     "use strict";
 
-    // 중복 로드/초기화 방지
+    // 以묐났 濡쒕뱶/珥덇린??諛⑹?
     if (global.__SIDEBAR_LOADED__) return;
     global.__SIDEBAR_LOADED__ = true;
 
@@ -21,9 +21,25 @@
         });
     }
 
-    // sidebar.jspf에 id가 없더라도 동작하도록
-    // 1) #sidebarMenu가 있으면 그걸 사용
-    // 2) 없으면 기존 sidebar.jspf의 a[data-spa]가 들어있는 ul을 컨테이너로 사용
+    function toSpaUrl(url) {
+        if (!url) return "";
+        var s = String(url).trim();
+        if (!s) return "";
+        if (s.charAt(0) !== "/") s = "/" + s;
+
+        // 메뉴 URL에 API(.json)가 들어온 경우 화면 URL(.do)로 변환
+        if (s.toLowerCase().endsWith(".json")) {
+            var segs = s.split("/").filter(Boolean);
+            if (segs.length > 0) {
+                return "/" + segs[0] + "/main.do";
+            }
+            return "/home.do";
+        }
+        return s;
+    }
+    // sidebar.jspf??id媛 ?녿뜑?쇰룄 ?숈옉?섎룄濡?
+    // 1) #sidebarMenu媛 ?덉쑝硫?洹멸구 ?ъ슜
+    // 2) ?놁쑝硫?湲곗〈 sidebar.jspf??a[data-spa]媛 ?ㅼ뼱?덈뒗 ul??而⑦뀒?대꼫濡??ъ슜
     function resolveContainer() {
         var el = document.querySelector("#sidebarMenu");
         if (el) return el;
@@ -38,10 +54,10 @@
 
     function renderNode(node) {
         var name = esc(node.menuNm);
-        var url = node.menuUrl; // 폴더면 null
+        var url = toSpaUrl(node.menuUrl); // ?대뜑硫?null
         var children = Array.isArray(node.children) ? node.children : [];
 
-        // app.js가 a[data-spa] 클릭을 공통 처리하므로 그 규칙에 맞춘다
+        // app.js媛 a[data-spa] ?대┃??怨듯넻 泥섎━?섎?濡?洹?洹쒖튃??留욎텣??
         var label = url
             ? '<a href="#" data-spa="' + esc(url) + '">' + name + "</a>"
             : "<span>" + name + "</span>";
@@ -76,13 +92,34 @@
     function markActive(url) {
         activeSpaUrl = normalizeSpaUrl(url);
         var links = document.querySelectorAll("#sidebarMenu a[data-spa]");
+        var matched = false;
         for (var i = 0; i < links.length; i++) {
             var a = links[i];
             var spa = normalizeSpaUrl(a.getAttribute("data-spa"));
-            var active = !!activeSpaUrl && spa === activeSpaUrl;
+            var active = false;
+            if (!matched && !!activeSpaUrl && spa === activeSpaUrl) {
+                active = true;
+                matched = true;
+            }
             if (active) {
                 a.classList.add("is-active");
                 a.setAttribute("aria-current", "page");
+            } else {
+                a.classList.remove("is-active");
+                a.removeAttribute("aria-current");
+            }
+        }
+    }
+
+    function markActiveElement(el) {
+        var links = document.querySelectorAll("#sidebarMenu a[data-spa]");
+        for (var i = 0; i < links.length; i++) {
+            var a = links[i];
+            var active = (a === el);
+            if (active) {
+                a.classList.add("is-active");
+                a.setAttribute("aria-current", "page");
+                activeSpaUrl = normalizeSpaUrl(a.getAttribute("data-spa"));
             } else {
                 a.classList.remove("is-active");
                 a.removeAttribute("aria-current");
@@ -94,7 +131,7 @@
         var container = resolveContainer();
         if (!container) return;
 
-        // 인증 전이면 호출하지 않음(불필요한 401/리다이렉트 방지)
+        // ?몄쬆 ?꾩씠硫??몄텧?섏? ?딆쓬(遺덊븘?뷀븳 401/由щ떎?대젆??諛⑹?)
         var token = "";
         try { token = localStorage.getItem("JWT") || ""; } catch (e) {}
         if (!token) {
@@ -103,23 +140,23 @@
             return;
         }
 
-        // app.js 로딩 전이면 조금 기다린다
+        // app.js 濡쒕뵫 ?꾩씠硫?議곌툑 湲곕떎由곕떎
         if (!global.jsAdminSpa || typeof global.jsAdminSpa.call !== "function") return;
 
         if (inFlight) return;
         inFlight = true;
         try {
-            // ★ 중요: jsAdminSpa.call()은 표준응답 envelope가 아니라 data만 반환한다(app.js 기준)
+            // ??以묒슂: jsAdminSpa.call()? ?쒖??묐떟 envelope媛 ?꾨땲??data留?諛섑솚?쒕떎(app.js 湲곗?)
             var tree = await global.jsAdminSpa.call("/menu/tree.json", {});
-            // 401 등으로 call()이 null을 반환한 경우:
-            // 빈 메뉴를 "성공"으로 확정하면 로그인 후에도 재시도가 막힐 수 있음
+            // 401 ?깆쑝濡?call()??null??諛섑솚??寃쎌슦:
+            // 鍮?硫붾돱瑜?"?깃났"?쇰줈 ?뺤젙?섎㈃ 濡쒓렇???꾩뿉???ъ떆?꾧? 留됲옄 ???덉쓬
             if (!Array.isArray(tree)) {
                 loadedOnce = false;
                 clearMenu(container);
                 return;
             }
 
-            // 컨테이너가 ul이면 li만 넣어야 함
+            // 而⑦뀒?대꼫媛 ul?대㈃ li留??ｌ뼱????
             if (container.tagName && container.tagName.toLowerCase() === "ul") {
                 container.classList.add("menu-root");
                 container.innerHTML = tree.map(renderNode).join("");
@@ -137,11 +174,11 @@
         }
     }
 
-    // 같은 탭에서 localStorage.setItem은 storage 이벤트가 안 뜸.
-    // 그래서 "짧은 폴링"으로 토큰 생긴 시점에 1회 로드.
+    // 媛숈? ??뿉??localStorage.setItem? storage ?대깽?멸? ????
+    // 洹몃옒??"吏㏃? ?대쭅"?쇰줈 ?좏겙 ?앷릿 ?쒖젏??1??濡쒕뱶.
     function bootstrapAfterLogin() {
         var tries = 0;
-        var maxTries = 80; // 80 * 250ms = 20초
+        var maxTries = 80; // 80 * 250ms = 20珥?
 
         function tick() {
             tries++;
@@ -162,20 +199,20 @@
         setTimeout(tick, 0);
     }
 
-    // 외부에서도 필요하면 호출 가능
+    // ?몃??먯꽌???꾩슂?섎㈃ ?몄텧 媛??
     global.SIDEBAR_INIT = loadMenuTree;
 
     function init() {
-        loadMenuTree();          // 토큰 이미 있으면 즉시 1회 호출
-        bootstrapAfterLogin();   // 로그인 후 토큰 생기면 1회 호출
+        loadMenuTree();          // ?좏겙 ?대? ?덉쑝硫?利됱떆 1???몄텧
+        bootstrapAfterLogin();   // 濡쒓렇?????좏겙 ?앷린硫?1???몄텧
         
-        // 로그인/로그아웃 시점에 메뉴를 즉시 동기화
+        // 濡쒓렇??濡쒓렇?꾩썐 ?쒖젏??硫붾돱瑜?利됱떆 ?숆린??
         document.addEventListener("jsadmin:authChanged", function () {
             loadedOnce = false;
             loadMenuTree();
         });
 
-        // 화면 전환 후에도 사이드바 컨테이너가 다시 그려질 수 있어 재확인
+        // ?붾㈃ ?꾪솚 ?꾩뿉???ъ씠?쒕컮 而⑦뀒?대꼫媛 ?ㅼ떆 洹몃젮吏????덉뼱 ?ы솗??
         document.addEventListener("jsadmin:pageLoaded", function () {
             if (!loadedOnce) loadMenuTree();
         });
@@ -188,7 +225,7 @@
         document.addEventListener("click", function (e) {
             var a = e.target && e.target.closest ? e.target.closest("#sidebarMenu a[data-spa]") : null;
             if (!a) return;
-            markActive(a.getAttribute("data-spa"));
+            markActiveElement(a);
         });
     }
 
@@ -199,3 +236,4 @@
     }
 
 })(window);
+

@@ -34,7 +34,9 @@
 
                 <div class="form-item">
                     <label>메뉴타입</label>
-                    <input type="text" class="input" id="menu_type_cd" name="menu_type_cd" />
+                    <select class="input" id="menu_type_cd" name="menu_type_cd">
+                        <option value="">선택</option>
+                    </select>
                 </div>
 
                 <div class="form-item">

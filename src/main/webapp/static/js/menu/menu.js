@@ -1,5 +1,6 @@
 (function (global) {
     "use strict";
+    var MENU_TYPE_GROUP_CD = "MENU_TYPE";
 
     function qs(sel, root) {
         return (root || document).querySelector(sel);
@@ -41,6 +42,79 @@
         var t = String(s).trim();
         if (!t || t.toLowerCase() === "null") return null;
         return t;
+    }
+
+    function ensureSelectValue(selectEl, value) {
+        if (!selectEl) return;
+        var target = value == null ? "" : String(value);
+        var exists = Array.prototype.some.call(selectEl.options, function (opt) {
+            return opt.value === target;
+        });
+        if (!exists && target !== "") {
+            var opt = document.createElement("option");
+            opt.value = target;
+            opt.textContent = target;
+            selectEl.appendChild(opt);
+        }
+        selectEl.value = target;
+    }
+
+    function normalizeText(v) {
+        if (v === undefined || v === null) return "";
+        return String(v).trim();
+    }
+
+    function appendMenuTypeOption(selectEl, value, label) {
+        if (!selectEl) return;
+        var val = normalizeText(value);
+        if (!val) return;
+
+        var exists = Array.prototype.some.call(selectEl.options, function (opt) {
+            return opt.value === val;
+        });
+        if (exists) return;
+
+        var opt = document.createElement("option");
+        opt.value = val;
+        opt.textContent = normalizeText(label) || val;
+        selectEl.appendChild(opt);
+    }
+
+    async function loadMenuTypeOptions() {
+        var selectEl = qs("#menu_type_cd", getFormRoot());
+        if (!selectEl || !global.jsAdminSpa || typeof global.jsAdminSpa.call !== "function") return;
+
+        var currentValue = selectEl.value;
+        selectEl.innerHTML = "";
+        appendMenuTypeOption(selectEl, "", "선택");
+
+        var rows = await global.jsAdminSpa.call("/code/list.json", {});
+        if (!Array.isArray(rows)) {
+            ensureSelectValue(selectEl, currentValue);
+            return;
+        }
+
+        rows
+            .filter(function (r) {
+                return normalizeText(v(r, ["code_grp_cd", "codeGrpCd"], "")).toUpperCase() === MENU_TYPE_GROUP_CD;
+            })
+            .sort(function (a, b) {
+                var ao = Number(v(a, ["sort_ord", "sortOrd"], 0)) || 0;
+                var bo = Number(v(b, ["sort_ord", "sortOrd"], 0)) || 0;
+                if (ao !== bo) return ao - bo;
+                var ac = normalizeText(v(a, ["code_cd", "codeCd"], ""));
+                var bc = normalizeText(v(b, ["code_cd", "codeCd"], ""));
+                return ac.localeCompare(bc);
+            })
+            .forEach(function (r) {
+                appendMenuTypeOption(
+                    selectEl,
+                    v(r, ["code_cd", "codeCd"], ""),
+                    v(r, ["code_nm", "codeNm"], "")
+                );
+            });
+
+        ensureSelectValue(selectEl, currentValue);
     }
 
     function getPageRoot() {
@@ -122,7 +196,7 @@
         if (menuUrlEl) menuUrlEl.value = v(row, ["menu_url", "menuUrl"], "");
 
         var menuTypeEl = qs("#menu_type_cd", root);
-        if (menuTypeEl) menuTypeEl.value = v(row, ["menu_type_cd", "menuTypeCd"], "");
+        if (menuTypeEl) ensureSelectValue(menuTypeEl, v(row, ["menu_type_cd", "menuTypeCd"], ""));
 
         var iconEl = qs("#icon_class", root);
         if (iconEl) iconEl.value = v(row, ["icon_class", "iconClass"], "");
@@ -320,13 +394,14 @@
 	    return param;
 	}
 
-    function init() {
+    async function init() {
         if (!qs("#menuListBody")) return;
 
         bindMenuButtonsOnce();
         applyPerm();
+        await loadMenuTypeOptions();
         clearForm();
-        loadList();
+        await loadList();
     }
 	if (!window.__MENU_PAGELOADED_BOUND__) {
 	    window.__MENU_PAGELOADED_BOUND__ = true;

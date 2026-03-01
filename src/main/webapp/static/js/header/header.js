@@ -29,16 +29,48 @@
         try { localStorage.removeItem("JWT"); } catch (e) {}
         try { localStorage.removeItem("LOGIN_USER"); } catch (e) {}
 
-        // auth 변경 알림 (header.js 자체도 이 이벤트로 갱신)
         document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
 
-        // 로그인 화면으로 이동
         if (window.jsAdminSpa && typeof window.jsAdminSpa.load === "function") {
             await window.jsAdminSpa.load("/login.do");
         }
     }
 
-    // Logout 클릭 처리 (Login은 data-spa로 app.js가 처리)
+    async function goMain() {
+        if (window.jsAdminSpa && typeof window.jsAdminSpa.load === "function") {
+            await window.jsAdminSpa.load("/main.do");
+            return;
+        }
+        window.location.href = "/main.do";
+    }
+
+    function findBrandEl() {
+        var byId = document.getElementById("brandHome");
+        if (byId) return byId;
+
+        var strongs = Array.prototype.slice.call(document.querySelectorAll("strong"));
+        for (var i = 0; i < strongs.length; i++) {
+            if (String(strongs[i].textContent || "").trim() === "jsAdmin") {
+                return strongs[i];
+            }
+        }
+        return null;
+    }
+
+    function bindBrandClick() {
+        var el = findBrandEl();
+        if (!el) return;
+        if (el.dataset.brandBound === "1") return;
+
+        el.dataset.brandBound = "1";
+        el.style.cursor = "pointer";
+
+        el.addEventListener("click", function (e) {
+            e.preventDefault();
+            goMain();
+        });
+    }
+
     document.addEventListener("click", function (e) {
         var logoutA = e.target.closest("a[data-action='logout']");
         if (!logoutA) return;
@@ -47,14 +79,18 @@
         doLogout();
     });
 
-    // app.js가 쏘는 공통 이벤트에 반응
     document.addEventListener("jsadmin:pageLoaded", function () {
         updateAuthButton();
-    });
-    document.addEventListener("jsadmin:authChanged", function () {
-        updateAuthButton();
+        bindBrandClick();
     });
 
-    // 최초 1회
-    try { updateAuthButton(); } catch (e) {}
+    document.addEventListener("jsadmin:authChanged", function () {
+        updateAuthButton();
+        bindBrandClick();
+    });
+
+    try {
+        updateAuthButton();
+        bindBrandClick();
+    } catch (e) {}
 })();
