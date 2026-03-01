@@ -1,7 +1,7 @@
 (function (global) {
     "use strict";
 
-    // 以묐났 濡쒕뱶/珥덇린??諛⑹?
+    // 중복 로드/초기화 방지
     if (global.__SIDEBAR_LOADED__) return;
     global.__SIDEBAR_LOADED__ = true;
 
@@ -27,7 +27,7 @@
         if (!s) return "";
         if (s.charAt(0) !== "/") s = "/" + s;
 
-        // 메뉴 URL에 API(.json)가 들어온 경우 화면 URL(.do)로 변환
+        // 메뉴 URL이 API(.json)인 경우 화면 URL(.do)로 변환
         if (s.toLowerCase().endsWith(".json")) {
             var segs = s.split("/").filter(Boolean);
             if (segs.length > 0) {
@@ -37,9 +37,10 @@
         }
         return s;
     }
-    // sidebar.jspf??id媛 ?녿뜑?쇰룄 ?숈옉?섎룄濡?
-    // 1) #sidebarMenu媛 ?덉쑝硫?洹멸구 ?ъ슜
-    // 2) ?놁쑝硫?湲곗〈 sidebar.jspf??a[data-spa]媛 ?ㅼ뼱?덈뒗 ul??而⑦뀒?대꼫濡??ъ슜
+
+    // sidebar.jspf 구조가 달라도 컨테이너를 찾아 렌더링
+    // 1) #sidebarMenu 우선 사용
+    // 2) 없으면 a[data-spa]가 포함된 ul 사용
     function resolveContainer() {
         var el = document.querySelector("#sidebarMenu");
         if (el) return el;
@@ -54,10 +55,10 @@
 
     function renderNode(node) {
         var name = esc(node.menuNm);
-        var url = toSpaUrl(node.menuUrl); // ?대뜑硫?null
+        var url = toSpaUrl(node.menuUrl);
         var children = Array.isArray(node.children) ? node.children : [];
 
-        // app.js媛 a[data-spa] ?대┃??怨듯넻 泥섎━?섎?濡?洹?洹쒖튃??留욎텣??
+        // app.js 규칙에 맞춰 a[data-spa] 링크 생성
         var label = url
             ? '<a href="#" data-spa="' + esc(url) + '">' + name + "</a>"
             : "<span>" + name + "</span>";
@@ -131,7 +132,7 @@
         var container = resolveContainer();
         if (!container) return;
 
-        // ?몄쬆 ?꾩씠硫??몄텧?섏? ?딆쓬(遺덊븘?뷀븳 401/由щ떎?대젆??諛⑹?)
+        // 토큰 없으면 메뉴 비우고 종료(로그인 전/만료)
         var token = "";
         try { token = localStorage.getItem("JWT") || ""; } catch (e) {}
         if (!token) {
@@ -140,23 +141,23 @@
             return;
         }
 
-        // app.js 濡쒕뵫 ?꾩씠硫?議곌툑 湲곕떎由곕떎
+        // 공통 SPA API 래퍼가 준비되지 않았으면 종료
         if (!global.jsAdminSpa || typeof global.jsAdminSpa.call !== "function") return;
 
         if (inFlight) return;
         inFlight = true;
         try {
-            // ??以묒슂: jsAdminSpa.call()? ?쒖??묐떟 envelope媛 ?꾨땲??data留?諛섑솚?쒕떎(app.js 湲곗?)
+            // jsAdminSpa.call()은 envelope가 아니라 data만 반환
             var tree = await global.jsAdminSpa.call("/menu/tree.json", {});
-            // 401 ?깆쑝濡?call()??null??諛섑솚??寃쎌슦:
-            // 鍮?硫붾돱瑜?"?깃났"?쇰줈 ?뺤젙?섎㈃ 濡쒓렇???꾩뿉???ъ떆?꾧? 留됲옄 ???덉쓬
+
+            // 비정상 응답이면 메뉴 비움
             if (!Array.isArray(tree)) {
                 loadedOnce = false;
                 clearMenu(container);
                 return;
             }
 
-            // 而⑦뀒?대꼫媛 ul?대㈃ li留??ｌ뼱????
+            // 컨테이너가 ul이면 li만, 아니면 ul 래핑
             if (container.tagName && container.tagName.toLowerCase() === "ul") {
                 container.classList.add("menu-root");
                 container.innerHTML = tree.map(renderNode).join("");
@@ -174,11 +175,10 @@
         }
     }
 
-    // 媛숈? ??뿉??localStorage.setItem? storage ?대깽?멸? ????
-    // 洹몃옒??"吏㏃? ?대쭅"?쇰줈 ?좏겙 ?앷릿 ?쒖젏??1??濡쒕뱶.
+    // 같은 탭에서는 storage 이벤트가 발생하지 않아서 짧은 폴링으로 로그인 직후 1회 로드
     function bootstrapAfterLogin() {
         var tries = 0;
-        var maxTries = 80; // 80 * 250ms = 20珥?
+        var maxTries = 80; // 80 * 250ms = 20초
 
         function tick() {
             tries++;
@@ -199,20 +199,20 @@
         setTimeout(tick, 0);
     }
 
-    // ?몃??먯꽌???꾩슂?섎㈃ ?몄텧 媛??
+    // 외부에서 메뉴 재로딩이 필요할 때 사용
     global.SIDEBAR_INIT = loadMenuTree;
 
     function init() {
-        loadMenuTree();          // ?좏겙 ?대? ?덉쑝硫?利됱떆 1???몄텧
-        bootstrapAfterLogin();   // 濡쒓렇?????좏겙 ?앷린硫?1???몄텧
-        
-        // 濡쒓렇??濡쒓렇?꾩썐 ?쒖젏??硫붾돱瑜?利됱떆 ?숆린??
+        loadMenuTree();
+        bootstrapAfterLogin();
+
+        // 권한 변경 저장 후 즉시 메뉴 동기화
         document.addEventListener("jsadmin:authChanged", function () {
             loadedOnce = false;
             loadMenuTree();
         });
 
-        // ?붾㈃ ?꾪솚 ?꾩뿉???ъ씠?쒕컮 而⑦뀒?대꼫媛 ?ㅼ떆 洹몃젮吏????덉뼱 ?ы솗??
+        // 화면 전환 시 컨테이너 재렌더링 대비
         document.addEventListener("jsadmin:pageLoaded", function () {
             if (!loadedOnce) loadMenuTree();
         });
@@ -236,4 +236,3 @@
     }
 
 })(window);
-
