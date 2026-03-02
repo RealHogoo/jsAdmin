@@ -9,6 +9,8 @@ import java.util.*;
 @Service
 public class MenuServiceImpl implements MenuService {
 
+    private static final Long COMMON_AUTH_GROUP_SEQ = 4L;
+
     private final MenuMapper menuMapper;
 
     public MenuServiceImpl(MenuMapper menuMapper) {
@@ -17,7 +19,12 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     public List<MenuNode> getMenuTree(String userId) {
-        List<Map<String, Object>> rows = menuMapper.selectMenuListByUserId(userId);
+        List<Map<String, Object>> rows;
+        if (userId == null || userId.trim().isEmpty()) {
+            rows = menuMapper.selectMenuListByAuthGroupSeq(COMMON_AUTH_GROUP_SEQ);
+        } else {
+            rows = menuMapper.selectMenuListByUserId(userId);
+        }
 
         // 1) node map
         Map<Long, MenuNode> map = new LinkedHashMap<>();

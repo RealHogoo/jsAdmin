@@ -1,13 +1,25 @@
 <%@ page contentType="text/html; charset=UTF-8" %>
 
-<div class="page-root" id="homePage">
-    <h2 class="page-title">HOME</h2>
-    <p class="muted">관리 화면 바로가기</p>
+<div class="page-root dashboard-page" id="homePage">
+    <h2 class="page-title">Dashboard</h2>
+    <p class="muted">Quick view for project intro and latest notices.</p>
 
-    <div class="btns" style="margin-top:12px;">
-        <a href="#" class="btn" data-spa="/notice/main.do">공지사항 관리</a>
-        <a href="#" class="btn" data-spa="/code/main.do">코드관리</a>
-        <a href="#" class="btn" data-spa="/menu/main.do">메뉴관리</a>
-        <a href="#" class="btn" data-spa="/auth/main.do">권한관리</a>
+    <div class="home-grid">
+        <section class="panel home-intro">
+            <div class="panel-title">Project Intro</div>
+            <h3 id="homeIntroTitle" class="home-intro-title">Loading...</h3>
+            <p id="homeIntroSummary" class="home-intro-summary muted"></p>
+            <ul id="homeIntroList" class="home-intro-list"></ul>
+            <pre id="homeIntroRaw" class="home-intro-raw"></pre>
+        </section>
+
+        <section class="panel home-notice">
+            <div class="home-notice-head">
+                <div class="panel-title">Notice Cards</div>
+            </div>
+            <div id="homeNoticeTrack" class="home-notice-track"></div>
+        </section>
     </div>
 </div>
+
+<script src="${pageContext.request.contextPath}/static/js/home/home.js"></script>

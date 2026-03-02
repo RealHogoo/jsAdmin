@@ -314,7 +314,7 @@
 	    bindOnce("#btnMenuRefresh", "click", function (e) { e.preventDefault(); loadList(); });
 	}
 	
-	function bindOnce(sel, evt, handler) {
+function bindOnce(sel, evt, handler) {
 	    var el = qs(sel);
 	    if (!el) return;
 	
@@ -325,6 +325,15 @@
 	
 	    el.addEventListener(evt, handler);
 	}
+
+    async function refreshSidebarMenuTree() {
+        document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+        if (typeof window.SIDEBAR_INIT === "function") {
+            try {
+                await window.SIDEBAR_INIT();
+            } catch (e) {}
+        }
+    }
 	
 	async function saveMenu() {
 	    try {
@@ -344,6 +353,7 @@
 	        await window.jsAdminSpa.call("/menu/save.json", param);
 	
 	        await loadList();
+            await refreshSidebarMenuTree();
 	        clearForm();
 	        alert("저장 완료");
 	    } catch (e) {
@@ -363,6 +373,7 @@
 	        await window.jsAdminSpa.call("/menu/delete.json", { menu_seq: menuSeq });
 	
 	        await loadList();
+            await refreshSidebarMenuTree();
 	        clearForm();
 	        alert("삭제 완료");
 	    } catch (e) {

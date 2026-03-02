@@ -110,6 +110,48 @@
 	    ON FS.MENU_SEQ = M.MENU_SEQ
 	 ORDER BY M.SORT_ORD, M.MENU_SEQ
   </select>
+
+  <select id="selectMenuListByAuthGroupSeq" parameterType="long" resultType="map">
+    WITH
+    BASE_PERM AS (
+        SELECT AAM.MENU_SEQ,
+               MAX(NVL(AAM.PERM_LVL, 0)) AS BASE_PERM_LVL
+          FROM ADM_AUTH_MENU AAM
+         WHERE AAM.AUTH_GROUP_SEQ = #{auth_group_seq}
+           AND AAM.USE_YN = 'Y'
+         GROUP BY AAM.MENU_SEQ
+    ),
+    ALLOWED_LEAF AS (
+        SELECT BP.MENU_SEQ,
+               BP.BASE_PERM_LVL
+          FROM BASE_PERM BP
+         WHERE BP.BASE_PERM_LVL > 0
+    ),
+    ALLOWED_WITH_PARENTS AS (
+        SELECT DISTINCT M.MENU_SEQ
+          FROM ADM_MENU_MST M
+         WHERE M.USE_YN = 'Y'
+         START WITH M.MENU_SEQ IN (SELECT MENU_SEQ FROM ALLOWED_LEAF)
+         CONNECT BY PRIOR M.UP_MENU_SEQ = M.MENU_SEQ
+    )
+    SELECT
+        M.MENU_SEQ      AS MENU_SEQ,
+        M.MENU_NM       AS MENU_NM,
+        M.MENU_URL      AS MENU_URL,
+        M.UP_MENU_SEQ   AS UP_MENU_SEQ,
+        M.SORT_ORD      AS SORT_NO,
+        CASE
+            WHEN NVL(BP.BASE_PERM_LVL, 0) > 0 THEN BP.BASE_PERM_LVL
+            ELSE 1
+        END AS PERM_LVL
+      FROM ADM_MENU_MST M
+      JOIN ALLOWED_WITH_PARENTS AWP
+        ON AWP.MENU_SEQ = M.MENU_SEQ
+      LEFT JOIN BASE_PERM BP
+        ON BP.MENU_SEQ = M.MENU_SEQ
+     WHERE M.USE_YN = 'Y'
+     ORDER BY M.SORT_ORD, M.MENU_SEQ
+  </select>
   
 	<select id="selectMenuListAll" resultType="map">
 		SELECT

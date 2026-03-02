@@ -1,4 +1,4 @@
-(function (global) {
+﻿(function (global) {
     "use strict";
 
     // 중복 로드/초기화 방지
@@ -131,15 +131,6 @@
     async function loadMenuTree() {
         var container = resolveContainer();
         if (!container) return;
-
-        // 토큰 없으면 메뉴 비우고 종료(로그인 전/만료)
-        var token = "";
-        try { token = localStorage.getItem("JWT") || ""; } catch (e) {}
-        if (!token) {
-            loadedOnce = false;
-            clearMenu(container);
-            return;
-        }
 
         // 공통 SPA API 래퍼가 준비되지 않았으면 종료
         if (!global.jsAdminSpa || typeof global.jsAdminSpa.call !== "function") return;

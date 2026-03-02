@@ -11,15 +11,8 @@
 <script>
 (function () {
     function boot() {
-        var token = null;
-        try { token = localStorage.getItem("JWT"); } catch (e) {}
-
         if (window.jsAdminSpa && typeof window.jsAdminSpa.load === "function") {
-            if (token && token.trim().length > 0) {
-                window.jsAdminSpa.load("/home.do");
-            } else {
-                window.jsAdminSpa.load("/login.do");
-            }
+            window.jsAdminSpa.load("/home.do");
         }
     }
 

@@ -29,7 +29,10 @@ public class JwtAuthFilter implements Filter {
 
     private static final Set<String> PERMIT = new HashSet<>(Arrays.asList(
         "/login.json",
-        "/health/status.json"
+        "/health/status.json",
+        "/home/intro.json",
+        "/notice/list.json",
+        "/menu/tree.json"
     ));
 
     private final ObjectMapper om = new ObjectMapper();
@@ -56,6 +59,8 @@ public class JwtAuthFilter implements Filter {
 
         String path = getPath(req);
         if (PERMIT.contains(path)) {
+            // permit endpoint도 토큰이 있으면 사용자 컨텍스트를 세팅한다.
+            tryBindAuthContext(req);
             chain.doFilter(request, response);
             return;
         }
@@ -125,6 +130,35 @@ public class JwtAuthFilter implements Filter {
 
     private void writeUnauthorized(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         writeJson(resp, 401, ApiResponse.fail(ApiCode.UNAUTHORIZED, "login required", getTraceId(req)));
+    }
+
+    private void tryBindAuthContext(HttpServletRequest req) {
+        String auth = req.getHeader("Authorization");
+        if (auth == null || auth.isBlank() || !auth.startsWith("Bearer ")) {
+            return;
+        }
+
+        String token = auth.substring("Bearer ".length()).trim();
+        if (token.isEmpty()) {
+            return;
+        }
+
+        try {
+            JwtProvider provider = (jwtProvider != null) ? jwtProvider : resolveJwtProvider();
+            if (provider == null) return;
+
+            DecodedJWT jwt = provider.verify(token);
+            String userId = jwt.getSubject();
+            List<String> roles = jwt.getClaim("roles").asList(String.class);
+            if (roles == null) {
+                roles = Collections.emptyList();
+            }
+
+            req.setAttribute("user_id", userId);
+            req.setAttribute("roles", roles);
+        } catch (Exception ignored) {
+            // permit endpoint에서는 인증 실패를 강제하지 않는다.
+        }
     }
 
     private void writeJson(HttpServletResponse resp, int status, Object body) throws IOException {
