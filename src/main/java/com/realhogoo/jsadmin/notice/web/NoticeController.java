@@ -26,6 +26,11 @@ public class NoticeController {
         return "fragments/notice/main";
     }
 
+    @PostMapping("/notice/list.do")
+    public String listPage() {
+        return "fragments/notice/main";
+    }
+
     @PostMapping("/notice/list.json")
     @ResponseBody
     public Map<String, Object> list(@RequestBody(required = false) Map<String, Object> param) {

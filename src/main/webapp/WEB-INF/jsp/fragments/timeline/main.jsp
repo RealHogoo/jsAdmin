@@ -3,44 +3,81 @@
 <div class="page-root" id="timelinePage">
     <h2 class="page-title">타임라인 관리</h2>
 
-    <div class="panel">
-        <div class="panel-title">조회 조건</div>
-        <div class="form-grid">
-            <div class="form-item">
-                <label>기간 시작</label>
-                <input type="date" class="input" id="timeline_from" />
-            </div>
-            <div class="form-item">
-                <label>기간 종료</label>
-                <input type="date" class="input" id="timeline_to" />
-            </div>
-            <div class="form-item full">
-                <label>키워드</label>
-                <input type="text" class="input" id="timeline_keyword" placeholder="제목/내용 검색" />
-            </div>
-        </div>
-
-        <div class="btns" style="margin-top:10px;">
-            <a href="#" class="btn" onclick="alert('타임라인 조회 API 연결 예정'); return false;">조회</a>
-        </div>
+    <div class="toolbar btns" role="toolbar" aria-label="timeline actions">
+        <a href="#" class="btn" data-perm-lvl="1" id="btnTimelineSearch" role="button">조회</a>
+        <a href="#" class="btn" data-perm-lvl="5" id="btnTimelineSave" role="button">저장</a>
+        <a href="#" class="btn" data-perm-lvl="10" id="btnTimelineDelete" role="button">삭제</a>
+        <a href="#" class="btn" id="btnTimelineNew" role="button">신규</a>
+        <a href="#" class="btn" id="btnTimelineRefresh" role="button">새로고침</a>
     </div>
 
-    <div class="panel">
-        <div class="panel-title">조회 결과</div>
-        <table class="tbl">
-            <thead>
-                <tr>
-                    <th style="width:120px;">일시</th>
-                    <th style="width:120px;">구분</th>
-                    <th>내용</th>
-                    <th style="width:120px;">처리자</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td colspan="4" class="muted">조회 기능 구현 전입니다.</td>
-                </tr>
-            </tbody>
-        </table>
+    <div class="grid-2col">
+        <div class="panel">
+            <div class="panel-title">타임라인 정보</div>
+            <div id="timelineForm" class="form-grid">
+                <input type="hidden" id="timeline_seq" name="timeline_seq" />
+
+                <div class="form-item">
+                    <label>TIMELINE_TYPE_CD</label>
+                    <input type="text" class="input" id="timeline_type_cd" name="timeline_type_cd" maxlength="30" />
+                </div>
+
+                <div class="form-item">
+                    <label>EVENT_DT *</label>
+                    <input type="date" class="input" id="event_dt" name="event_dt" />
+                </div>
+
+                <div class="form-item full">
+                    <label>TITLE *</label>
+                    <input type="text" class="input" id="title" name="title" maxlength="300" />
+                </div>
+
+                <div class="form-item full">
+                    <label>CONTENT</label>
+                    <textarea class="textarea" id="content" name="content" rows="10"></textarea>
+                </div>
+
+                <div class="form-item">
+                    <label>USE_YN</label>
+                    <select class="input" id="use_yn" name="use_yn">
+                        <option value="Y">Y</option>
+                        <option value="N">N</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">타임라인 목록</div>
+            <div class="form-grid" style="margin-bottom:8px;">
+                <div class="form-item">
+                    <label>EVENT_DT_FROM</label>
+                    <input type="date" class="input" id="event_dt_from" />
+                </div>
+                <div class="form-item">
+                    <label>EVENT_DT_TO</label>
+                    <input type="date" class="input" id="event_dt_to" />
+                </div>
+                <div class="form-item full">
+                    <label>TITLE</label>
+                    <input type="text" class="input" id="search_title" placeholder="제목 검색" />
+                </div>
+            </div>
+
+            <table class="tbl" id="timelineTable">
+                <thead>
+                    <tr>
+                        <th style="width:90px;">SEQ</th>
+                        <th style="width:120px;">TYPE</th>
+                        <th>TITLE</th>
+                        <th style="width:120px;">EVENT_DT</th>
+                        <th style="width:70px;">USE</th>
+                    </tr>
+                </thead>
+                <tbody id="timelineListBody"></tbody>
+            </table>
+        </div>
     </div>
 </div>
+
+<script src="${pageContext.request.contextPath}/static/js/timeline/timeline-main.js"></script>
