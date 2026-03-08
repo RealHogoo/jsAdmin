@@ -89,7 +89,41 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public void saveUserExceptions(Long userSeq, List<Map<String, Object>> exceptions, String actor) {
-        authMapper.saveUserExceptions(userSeq, exceptions, actor);
+        if (userSeq == null) {
+            throw new IllegalArgumentException("user_seq is required");
+        }
+
+        String safeActor = (actor == null || actor.trim().isEmpty()) ? "SYSTEM" : actor.trim();
+        authMapper.deleteAllUserException(userSeq);
+
+        if (exceptions == null) return;
+
+        for (Map<String, Object> row : exceptions) {
+            if (row == null) continue;
+
+            Long menuSeq = toLong(firstNonNull(row, "menu_seq", "menuSeq"));
+            String accessYn = toStr(firstNonNull(row, "access_yn", "accessYn"), "");
+            Integer permLvl = toInt(firstNonNull(row, "perm_lvl", "permLvl"));
+
+            if (menuSeq == null) continue;
+            if (!"Y".equalsIgnoreCase(accessYn) && !"X".equalsIgnoreCase(accessYn)) continue;
+
+            int normalizedPermLvl;
+            if ("X".equalsIgnoreCase(accessYn)) {
+                normalizedPermLvl = 0;
+            } else {
+                normalizedPermLvl = (permLvl == null || permLvl <= 0) ? 1 : permLvl;
+            }
+
+            Map<String, Object> upsert = new HashMap<>();
+            upsert.put("user_seq", userSeq);
+            upsert.put("menu_seq", menuSeq);
+            upsert.put("access_yn", accessYn.toUpperCase());
+            upsert.put("perm_lvl", normalizedPermLvl);
+            upsert.put("created_by", safeActor);
+            upsert.put("updated_by", safeActor);
+            authMapper.upsertUserException(upsert);
+        }
     }
 
     @Override

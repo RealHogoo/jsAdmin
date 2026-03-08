@@ -8,7 +8,6 @@
         <a href="javascript:void(0)" class="tab" data-tab="B">사용자 예외</a>
     </div>
 
-    <!-- TAB A -->
     <section class="tab-pane" data-pane="A">
         <div class="toolbar btns">
             <a href="javascript:void(0)" class="btn" data-perm-lvl="1" id="btnGroupReload">그룹조회</a>
@@ -48,13 +47,45 @@
         </div>
     </section>
 
-    <!-- TAB B (다음 단계) -->
     <section class="tab-pane" data-pane="B" style="display:none;">
-        <div class="panel">
-            <div class="panel-title">사용자 예외(다음 단계)</div>
-            <div class="muted">TAB B는 다음 단계에서 붙입니다.</div>
+        <div class="toolbar btns">
+            <input type="text" class="input" id="userKeyword" placeholder="로그인ID/사용자명" style="max-width:220px;">
+            <a href="javascript:void(0)" class="btn" data-perm-lvl="1" id="btnUserSearch">사용자조회</a>
+            <a href="javascript:void(0)" class="btn" data-perm-lvl="5" id="btnUserExceptionSave">예외저장</a>
+            <span class="meta">선택 사용자: <b id="selectedUserSeq">-</b></span>
+        </div>
+
+        <div class="grid-2col">
+            <div class="panel">
+                <div class="panel-title">사용자 목록</div>
+                <table class="tbl">
+                    <thead>
+                    <tr>
+                        <th style="width:90px;">USER_SEQ</th>
+                        <th>LOGIN_ID</th>
+                        <th>사용자명</th>
+                    </tr>
+                    </thead>
+                    <tbody id="userListBody"></tbody>
+                </table>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">예외권한 메뉴</div>
+                <table class="tbl">
+                    <thead>
+                    <tr>
+                        <th style="width:90px;">SEQ</th>
+                        <th>메뉴</th>
+                        <th style="width:90px;">기본권한</th>
+                        <th style="width:110px;">예외권한</th>
+                    </tr>
+                    </thead>
+                    <tbody id="userExceptionBody"></tbody>
+                </table>
+            </div>
         </div>
     </section>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/auth/auth.js"></script>
+<script src="${pageContext.request.contextPath}/static/js/auth/auth.js?v=20260308_4"></script>

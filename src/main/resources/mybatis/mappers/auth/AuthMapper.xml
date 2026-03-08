@@ -43,6 +43,7 @@
         LEFT JOIN adm_auth_menu aam
             ON aam.auth_group_seq = #{authGroupSeq}
            AND aam.menu_seq = m.menu_seq
+        WHERE m.use_yn = 'Y'
         START WITH m.up_menu_seq IS NULL
         CONNECT BY PRIOR m.menu_seq = m.up_menu_seq
         ORDER SIBLINGS BY m.sort_ord, m.menu_seq
@@ -142,6 +143,130 @@
                 s.updated_by
             )
     </update>
+
+    <select id="searchUsers" parameterType="map" resultType="map">
+        SELECT
+            u.user_seq,
+            u.login_id,
+            u.user_nm,
+            u.use_yn
+        FROM adm_user_mst u
+        WHERE u.use_yn = 'Y'
+        <if test="keyword != null and keyword != ''">
+            AND (
+                u.login_id LIKE '%' || #{keyword} || '%'
+                OR u.user_nm LIKE '%' || #{keyword} || '%'
+            )
+        </if>
+        ORDER BY u.user_seq
+    </select>
+
+    <select id="selectUserMenuPermList" parameterType="long" resultType="map">
+        WITH
+        USER_GROUPS AS (
+            SELECT AGU.AUTH_GROUP_SEQ
+              FROM ADM_AUTH_GROUP_USER AGU
+             WHERE AGU.USER_SEQ = #{userSeq}
+               AND AGU.USE_YN = 'Y'
+            UNION
+            SELECT AGD.AUTH_GROUP_SEQ
+              FROM ADM_AUTH_GROUP_DEPT AGD
+              JOIN ADM_USER_MST U
+                ON U.USER_SEQ = #{userSeq}
+               AND U.DEPT_SEQ = AGD.DEPT_SEQ
+             WHERE AGD.USE_YN = 'Y'
+        ),
+        BASE_PERM AS (
+            SELECT AAM.MENU_SEQ,
+                   MAX(NVL(AAM.PERM_LVL, 0)) AS BASE_PERM_LVL
+              FROM ADM_AUTH_MENU AAM
+              JOIN USER_GROUPS UG
+                ON UG.AUTH_GROUP_SEQ = AAM.AUTH_GROUP_SEQ
+             WHERE AAM.USE_YN = 'Y'
+             GROUP BY AAM.MENU_SEQ
+        ),
+        USER_EX AS (
+            SELECT AU.MENU_SEQ,
+                   MAX(AU.ACCESS_YN) KEEP (DENSE_RANK LAST ORDER BY COALESCE(AU.UPDATED_AT, AU.CREATED_AT, SYSTIMESTAMP)) AS EX_ACCESS_YN,
+                   MAX(NVL(AU.PERM_LVL, 0)) KEEP (DENSE_RANK LAST ORDER BY COALESCE(AU.UPDATED_AT, AU.CREATED_AT, SYSTIMESTAMP)) AS EX_PERM_LVL
+              FROM ADM_AUTH_USER AU
+             WHERE AU.USER_SEQ = #{userSeq}
+             GROUP BY AU.MENU_SEQ
+        )
+        SELECT
+            M.MENU_SEQ,
+            M.UP_MENU_SEQ,
+            M.MENU_NM,
+            M.MENU_URL,
+            LEVEL AS TREE_LVL,
+            NVL(BP.BASE_PERM_LVL, 0) AS BASE_PERM_LVL,
+            UE.EX_ACCESS_YN AS EX_ACCESS_YN,
+            NVL(UE.EX_PERM_LVL, 0) AS EX_PERM_LVL
+        FROM ADM_MENU_MST M
+        LEFT JOIN BASE_PERM BP
+          ON BP.MENU_SEQ = M.MENU_SEQ
+        LEFT JOIN USER_EX UE
+          ON UE.MENU_SEQ = M.MENU_SEQ
+        WHERE M.USE_YN = 'Y'
+        START WITH M.UP_MENU_SEQ IS NULL
+        CONNECT BY PRIOR M.MENU_SEQ = M.UP_MENU_SEQ
+        ORDER SIBLINGS BY M.SORT_ORD, M.MENU_SEQ
+    </select>
+
+    <delete id="deleteAllUserException" parameterType="long">
+        DELETE FROM ADM_AUTH_USER
+         WHERE USER_SEQ = #{userSeq}
+    </delete>
+
+    <update id="upsertUserException" parameterType="map">
+        MERGE INTO ADM_AUTH_USER T
+        USING (
+            SELECT
+                #{user_seq} AS USER_SEQ,
+                #{menu_seq} AS MENU_SEQ,
+                #{access_yn} AS ACCESS_YN,
+                #{perm_lvl} AS PERM_LVL,
+                #{created_by} AS CREATED_BY,
+                #{updated_by} AS UPDATED_BY
+            FROM DUAL
+        ) S
+        ON (
+            T.USER_SEQ = S.USER_SEQ
+            AND T.MENU_SEQ = S.MENU_SEQ
+        )
+        WHEN MATCHED THEN
+            UPDATE SET
+                T.ACCESS_YN = S.ACCESS_YN,
+                T.PERM_LVL = S.PERM_LVL,
+                T.UPDATED_AT = SYSTIMESTAMP,
+                T.UPDATED_BY = S.UPDATED_BY
+        WHEN NOT MATCHED THEN
+            INSERT (
+                USER_SEQ,
+                MENU_SEQ,
+                ACCESS_YN,
+                PERM_LVL,
+                CREATED_AT,
+                CREATED_BY,
+                UPDATED_AT,
+                UPDATED_BY
+            ) VALUES (
+                S.USER_SEQ,
+                S.MENU_SEQ,
+                S.ACCESS_YN,
+                S.PERM_LVL,
+                SYSTIMESTAMP,
+                S.CREATED_BY,
+                SYSTIMESTAMP,
+                S.UPDATED_BY
+            )
+    </update>
+
+    <delete id="deleteUserException" parameterType="map">
+        DELETE FROM ADM_AUTH_USER
+         WHERE USER_SEQ = #{userSeq}
+           AND MENU_SEQ = #{menuSeq}
+    </delete>
 
     <resultMap id="LoginUserMap" type="com.realhogoo.jsadmin.auth.dto.LoginUser">
         <result property="userId" column="LOGIN_ID"/>
