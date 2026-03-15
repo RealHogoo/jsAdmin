@@ -1,57 +1,89 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
-<div class="panel">
-  <h3>System Health</h3>
 
-  <div style="display:flex; gap:16px; flex-wrap:wrap;">
-    <div style="border:1px solid #ddd; padding:12px; width:360px;">
-      <h4>DB</h4>
-      <pre id="dbBox">loading...</pre>
+<div id="healthPage" class="page-root health-page">
+    <div class="health-head">
+        <div>
+            <h2 class="page-title">헬스체크</h2>
+            <p class="muted">서비스 상태, DB 연결, 서버 자원을 한 화면에서 확인합니다.</p>
+        </div>
+        <div class="btns">
+            <a href="#" class="btn" id="btnHealthRefresh" role="button">새로고침</a>
+            <span class="health-checked-at" id="healthCheckedAt">-</span>
+        </div>
     </div>
 
-    <div style="border:1px solid #ddd; padding:12px; width:360px;">
-      <h4>Server</h4>
-      <pre id="svBox">loading...</pre>
+    <div class="health-summary-grid">
+        <div class="panel health-kpi" data-health-card="overall">
+            <div class="health-kpi-label">Overall</div>
+            <div class="health-kpi-value" id="healthOverallStatus">-</div>
+            <div class="health-kpi-sub" id="healthServiceName">admin-service</div>
+        </div>
+        <div class="panel health-kpi" data-health-card="live">
+            <div class="health-kpi-label">Liveness</div>
+            <div class="health-kpi-value" id="healthLiveness">-</div>
+            <div class="health-kpi-sub">프로세스 응답 가능 여부</div>
+        </div>
+        <div class="panel health-kpi" data-health-card="ready">
+            <div class="health-kpi-label">Readiness</div>
+            <div class="health-kpi-value" id="healthReadiness">-</div>
+            <div class="health-kpi-sub">핵심 의존성 사용 가능 여부</div>
+        </div>
+        <div class="panel health-kpi" data-health-card="db">
+            <div class="health-kpi-label">DB Latency</div>
+            <div class="health-kpi-value" id="healthDbLatency">-</div>
+            <div class="health-kpi-sub" id="healthDbMessage">-</div>
+        </div>
     </div>
-  </div>
 
-  <div style="margin-top:12px;">
-    <button type="button" id="btnRefresh">Refresh</button>
-    <span id="lastAt" style="margin-left:12px; color:#666;"></span>
-  </div>
+    <div class="health-main-grid">
+        <div class="panel">
+            <div class="panel-title">DB 상태</div>
+            <div class="health-detail-grid">
+                <div class="health-field"><span>Status</span><b id="dbStatusText">-</b></div>
+                <div class="health-field"><span>Ping</span><b id="dbPing">-</b></div>
+                <div class="health-field"><span>Elapsed</span><b id="dbElapsed">-</b></div>
+                <div class="health-field"><span>Error</span><b id="dbError">-</b></div>
+            </div>
+            <div class="health-pool-grid">
+                <div class="health-pool-box"><span>Active</span><b id="dbPoolActive">-</b></div>
+                <div class="health-pool-box"><span>Idle</span><b id="dbPoolIdle">-</b></div>
+                <div class="health-pool-box"><span>Total</span><b id="dbPoolTotal">-</b></div>
+                <div class="health-pool-box"><span>Awaiting</span><b id="dbPoolAwaiting">-</b></div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">서버 상태</div>
+            <div class="health-detail-grid">
+                <div class="health-field"><span>Host</span><b id="svHost">-</b></div>
+                <div class="health-field"><span>Java</span><b id="svJava">-</b></div>
+                <div class="health-field"><span>OS</span><b id="svOs">-</b></div>
+                <div class="health-field"><span>Processors</span><b id="svCpu">-</b></div>
+                <div class="health-field"><span>Uptime</span><b id="svUptime">-</b></div>
+                <div class="health-field"><span>Server</span><b id="svInfo">-</b></div>
+                <div class="health-field"><span>Threads</span><b id="svThreads">-</b></div>
+                <div class="health-field"><span>Heap</span><b id="svHeap">-</b></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-title">의존 서비스</div>
+        <table class="tbl">
+            <thead>
+            <tr>
+                <th style="width:200px;">Name</th>
+                <th style="width:120px;">Type</th>
+                <th style="width:120px;">Status</th>
+                <th style="width:120px;">Latency</th>
+                <th>Message</th>
+            </tr>
+            </thead>
+            <tbody id="healthDependencyBody">
+            <tr><td colspan="5">Loading...</td></tr>
+            </tbody>
+        </table>
+    </div>
 </div>
 
-<script>
-(function(){
-  function postJson(url, body){
-    return fetch(url, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: body ? JSON.stringify(body) : "{}"
-    }).then(r => r.json());
-  }
-
-  function pretty(obj){
-    return JSON.stringify(obj, null, 2);
-  }
-
-  function refresh(){
-    postJson("/health/status.json").then(res => {
-      if(!res || res.ok !== true){
-        document.getElementById("dbBox").textContent = "error";
-        document.getElementById("svBox").textContent = "error";
-        return;
-      }
-      document.getElementById("dbBox").textContent = pretty(res.data.db);
-      document.getElementById("svBox").textContent = pretty(res.data.server);
-      document.getElementById("lastAt").textContent = "Last: " + new Date().toLocaleString();
-    }).catch(e => {
-      document.getElementById("dbBox").textContent = String(e);
-      document.getElementById("svBox").textContent = String(e);
-    });
-  }
-
-  document.getElementById("btnRefresh").addEventListener("click", refresh);
-  refresh();
-  setInterval(refresh, 10000); // 10초마다 갱신
-})();
-</script>
+<script src="${pageContext.request.contextPath}/static/js/health/health.js?v=20260315_1"></script>

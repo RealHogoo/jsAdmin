@@ -11,7 +11,10 @@ import javax.sql.DataSource;
 import java.lang.management.*;
 import java.net.InetAddress;
 import java.sql.Connection;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Controller
@@ -26,7 +29,7 @@ public class HealthController {
     }
 
     // 8.2 규칙: 화면 조각은 *.do
-    @RequestMapping(value = "/dashboard/health.do", method = RequestMethod.POST)
+    @RequestMapping(value = {"/health/main.do", "/dashboard/health.do"}, method = RequestMethod.POST)
     public String healthPage() {
         return "dashboard/health"; // /WEB-INF/jsp/dashboard/health.jsp
     }
@@ -35,11 +38,7 @@ public class HealthController {
     @ResponseBody
     @RequestMapping(value = "/health/status.json", method = RequestMethod.POST)
     public Map<String, Object> status() {
-        Map<String, Object> data = new HashMap<>();
-        data.put("db", dbStatus());
-        data.put("server", serverStatus());
-
-        return ok(data);
+        return ok(healthDetail());
     }
 
     @ResponseBody
@@ -52,6 +51,34 @@ public class HealthController {
     @RequestMapping(value = "/health/server.json", method = RequestMethod.POST)
     public Map<String, Object> server() {
         return ok(serverStatus());
+    }
+
+    @ResponseBody
+    @RequestMapping(value = "/health/live.json", method = RequestMethod.POST)
+    public Map<String, Object> live() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("service", "admin-service");
+        data.put("status", "UP");
+        data.put("checked_at", Instant.now().toString());
+        return ok(data);
+    }
+
+    @ResponseBody
+    @RequestMapping(value = "/health/ready.json", method = RequestMethod.POST)
+    public Map<String, Object> ready() {
+        Map<String, Object> db = dbStatus();
+        Map<String, Object> data = new HashMap<>();
+        data.put("service", "admin-service");
+        data.put("status", Boolean.TRUE.equals(db.get("ok")) ? "UP" : "DOWN");
+        data.put("checked_at", Instant.now().toString());
+        data.put("db", db);
+        return ok(data);
+    }
+
+    @ResponseBody
+    @RequestMapping(value = "/health/detail.json", method = RequestMethod.POST)
+    public Map<String, Object> detail() {
+        return ok(healthDetail());
     }
 
     private Map<String, Object> dbStatus() {
@@ -132,6 +159,34 @@ public class HealthController {
         } catch (Exception ignore) {}
 
         return s;
+    }
+
+    private Map<String, Object> healthDetail() {
+        Map<String, Object> db = dbStatus();
+        Map<String, Object> server = serverStatus();
+        List<Map<String, Object>> dependencies = new ArrayList<>();
+
+        Map<String, Object> dbDependency = new HashMap<>();
+        dbDependency.put("name", "oracle-db");
+        dbDependency.put("type", "database");
+        dbDependency.put("status", Boolean.TRUE.equals(db.get("ok")) ? "UP" : "DOWN");
+        dbDependency.put("latency_ms", db.get("elapsed_ms"));
+        dbDependency.put("message", Boolean.TRUE.equals(db.get("ok")) ? "Connection and ping succeeded" : db.get("error"));
+        dependencies.add(dbDependency);
+
+        Map<String, Object> summary = new HashMap<>();
+        summary.put("service", "admin-service");
+        summary.put("checked_at", Instant.now().toString());
+        summary.put("overall_status", Boolean.TRUE.equals(db.get("ok")) ? "UP" : "DEGRADED");
+        summary.put("liveness", "UP");
+        summary.put("readiness", Boolean.TRUE.equals(db.get("ok")) ? "UP" : "DOWN");
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("summary", summary);
+        data.put("db", db);
+        data.put("server", server);
+        data.put("dependencies", dependencies);
+        return data;
     }
 
     private Map<String, Object> ok(Object data) {
