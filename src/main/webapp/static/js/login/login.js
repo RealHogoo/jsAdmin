@@ -1,6 +1,9 @@
 (function (global) {
     "use strict";
 
+    var countdownTimer = null;
+    var retryUntilMs = 0;
+
     function ctx() {
         return global.CTX || "";
     }
@@ -9,10 +12,8 @@
         return document.getElementById(id);
     }
 
-    // *.json 규칙: POST 고정 + JSON 응답 표준(ok/message/data)
     function postJson(url, body) {
         var full = url.indexOf("/") === 0 ? (ctx() + url) : (ctx() + "/" + url);
-
         return fetch(full, {
             method: "POST",
             headers: {
@@ -21,7 +22,6 @@
             },
             body: JSON.stringify(body || {})
         }).then(function (r) {
-            // JSON 아닐 수도 있으니 안전 처리(406/500에서 HTML 오는 경우 대비)
             var ct = (r.headers && r.headers.get("content-type")) || "";
             if (ct.indexOf("application/json") >= 0) {
                 return r.json();
@@ -32,81 +32,171 @@
         });
     }
 
-    function setMsg(text, ok) {
-        var m = byId("loginMsg");
-        if (!m) return;
-        m.textContent = text || "";
-        m.style.color = ok ? "#0a0" : "#c00";
+    function clearAuthStorage() {
+        try { localStorage.removeItem("JWT"); } catch (e) {}
+        try { localStorage.removeItem("LOGIN_USER"); } catch (e) {}
+        try { localStorage.removeItem("LOGIN_SESSION_ID"); } catch (e) {}
+    }
+
+    function setMsg(text, type) {
+        var el = byId("loginMsg");
+        if (!el) return;
+        el.textContent = text || "";
+        el.className = "login-msg" + (type ? " is-" + type : "");
+    }
+
+    function setDisabled(disabled) {
+        var btn = byId("btnLogin");
+        var userId = byId("login_user_id");
+        var userPw = byId("login_user_pw");
+
+        if (btn) btn.disabled = !!disabled;
+        if (userId) userId.disabled = !!disabled;
+        if (userPw) userPw.disabled = !!disabled;
+    }
+
+    function stopCountdown() {
+        if (countdownTimer) {
+            global.clearInterval(countdownTimer);
+            countdownTimer = null;
+        }
+        retryUntilMs = 0;
+        try { sessionStorage.removeItem("LOGIN_RETRY_UNTIL_MS"); } catch (e) {}
+    }
+
+    function startCountdown(untilMs) {
+        stopCountdown();
+        retryUntilMs = untilMs || 0;
+        if (!retryUntilMs || retryUntilMs <= Date.now()) {
+            setDisabled(false);
+            return;
+        }
+
+        try { sessionStorage.setItem("LOGIN_RETRY_UNTIL_MS", String(retryUntilMs)); } catch (e) {}
+        setDisabled(true);
+
+        function tick() {
+            var remain = Math.max(0, Math.ceil((retryUntilMs - Date.now()) / 1000));
+            if (remain <= 0) {
+                stopCountdown();
+                setDisabled(false);
+                setMsg("다시 로그인할 수 있습니다.", "info");
+                return;
+            }
+            setMsg(remain + "초 후 다시 시도하세요.", "warn");
+        }
+
+        tick();
+        countdownTimer = global.setInterval(tick, 1000);
+    }
+
+    function restoreCountdown() {
+        try {
+            var saved = sessionStorage.getItem("LOGIN_RETRY_UNTIL_MS");
+            if (!saved) return;
+            var untilMs = Number(saved);
+            if (untilMs > Date.now()) {
+                startCountdown(untilMs);
+            } else {
+                stopCountdown();
+            }
+        } catch (e) {}
+    }
+
+    function applyDelayInfo(data) {
+        var retryAfterSeconds = data && Number(data.retry_after_seconds);
+        var retryAvailableAt = data && Number(data.retry_available_at);
+        if (retryAvailableAt > Date.now()) {
+            startCountdown(retryAvailableAt);
+            return true;
+        }
+        if (retryAfterSeconds > 0) {
+            startCountdown(Date.now() + (retryAfterSeconds * 1000));
+            return true;
+        }
+        return false;
+    }
+
+    function focusPassword() {
+        var pw = byId("login_user_pw");
+        if (pw && !pw.disabled) {
+            pw.focus();
+            pw.select();
+        }
     }
 
     function doLogin() {
-        var idEl = byId("login_user_id");
-        var pwEl = byId("login_user_pw");
-
-        var userId = (idEl && idEl.value ? idEl.value : "").trim();
-        var userPw = (pwEl && pwEl.value ? pwEl.value : "");
+        var userId = ((byId("login_user_id") && byId("login_user_id").value) || "").trim();
+        var userPw = ((byId("login_user_pw") && byId("login_user_pw").value) || "");
 
         if (!userId || !userPw) {
-            setMsg("아이디/비밀번호를 입력하세요.", false);
+            setMsg("아이디와 비밀번호를 입력하세요.", "error");
             return;
         }
 
         postJson("/login.json", { user_id: userId, user_pw: userPw })
             .then(function (res) {
                 if (!res || res.ok !== true) {
-                    setMsg((res && res.message) ? res.message : "로그인 실패", false);
+                    clearAuthStorage();
+
+                    if (!applyDelayInfo(res && res.data ? res.data : null)) {
+                        setDisabled(false);
+                        setMsg((res && res.message) ? res.message : "로그인에 실패했습니다.", "error");
+                    }
+                    focusPassword();
                     return;
                 }
 
-                // 토큰 저장 (프로젝트 표준키로 통일)
+                stopCountdown();
+
                 try {
                     localStorage.setItem("JWT", res.data && res.data.token ? res.data.token : "");
                     localStorage.setItem("LOGIN_USER", JSON.stringify((res.data && res.data.user) ? res.data.user : {}));
+                    localStorage.setItem("LOGIN_SESSION_ID", res.data && res.data.session_id ? res.data.session_id : "");
                 } catch (e) {}
 
-                setMsg("로그인 성공", true);
+                setMsg("로그인되었습니다.", "success");
+                try { document.dispatchEvent(new CustomEvent("jsadmin:authChanged")); } catch (e) {}
 
-				// 헤더 갱신 이벤트
-				try { document.dispatchEvent(new CustomEvent("jsadmin:authChanged")); } catch (e) {}
-				
-				if (window.jsAdminSpa && typeof window.jsAdminSpa.load === "function") {
-				    window.jsAdminSpa.load("/home.do");
-				} else {
-				    // SPA가 준비 안 된 경우라도, 쉘로 재진입해서 app.jsp boot 로직으로 home 호출
-				    location.href = (ctx() + "/main.do");
-				}
+                if (global.jsAdminSpa && typeof global.jsAdminSpa.load === "function") {
+                    global.jsAdminSpa.load("/home.do");
+                } else {
+                    location.href = ctx() + "/main.do";
+                }
             })
             .catch(function (e) {
-                setMsg(String(e && e.message ? e.message : e), false);
+                clearAuthStorage();
+                setDisabled(false);
+                setMsg(String(e && e.message ? e.message : e), "error");
             });
     }
 
-    // doInit()에서 호출할 엔트리
     function init() {
         var btn = byId("btnLogin");
-        if (!btn) return; // login.jsp가 아닌 경우
-
-        // 중복 바인딩 방지
+        if (!btn) return;
         if (btn.getAttribute("data-bound") === "Y") return;
         btn.setAttribute("data-bound", "Y");
 
         btn.onclick = doLogin;
 
+        var userId = byId("login_user_id");
         var pw = byId("login_user_pw");
-        if (pw) {
-            pw.onkeydown = function (e) {
-                e = e || window.event;
-                if (e.key === "Enter") doLogin();
-            };
+
+        function handleEnter(e) {
+            e = e || global.event;
+            if (e.key === "Enter" && !(btn && btn.disabled)) {
+                doLogin();
+            }
         }
+
+        if (userId) userId.onkeydown = handleEnter;
+        if (pw) pw.onkeydown = handleEnter;
+
+        restoreCountdown();
     }
 
-    // 전역 등록: doInit()에서 Page.login.init() 호출
     global.Page = global.Page || {};
     global.Page.login = { init: init };
 
-    // (선택) 스크립트가 먼저 로드되고 DOM이 나중일 수 있어, 즉시 1회 시도
-    // 조각 로딩 방식이면 doInit이 주 호출이지만, 안전망으로 둠.
     try { init(); } catch (e) {}
-
 })(window);

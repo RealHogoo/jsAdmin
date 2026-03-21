@@ -1,0 +1,154 @@
+DECLARE
+    v_cnt NUMBER;
+BEGIN
+    SELECT COUNT(1)
+      INTO v_cnt
+      FROM USER_TABLES
+     WHERE TABLE_NAME = 'ADM_LOGIN_SESN';
+
+    IF v_cnt = 0 THEN
+        EXECUTE IMMEDIATE '
+            CREATE TABLE ADM_LOGIN_SESN (
+                SESN_SEQ         NUMBER(19,0)      NOT NULL,
+                SESSION_ID       VARCHAR2(64)      NOT NULL,
+                USER_SEQ         NUMBER(19,0),
+                LOGIN_ID         VARCHAR2(100)     NOT NULL,
+                USER_NM          VARCHAR2(100),
+                STATUS_CD        VARCHAR2(20)      NOT NULL,
+                CLIENT_IP        VARCHAR2(45),
+                USER_AGENT       VARCHAR2(500),
+                LOGIN_AT         TIMESTAMP(6)      NOT NULL,
+                LAST_ACCESS_AT   TIMESTAMP(6),
+                EXPIRES_AT       TIMESTAMP(6),
+                LOGOUT_AT        TIMESTAMP(6),
+                CREATED_AT       TIMESTAMP(6) DEFAULT SYSTIMESTAMP NOT NULL,
+                CREATED_BY       VARCHAR2(100)     NOT NULL,
+                UPDATED_AT       TIMESTAMP(6),
+                UPDATED_BY       VARCHAR2(100),
+                CONSTRAINT PK_ADM_LOGIN_SESN PRIMARY KEY (SESN_SEQ),
+                CONSTRAINT UK_ADM_LOGIN_SESN_01 UNIQUE (SESSION_ID),
+                CONSTRAINT CK_ADM_LOGIN_SESN_01 CHECK (STATUS_CD IN (''ACTIVE'', ''EXPIRED'', ''REVOKED''))
+            )';
+    END IF;
+END;
+/
+
+DECLARE
+    v_cnt NUMBER;
+BEGIN
+    SELECT COUNT(1)
+      INTO v_cnt
+      FROM USER_TABLES
+     WHERE TABLE_NAME = 'ADM_LOGIN_HIST';
+
+    IF v_cnt = 0 THEN
+        EXECUTE IMMEDIATE '
+            CREATE TABLE ADM_LOGIN_HIST (
+                HIST_SEQ         NUMBER(19,0)      NOT NULL,
+                USER_SEQ         NUMBER(19,0),
+                LOGIN_ID         VARCHAR2(100),
+                USER_NM          VARCHAR2(100),
+                RESULT_CD        VARCHAR2(20)      NOT NULL,
+                RESULT_MSG       VARCHAR2(400),
+                SESSION_ID       VARCHAR2(64),
+                CLIENT_IP        VARCHAR2(45),
+                USER_AGENT       VARCHAR2(500),
+                LOGIN_AT         TIMESTAMP(6) DEFAULT SYSTIMESTAMP NOT NULL,
+                CREATED_AT       TIMESTAMP(6) DEFAULT SYSTIMESTAMP NOT NULL,
+                CREATED_BY       VARCHAR2(100),
+                CONSTRAINT PK_ADM_LOGIN_HIST PRIMARY KEY (HIST_SEQ),
+                CONSTRAINT CK_ADM_LOGIN_HIST_01 CHECK (RESULT_CD IN (''SUCCESS'', ''FAIL'', ''LOGOUT''))
+            )';
+    END IF;
+END;
+/
+
+DECLARE
+    v_cnt NUMBER;
+BEGIN
+    SELECT COUNT(1)
+      INTO v_cnt
+      FROM USER_SEQUENCES
+     WHERE SEQUENCE_NAME = 'ADM_LOGIN_SESN_SEQ';
+
+    IF v_cnt = 0 THEN
+        EXECUTE IMMEDIATE '
+            CREATE SEQUENCE ADM_LOGIN_SESN_SEQ
+            START WITH 1
+            INCREMENT BY 1
+            NOCACHE
+            NOCYCLE';
+    END IF;
+END;
+/
+
+DECLARE
+    v_cnt NUMBER;
+BEGIN
+    SELECT COUNT(1)
+      INTO v_cnt
+      FROM USER_CONSTRAINTS
+     WHERE TABLE_NAME = 'ADM_LOGIN_HIST'
+       AND CONSTRAINT_NAME = 'CK_ADM_LOGIN_HIST_01';
+
+    IF v_cnt > 0 THEN
+        EXECUTE IMMEDIATE 'ALTER TABLE ADM_LOGIN_HIST DROP CONSTRAINT CK_ADM_LOGIN_HIST_01';
+    END IF;
+
+    EXECUTE IMMEDIATE '
+        ALTER TABLE ADM_LOGIN_HIST
+        ADD CONSTRAINT CK_ADM_LOGIN_HIST_01
+        CHECK (RESULT_CD IN (''SUCCESS'', ''FAIL'', ''LOGOUT''))';
+END;
+/
+
+DECLARE
+    v_cnt NUMBER;
+BEGIN
+    SELECT COUNT(1)
+      INTO v_cnt
+      FROM USER_SEQUENCES
+     WHERE SEQUENCE_NAME = 'ADM_LOGIN_HIST_SEQ';
+
+    IF v_cnt = 0 THEN
+        EXECUTE IMMEDIATE '
+            CREATE SEQUENCE ADM_LOGIN_HIST_SEQ
+            START WITH 1
+            INCREMENT BY 1
+            NOCACHE
+            NOCYCLE';
+    END IF;
+END;
+/
+
+DECLARE
+    v_cnt NUMBER;
+BEGIN
+    SELECT COUNT(1)
+      INTO v_cnt
+      FROM USER_INDEXES
+     WHERE INDEX_NAME = 'IDX_ADM_LOGIN_SESN_01';
+
+    IF v_cnt = 0 THEN
+        EXECUTE IMMEDIATE '
+            CREATE INDEX IDX_ADM_LOGIN_SESN_01
+                ON ADM_LOGIN_SESN (LOGIN_ID, STATUS_CD, LOGIN_AT DESC)';
+    END IF;
+END;
+/
+
+DECLARE
+    v_cnt NUMBER;
+BEGIN
+    SELECT COUNT(1)
+      INTO v_cnt
+      FROM USER_INDEXES
+     WHERE INDEX_NAME = 'IDX_ADM_LOGIN_HIST_01';
+
+    IF v_cnt = 0 THEN
+        EXECUTE IMMEDIATE '
+            CREATE INDEX IDX_ADM_LOGIN_HIST_01
+                ON ADM_LOGIN_HIST (LOGIN_ID, LOGIN_AT DESC)';
+    END IF;
+END;
+/

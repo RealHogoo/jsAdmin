@@ -33,5 +33,17 @@ public interface AuthMapper {
 
     int deleteUserException(@Param("userSeq") Long userSeq, @Param("menuSeq") Long menuSeq);
 
+    int ensureUserSecurityColumns();
+
+    int ensureUserSequence();
+
+    int updateLoginFailState(Map<String, Object> param);
+
+    int resetLoginFailState(@Param("userSeq") Long userSeq, @Param("updatedBy") String updatedBy);
+
+    int updateLastLoginAt(@Param("userSeq") Long userSeq, @Param("updatedBy") String updatedBy);
+
+    int clearPwdResetFlag(@Param("userSeq") Long userSeq, @Param("updatedBy") String updatedBy);
+
     LoginUser selectUserForLogin(@Param("user_id") String userId);
 }

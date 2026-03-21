@@ -3,6 +3,7 @@ package com.realhogoo.jsadmin.auth.jwt;
 import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.realhogoo.jsadmin.access.service.AccessService;
 import com.realhogoo.jsadmin.api.ApiCode;
 import com.realhogoo.jsadmin.api.ApiResponse;
 import org.springframework.web.context.WebApplicationContext;
@@ -19,6 +20,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
@@ -27,22 +29,29 @@ import java.util.Set;
 
 public class JwtAuthFilter implements Filter {
 
-    private static final Set<String> PERMIT = new HashSet<>(Arrays.asList(
+    private static final Set<String> PERMIT = new HashSet<String>(Arrays.asList(
         "/login.json",
         "/health/status.json",
         "/home/intro.json",
         "/notice/list.json",
-        "/menu/tree.json"
+        "/menu/tree.json",
+        "/menu/list.json",
+        "/menu/detail.json",
+        "/code/list.json",
+        "/timeline/list.json",
+        "/timeline/detail.json"
     ));
 
     private final ObjectMapper om = new ObjectMapper();
     private JwtProvider jwtProvider;
+    private AccessService accessService;
     private ServletContext servletContext;
 
     @Override
     public void init(FilterConfig filterConfig) {
         this.servletContext = filterConfig.getServletContext();
         this.jwtProvider = resolveJwtProvider();
+        this.accessService = resolveAccessService();
     }
 
     @Override
@@ -59,7 +68,6 @@ public class JwtAuthFilter implements Filter {
 
         String path = getPath(req);
         if (PERMIT.contains(path)) {
-            // permit endpoint도 토큰이 있으면 사용자 컨텍스트를 세팅한다.
             tryBindAuthContext(req);
             chain.doFilter(request, response);
             return;
@@ -83,17 +91,27 @@ public class JwtAuthFilter implements Filter {
                 writeJson(resp, 500, ApiResponse.fail(ApiCode.SERVER_ERROR, "auth provider not ready", getTraceId(req)));
                 return;
             }
+
             DecodedJWT jwt = provider.verify(token);
             String userId = jwt.getSubject();
-
+            String sessionId = jwt.getClaim("session_id").asString();
             List<String> roles = jwt.getClaim("roles").asList(String.class);
             if (roles == null) {
                 roles = Collections.emptyList();
             }
 
+            AccessService accessSvc = (accessService != null) ? accessService : resolveAccessService();
+            if (accessSvc != null && sessionId != null && !sessionId.trim().isEmpty()) {
+                boolean active = accessSvc.touchSession(sessionId, Instant.now());
+                if (!active) {
+                    writeUnauthorized(req, resp);
+                    return;
+                }
+            }
+
             req.setAttribute("user_id", userId);
             req.setAttribute("roles", roles);
-
+            req.setAttribute("session_id", sessionId);
             chain.doFilter(request, response);
         } catch (JWTVerificationException e) {
             writeUnauthorized(req, resp);
@@ -107,6 +125,32 @@ public class JwtAuthFilter implements Filter {
     }
 
     private JwtProvider resolveJwtProvider() {
+        WebApplicationContext ctx = resolveContext();
+        if (ctx == null) {
+            return null;
+        }
+        try {
+            jwtProvider = ctx.getBean(JwtProvider.class);
+            return jwtProvider;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private AccessService resolveAccessService() {
+        WebApplicationContext ctx = resolveContext();
+        if (ctx == null) {
+            return null;
+        }
+        try {
+            accessService = ctx.getBean(AccessService.class);
+            return accessService;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private WebApplicationContext resolveContext() {
         if (servletContext == null) {
             return null;
         }
@@ -117,15 +161,7 @@ public class JwtAuthFilter implements Filter {
                 ctx = (WebApplicationContext) dispatcherCtx;
             }
         }
-        if (ctx == null) {
-            return null;
-        }
-        try {
-            jwtProvider = ctx.getBean(JwtProvider.class);
-            return jwtProvider;
-        } catch (Exception e) {
-            return null;
-        }
+        return ctx;
     }
 
     private void writeUnauthorized(HttpServletRequest req, HttpServletResponse resp) throws IOException {
@@ -149,15 +185,23 @@ public class JwtAuthFilter implements Filter {
 
             DecodedJWT jwt = provider.verify(token);
             String userId = jwt.getSubject();
+            String sessionId = jwt.getClaim("session_id").asString();
             List<String> roles = jwt.getClaim("roles").asList(String.class);
             if (roles == null) {
                 roles = Collections.emptyList();
             }
+            AccessService accessSvc = (accessService != null) ? accessService : resolveAccessService();
+            if (accessSvc != null && sessionId != null && !sessionId.trim().isEmpty()) {
+                boolean active = accessSvc.touchSession(sessionId, Instant.now());
+                if (!active) {
+                    return;
+                }
+            }
 
             req.setAttribute("user_id", userId);
             req.setAttribute("roles", roles);
+            req.setAttribute("session_id", sessionId);
         } catch (Exception ignored) {
-            // permit endpoint에서는 인증 실패를 강제하지 않는다.
         }
     }
 

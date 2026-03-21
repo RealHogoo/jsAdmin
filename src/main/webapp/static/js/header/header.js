@@ -1,33 +1,79 @@
 (function () {
     "use strict";
 
-    function hasToken() {
+    var LABEL_LOGIN = "\uB85C\uADF8\uC778";
+    var LABEL_LOGOUT = "\uB85C\uADF8\uC544\uC6C3";
+
+    function getToken() {
         try {
-            var t = localStorage.getItem("JWT");
-            return !!(t && t.trim().length > 0);
+            return localStorage.getItem("JWT") || "";
         } catch (e) {
-            return false;
+            return "";
         }
+    }
+
+    function getLoginUser() {
+        try {
+            var raw = localStorage.getItem("LOGIN_USER");
+            return raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function hasToken() {
+        return !!getToken().trim();
     }
 
     function updateAuthButton() {
         var btn = document.getElementById("authBtn");
+        var myPageBtn = document.getElementById("myPageBtn");
+        var userLabel = document.getElementById("authUserLabel");
+        var loginUser = getLoginUser();
+
         if (!btn) return;
 
         if (hasToken()) {
-            btn.textContent = "Logout";
+            btn.textContent = LABEL_LOGOUT;
             btn.setAttribute("data-action", "logout");
             btn.removeAttribute("data-spa");
+            btn.className = "header-chip header-chip-revoked";
+            if (myPageBtn) {
+                myPageBtn.className = "header-chip header-chip-expired";
+                myPageBtn.style.display = "";
+                myPageBtn.style.textDecoration = "none";
+                myPageBtn.style.color = "#92400e";
+                myPageBtn.style.background = "#fef3c7";
+                myPageBtn.style.borderRadius = "999px";
+                myPageBtn.style.padding = "5px 14px";
+                myPageBtn.style.fontSize = "13px";
+                myPageBtn.style.fontWeight = "700";
+            }
+            if (userLabel) {
+                userLabel.textContent = loginUser && loginUser.user_nm
+                    ? (loginUser.user_nm + " (" + (loginUser.user_id || "") + ")")
+                    : (loginUser && loginUser.user_id ? loginUser.user_id : "");
+            }
         } else {
-            btn.textContent = "Login";
+            btn.textContent = LABEL_LOGIN;
             btn.removeAttribute("data-action");
             btn.setAttribute("data-spa", "/login.do");
+            btn.className = "header-chip header-chip-active";
+            if (myPageBtn) myPageBtn.style.display = "none";
+            if (userLabel) userLabel.textContent = "";
         }
     }
 
     async function doLogout() {
+        try {
+            if (window.jsAdminSpa && typeof window.jsAdminSpa.call === "function") {
+                await window.jsAdminSpa.call("/logout.json", {});
+            }
+        } catch (e) {}
+
         try { localStorage.removeItem("JWT"); } catch (e) {}
         try { localStorage.removeItem("LOGIN_USER"); } catch (e) {}
+        try { localStorage.removeItem("LOGIN_SESSION_ID"); } catch (e) {}
 
         document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
 
@@ -44,27 +90,12 @@
         window.location.href = "/main.do";
     }
 
-    function findBrandEl() {
-        var byId = document.getElementById("brandHome");
-        if (byId) return byId;
-
-        var strongs = Array.prototype.slice.call(document.querySelectorAll("strong"));
-        for (var i = 0; i < strongs.length; i++) {
-            if (String(strongs[i].textContent || "").trim() === "jsAdmin") {
-                return strongs[i];
-            }
-        }
-        return null;
-    }
-
     function bindBrandClick() {
-        var el = findBrandEl();
-        if (!el) return;
-        if (el.dataset.brandBound === "1") return;
+        var el = document.getElementById("brandHome");
+        if (!el || el.dataset.brandBound === "1") return;
 
         el.dataset.brandBound = "1";
         el.style.cursor = "pointer";
-
         el.addEventListener("click", function (e) {
             e.preventDefault();
             goMain();

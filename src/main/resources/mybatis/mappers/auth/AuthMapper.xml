@@ -5,6 +5,79 @@
 
 <mapper namespace="com.realhogoo.jsadmin.auth.mapper.AuthMapper">
 
+    <update id="ensureUserSecurityColumns">
+        <![CDATA[
+        DECLARE
+            v_cnt NUMBER;
+        BEGIN
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_TAB_COLS
+             WHERE TABLE_NAME = 'ADM_USER_MST'
+               AND COLUMN_NAME = 'LOGIN_FAIL_CNT';
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE 'ALTER TABLE ADM_USER_MST ADD LOGIN_FAIL_CNT NUMBER(5,0) DEFAULT 0 NOT NULL';
+            END IF;
+
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_TAB_COLS
+             WHERE TABLE_NAME = 'ADM_USER_MST'
+               AND COLUMN_NAME = 'LOCK_UNTIL_AT';
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE 'ALTER TABLE ADM_USER_MST ADD LOCK_UNTIL_AT TIMESTAMP(6)';
+            END IF;
+
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_TAB_COLS
+             WHERE TABLE_NAME = 'ADM_USER_MST'
+               AND COLUMN_NAME = 'LOCK_YN';
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE 'ALTER TABLE ADM_USER_MST ADD LOCK_YN CHAR(1) DEFAULT ''N'' NOT NULL';
+            END IF;
+
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_TAB_COLS
+             WHERE TABLE_NAME = 'ADM_USER_MST'
+               AND COLUMN_NAME = 'LAST_LOGIN_AT';
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE 'ALTER TABLE ADM_USER_MST ADD LAST_LOGIN_AT TIMESTAMP(6)';
+            END IF;
+
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_TAB_COLS
+             WHERE TABLE_NAME = 'ADM_USER_MST'
+               AND COLUMN_NAME = 'PWD_RESET_YN';
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE 'ALTER TABLE ADM_USER_MST ADD PWD_RESET_YN CHAR(1) DEFAULT ''N'' NOT NULL';
+            END IF;
+        END;
+        ]]>
+    </update>
+
+    <update id="ensureUserSequence">
+        <![CDATA[
+        DECLARE
+            v_cnt NUMBER;
+            v_start NUMBER;
+        BEGIN
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_SEQUENCES
+             WHERE SEQUENCE_NAME = 'ADM_USER_MST_SEQ';
+
+            IF v_cnt = 0 THEN
+                SELECT NVL(MAX(USER_SEQ), 0) + 1 INTO v_start
+                  FROM ADM_USER_MST;
+
+                EXECUTE IMMEDIATE '
+                    CREATE SEQUENCE ADM_USER_MST_SEQ
+                    START WITH ' || v_start || '
+                    INCREMENT BY 1
+                    NOCACHE
+                    NOCYCLE';
+            END IF;
+        END;
+        ]]>
+    </update>
+
     <select id="selectAuthGroupList" parameterType="map" resultType="map">
         SELECT
             ag.auth_group_seq,
@@ -268,13 +341,59 @@
            AND MENU_SEQ = #{menuSeq}
     </delete>
 
+    <update id="updateLoginFailState" parameterType="map">
+        UPDATE ADM_USER_MST
+           SET LOGIN_FAIL_CNT = #{login_fail_cnt,jdbcType=NUMERIC},
+               LOCK_UNTIL_AT = #{lock_until_at,jdbcType=TIMESTAMP},
+               LOCK_YN = #{lock_yn,jdbcType=CHAR},
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = #{updated_by,jdbcType=VARCHAR}
+         WHERE USER_SEQ = #{user_seq,jdbcType=NUMERIC}
+    </update>
+
+    <update id="resetLoginFailState">
+        UPDATE ADM_USER_MST
+           SET LOGIN_FAIL_CNT = 0,
+               LOCK_UNTIL_AT = NULL,
+               LOCK_YN = 'N',
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = #{updatedBy}
+         WHERE USER_SEQ = #{userSeq}
+    </update>
+
+    <update id="updateLastLoginAt">
+        UPDATE ADM_USER_MST
+           SET LAST_LOGIN_AT = SYSTIMESTAMP,
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = #{updatedBy}
+         WHERE USER_SEQ = #{userSeq}
+    </update>
+
+    <update id="clearPwdResetFlag">
+        UPDATE ADM_USER_MST
+           SET PWD_RESET_YN = 'N',
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = #{updatedBy}
+         WHERE USER_SEQ = #{userSeq}
+    </update>
+
     <resultMap id="LoginUserMap" type="com.realhogoo.jsadmin.auth.dto.LoginUser">
+        <result property="userSeq" column="USER_SEQ"/>
         <result property="userId" column="LOGIN_ID"/>
+        <result property="userNm" column="USER_NM"/>
         <result property="userPw" column="PWD_HASH"/>
+        <result property="loginFailCnt" column="LOGIN_FAIL_CNT"/>
+        <result property="lockYn" column="LOCK_YN"/>
+        <result property="lockUntilAt" column="LOCK_UNTIL_AT"/>
+        <result property="pwdResetYn" column="PWD_RESET_YN"/>
     </resultMap>
 
     <select id="selectUserForLogin" resultMap="LoginUserMap">
-        SELECT LOGIN_ID, PWD_HASH
+        SELECT USER_SEQ, LOGIN_ID, USER_NM, PWD_HASH,
+               NVL(LOGIN_FAIL_CNT, 0) AS LOGIN_FAIL_CNT,
+               NVL(LOCK_YN, 'N') AS LOCK_YN,
+               LOCK_UNTIL_AT,
+               NVL(PWD_RESET_YN, 'N') AS PWD_RESET_YN
           FROM ADM_USER_MST
          WHERE LOGIN_ID = #{user_id}
            AND USE_YN = 'Y'

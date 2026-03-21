@@ -149,6 +149,7 @@
 		if (res.status === 401) {
 		    try { localStorage.removeItem("JWT"); } catch (e) {}
 		    try { localStorage.removeItem("LOGIN_USER"); } catch (e) {}
+		    try { localStorage.removeItem("LOGIN_SESSION_ID"); } catch (e) {}
 		
 		    // auth 변경 이벤트(헤더/화면별 JS가 반응)
 		    document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
@@ -158,7 +159,7 @@
 		    
 			// 현재 화면이 로그인 조각이면 다시 login.do 로드하지 않기
 		    var app = document.getElementById("app");
-		    var isLoginFragment = app && app.querySelector("#loginForm, form[data-page='login']");
+		    var isLoginFragment = app && app.querySelector("#loginForm, form[data-page='login'], [data-page='login']");
 		
 		    if (!isLoginFragment) {
 		        window.__JSADMIN_AUTH_REDIRECTING = true;
