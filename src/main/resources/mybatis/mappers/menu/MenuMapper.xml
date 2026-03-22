@@ -153,7 +153,7 @@
      ORDER BY M.SORT_ORD, M.MENU_SEQ
   </select>
   
-	<select id="selectMenuListAll" resultType="map">
+	<select id="selectMenuListAll" parameterType="map" resultType="map">
 		SELECT
 		    M.MENU_SEQ,
 		    M.UP_MENU_SEQ,
@@ -165,13 +165,18 @@
 		    M.USE_YN,
 		    LEVEL AS TREE_LVL
 		FROM ADM_MENU_MST M
-		WHERE M.USE_YN = 'Y'
+		WHERE 1 = 1
+		<if test="use_yn != null and use_yn != ''">
+		  AND M.USE_YN = #{use_yn}
+		</if>
 		START WITH M.UP_MENU_SEQ IS NULL
 		   OR NOT EXISTS (
 		        SELECT 1
 		          FROM ADM_MENU_MST P
 		         WHERE P.MENU_SEQ = M.UP_MENU_SEQ
-		           AND P.USE_YN = 'Y'
+		        <if test="use_yn != null and use_yn != ''">
+		           AND P.USE_YN = #{use_yn}
+		        </if>
 		   )
 		CONNECT BY PRIOR M.MENU_SEQ = M.UP_MENU_SEQ
 		ORDER SIBLINGS BY M.SORT_ORD, M.MENU_SEQ
@@ -235,12 +240,34 @@
 	       AND USE_YN = 'Y'
 	</select>
 	
-	<update id="deleteMenu" parameterType="map">
-	    UPDATE ADM_MENU_MST
-	       SET USE_YN = 'N',
-	           UPDATED_AT = SYSTIMESTAMP,
-	           UPDATED_BY = #{updated_by}
-	     WHERE MENU_SEQ = #{menu_seq}
-	</update>
+	<delete id="deleteAuthMenuByRootMenuSeq" parameterType="long">
+	    DELETE FROM ADM_AUTH_MENU
+	     WHERE MENU_SEQ IN (
+	        SELECT MENU_SEQ
+	          FROM ADM_MENU_MST
+	         START WITH MENU_SEQ = #{menuSeq}
+	         CONNECT BY PRIOR MENU_SEQ = UP_MENU_SEQ
+	     )
+	</delete>
+
+	<delete id="deleteAuthUserByRootMenuSeq" parameterType="long">
+	    DELETE FROM ADM_AUTH_USER
+	     WHERE MENU_SEQ IN (
+	        SELECT MENU_SEQ
+	          FROM ADM_MENU_MST
+	         START WITH MENU_SEQ = #{menuSeq}
+	         CONNECT BY PRIOR MENU_SEQ = UP_MENU_SEQ
+	     )
+	</delete>
+
+	<delete id="deleteMenuTree" parameterType="long">
+	    DELETE FROM ADM_MENU_MST
+	     WHERE MENU_SEQ IN (
+	        SELECT MENU_SEQ
+	          FROM ADM_MENU_MST
+	         START WITH MENU_SEQ = #{menuSeq}
+	         CONNECT BY PRIOR MENU_SEQ = UP_MENU_SEQ
+	     )
+	</delete>
 
 </mapper>

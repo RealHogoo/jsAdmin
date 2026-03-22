@@ -2,12 +2,17 @@ package com.realhogoo.jsadmin.menu.web;
 
 import com.realhogoo.jsadmin.menu.dto.MenuNode;
 import com.realhogoo.jsadmin.menu.service.MenuService;
-
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletRequest;
-import java.util.*;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Controller
 public class MenuController {
@@ -21,7 +26,6 @@ public class MenuController {
     @PostMapping("/menu/tree.json")
     @ResponseBody
     public Map<String, Object> tree(HttpServletRequest req) {
-        // JwtAuthFilter가 세팅한 값 사용(요구사항: request attribute에 user_id/roles 세팅)
         Object userIdObj = req.getAttribute("user_id");
         String userId = userIdObj == null ? null : String.valueOf(userIdObj);
 
@@ -37,13 +41,13 @@ public class MenuController {
 
     @PostMapping("/menu/main.do")
     public String main() {
-        return "fragments/menu/main"; // /WEB-INF/jsp/menu/main.jsp
+        return "fragments/menu/main";
     }
-    
+
     @PostMapping("/menu/list.json")
     @ResponseBody
-    public Map<String, Object> list(HttpServletRequest req) {
-        List<Map<String, Object>> list = menuService.selectMenuListAll(); // 아래 2)에서 추가
+    public Map<String, Object> list(@RequestBody(required = false) Map<String, Object> body) {
+        List<Map<String, Object>> list = menuService.selectMenuListAll(body);
 
         Map<String, Object> res = new HashMap<>();
         res.put("ok", true);
@@ -52,7 +56,7 @@ public class MenuController {
         res.put("data", list);
         return res;
     }
-    
+
     @PostMapping("/menu/detail.json")
     @ResponseBody
     public Map<String, Object> detail(@RequestParam("menu_seq") Long menuSeq) {

@@ -3,6 +3,15 @@
 <div id="menuPage" class="page-root">
     <h2 class="page-title">메뉴관리</h2>
 
+    <div class="toolbar">
+        <label for="search_use_yn">사용여부</label>
+        <select class="input" id="search_use_yn" style="max-width:140px;">
+            <option value="Y">사용</option>
+            <option value="N">미사용</option>
+            <option value="">전체</option>
+        </select>
+    </div>
+
     <div class="toolbar btns" role="toolbar" aria-label="page actions">
         <a href="#" class="btn" data-perm-lvl="1" id="btnSearch" role="button">조회</a>
         <a href="#" class="btn" data-perm-lvl="5" id="btnSave" role="button">저장</a>

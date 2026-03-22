@@ -4,7 +4,12 @@ import com.realhogoo.jsadmin.menu.dto.MenuNode;
 import com.realhogoo.jsadmin.menu.mapper.MenuMapper;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 public class MenuServiceImpl implements MenuService {
@@ -26,51 +31,37 @@ public class MenuServiceImpl implements MenuService {
             rows = menuMapper.selectMenuListByUserId(userId);
         }
 
-        // 1) node map
         Map<Long, MenuNode> map = new LinkedHashMap<>();
-        for (Map<String, Object> r : rows) {
-            MenuNode n = new MenuNode();
-            n.setMenuSeq(toLong(r.get("menu_seq")));
-            n.setMenuNm((String) r.get("menu_nm"));
-            n.setMenuUrl((String) r.get("menu_url"));
-            n.setUpMenuSeq(toLongNullable(r.get("up_menu_seq")));
-            n.setSortNo(toInt(r.get("sort_no")));
-            n.setPermLvl(toInt(r.get("perm_lvl")));
-            
-            map.put(n.getMenuSeq(), n);
+        for (Map<String, Object> row : rows) {
+            MenuNode node = new MenuNode();
+            node.setMenuSeq(toLong(row.get("menu_seq")));
+            node.setMenuNm((String) row.get("menu_nm"));
+            node.setMenuUrl((String) row.get("menu_url"));
+            node.setUpMenuSeq(toLongNullable(row.get("up_menu_seq")));
+            node.setSortNo(toInt(row.get("sort_no")));
+            node.setPermLvl(toInt(row.get("perm_lvl")));
+            map.put(node.getMenuSeq(), node);
         }
 
-        // 2) parent-child linking
         List<MenuNode> roots = new ArrayList<>();
-        for (MenuNode n : map.values()) {
-            Long parentSeq = n.getUpMenuSeq();
+        for (MenuNode node : map.values()) {
+            Long parentSeq = node.getUpMenuSeq();
             if (parentSeq == null || !map.containsKey(parentSeq)) {
-                roots.add(n);
+                roots.add(node);
             } else {
-                map.get(parentSeq).getChildren().add(n);
+                map.get(parentSeq).getChildren().add(node);
             }
         }
 
-        // 3) sort recursively
         sortTree(roots);
         return roots;
     }
-    
+
     @Override
-    public List<Map<String, Object>> selectMenuListAll() {
-        return menuMapper.selectMenuListAll();
+    public List<Map<String, Object>> selectMenuListAll(Map<String, Object> param) {
+        return menuMapper.selectMenuListAll(param);
     }
 
-    private void sortTree(List<MenuNode> nodes) {
-        nodes.sort(Comparator
-            .comparing(MenuNode::getSortNo, Comparator.nullsLast(Integer::compareTo))
-            .thenComparing(MenuNode::getMenuSeq));
-        for (MenuNode n : nodes) {
-            if (n.getChildren() != null && !n.getChildren().isEmpty()) {
-                sortTree(n.getChildren());
-            }
-        }
-    }
     @Override
     public Map<String, Object> selectMenuDetail(Long menuSeq) {
         return menuMapper.selectMenuDetail(menuSeq);
@@ -78,16 +69,17 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     public Long saveMenu(Map<String, Object> param, String userId) {
-        if (param == null) throw new IllegalArgumentException("param is null");
+        if (param == null) {
+            throw new IllegalArgumentException("param is null");
+        }
 
-        // snake_case 유지 전제
         Object menuSeqObj = param.get("menu_seq");
         Long menuSeq = menuSeqObj == null ? null : Long.valueOf(String.valueOf(menuSeqObj));
 
         param.put("updated_by", userId);
         if (menuSeq == null) {
             param.put("created_by", userId);
-            menuMapper.insertMenu(param); // selectKey로 menu_seq 세팅
+            menuMapper.insertMenu(param);
             Object newSeq = param.get("menu_seq");
             return newSeq == null ? null : Long.valueOf(String.valueOf(newSeq));
         }
@@ -98,42 +90,51 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     public int deleteMenu(Long menuSeq, String userId) {
-        int childCnt = menuMapper.countChildMenu(menuSeq);
-        if (childCnt > 0) {
-            throw new IllegalStateException("하위 메뉴가 존재하여 삭제할 수 없습니다.");
+        if (menuSeq == null) {
+            throw new IllegalArgumentException("menu_seq is required");
         }
-        
-        Map<String, Object> p = new HashMap<>();
-        p.put("menu_seq", menuSeq);
-        p.put("updated_by", userId);
-        return menuMapper.deleteMenu(p); // soft delete
+
+        menuMapper.deleteAuthUserByRootMenuSeq(menuSeq);
+        menuMapper.deleteAuthMenuByRootMenuSeq(menuSeq);
+        return menuMapper.deleteMenuTree(menuSeq);
     }
 
-    private void normalizeNullable(Map<String, Object> param, String key) {
-        Object v = param.get(key);
-        if (v == null) {
-            return;
+    private void sortTree(List<MenuNode> nodes) {
+        nodes.sort(Comparator
+            .comparing(MenuNode::getSortNo, Comparator.nullsLast(Integer::compareTo))
+            .thenComparing(MenuNode::getMenuSeq));
+        for (MenuNode node : nodes) {
+            if (node.getChildren() != null && !node.getChildren().isEmpty()) {
+                sortTree(node.getChildren());
+            }
         }
-        String s = String.valueOf(v).trim();
-        if (s.isEmpty() || "null".equalsIgnoreCase(s)) {
-            param.put(key, null);
-        }
-    }
-    private Long toLong(Object v) {
-        if (v instanceof Number) return ((Number) v).longValue();
-        return Long.parseLong(String.valueOf(v));
-    }
-    private Long toLongNullable(Object v) {
-        if (v == null) return null;
-        String s = String.valueOf(v).trim();
-        if (s.isEmpty()) return null;
-        if ("null".equalsIgnoreCase(s)) return null; // ★ 추가
-        return toLong(v);
-    }
-    private Integer toInt(Object v) {
-        if (v == null) return 0;
-        if (v instanceof Number) return ((Number) v).intValue();
-        return Integer.parseInt(String.valueOf(v));
     }
 
+    private Long toLong(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        return Long.parseLong(String.valueOf(value));
+    }
+
+    private Long toLongNullable(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.isEmpty() || "null".equalsIgnoreCase(text)) {
+            return null;
+        }
+        return toLong(value);
+    }
+
+    private Integer toInt(Object value) {
+        if (value == null) {
+            return 0;
+        }
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        return Integer.parseInt(String.valueOf(value));
+    }
 }

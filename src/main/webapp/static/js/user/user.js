@@ -1,173 +1,174 @@
 (function (global) {
     "use strict";
 
+    var UX = global.UX;
+    var app = global.app;
+
     if (global.__USER_PAGE_BOUND__) return;
     global.__USER_PAGE_BOUND__ = true;
 
-    function qs(sel, root) { return (root || document).querySelector(sel); }
-    function qsa(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
-    function root() { return qs("#userPage"); }
+    var listView = null;
 
-    function esc(v) {
-        if (v === null || v === undefined) return "";
-        return String(v)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
+    function root() {
+        return UX.qs("#userPage");
     }
 
-    function api(url, body) {
-        return global.jsAdminSpa.call(url, body || {});
+    function setSelectedUserSeq(userSeq) {
+        var page = root();
+        if (!page) return;
+        page.dataset.selectedUserSeq = userSeq ? String(userSeq) : "";
+        if (listView) listView.refresh();
     }
 
-    function normalize(v) {
-        if (v === null || v === undefined) return "";
-        return String(v).trim();
+    function selectedUserSeq() {
+        var page = root();
+        return page ? UX.numOrNull(page.dataset.selectedUserSeq) : null;
     }
 
     function clearForm() {
-        ["user_seq", "login_id", "user_nm", "user_pw", "login_fail_cnt", "lock_yn", "lock_until_at", "pwd_reset_yn", "last_login_at"].forEach(function (id) {
-            var el = qs("#" + id, root());
-            if (el) el.value = "";
-        });
-        var useYn = qs("#use_yn", root());
-        if (useYn) useYn.value = "Y";
+        UX.clearValues(["user_seq", "login_id", "user_nm", "user_pw", "login_fail_cnt", "lock_yn", "lock_until_at", "pwd_reset_yn", "last_login_at"], root());
+        UX.setValue("#use_yn", "Y", root());
+        setSelectedUserSeq(null);
     }
 
     function fillForm(row) {
-        qs("#user_seq", root()).value = row.user_seq || "";
-        qs("#login_id", root()).value = row.login_id || "";
-        qs("#user_nm", root()).value = row.user_nm || "";
-        qs("#user_pw", root()).value = "";
-        qs("#use_yn", root()).value = row.use_yn || "Y";
-        qs("#login_fail_cnt", root()).value = row.login_fail_cnt || "0";
-        qs("#lock_yn", root()).value = row.lock_yn || "N";
-        qs("#lock_until_at", root()).value = row.lock_until_at || "";
-        qs("#pwd_reset_yn", root()).value = row.pwd_reset_yn || "N";
-        qs("#last_login_at", root()).value = row.last_login_at || "";
+        var page = root();
+        UX.setValue("#user_seq", row.user_seq || "", page);
+        UX.setValue("#login_id", row.login_id || "", page);
+        UX.setValue("#user_nm", row.user_nm || "", page);
+        UX.setValue("#user_pw", "", page);
+        UX.setValue("#use_yn", row.use_yn || "Y", page);
+        UX.setValue("#login_fail_cnt", row.login_fail_cnt || "0", page);
+        UX.setValue("#lock_yn", row.lock_yn || "N", page);
+        UX.setValue("#lock_until_at", row.lock_until_at || "", page);
+        UX.setValue("#pwd_reset_yn", row.pwd_reset_yn || "N", page);
+        UX.setValue("#last_login_at", row.last_login_at || "", page);
     }
 
     function collectForm() {
-        var seq = normalize(qs("#user_seq", root()).value);
+        var page = root();
+        var seq = UX.strOrNull(UX.getValue("#user_seq", page));
         return {
             user_seq: seq ? Number(seq) : null,
-            login_id: normalize(qs("#login_id", root()).value),
-            user_nm: normalize(qs("#user_nm", root()).value),
-            user_pw: normalize(qs("#user_pw", root()).value),
-            use_yn: normalize(qs("#use_yn", root()).value) || "Y"
+            login_id: UX.getValue("#login_id", page),
+            user_nm: UX.getValue("#user_nm", page),
+            user_pw: UX.getValue("#user_pw", page),
+            use_yn: UX.getValue("#use_yn", page) || "Y"
         };
     }
 
+    function ensureListView() {
+        var tbody = UX.qs("#userMgmtListBody", root());
+        if (!tbody || listView) return;
+
+        listView = UX.createVirtualTable({
+            tbody: tbody,
+            colCount: 7,
+            rowHeight: 42,
+            emptyHtml: "<tr><td colspan='7'>No Data</td></tr>",
+            renderRow: function (row) {
+                var locked = row.lock_yn === "Y" ? "LOCK" : (row.lock_until_at ? "DELAY" : "-");
+                var rowClass = Number(row.user_seq) === selectedUserSeq() ? " class='is-selected'" : "";
+                return ""
+                    + "<tr" + rowClass + " data-user-seq='" + UX.esc(row.user_seq) + "'>"
+                    + "<td>" + UX.esc(row.user_seq) + "</td>"
+                    + "<td>" + UX.esc(row.login_id) + "</td>"
+                    + "<td>" + UX.esc(row.user_nm) + "</td>"
+                    + "<td>" + UX.esc(row.use_yn || "Y") + "</td>"
+                    + "<td>" + UX.esc(row.login_fail_cnt || "0") + "</td>"
+                    + "<td>" + UX.esc(locked) + "</td>"
+                    + "<td>" + UX.esc(row.pwd_reset_yn || "N") + "</td>"
+                    + "</tr>";
+            },
+            onRendered: function () {
+                UX.qsa("tr[data-user-seq]", tbody).forEach(function (tr) {
+                    tr.addEventListener("click", function () {
+                        var userSeq = Number(tr.getAttribute("data-user-seq"));
+                        setSelectedUserSeq(userSeq);
+                        loadDetail(userSeq);
+                    });
+                });
+            }
+        });
+    }
+
     function renderList(rows) {
-        var tbody = qs("#userMgmtListBody", root());
-        if (!tbody) return;
-        if (!rows.length) {
-            tbody.innerHTML = "<tr><td colspan='7'>데이터가 없습니다.</td></tr>";
-            clearForm();
-            return;
-        }
+        ensureListView();
+        if (!listView) return;
+        if (!rows.length) clearForm();
+        listView.setItems(rows);
+    }
 
-        tbody.innerHTML = rows.map(function (row) {
-            var locked = row.lock_yn === "Y" ? "잠금" : (row.lock_until_at ? "지연" : "-");
-            return ""
-                + "<tr data-user-seq='" + esc(row.user_seq) + "'>"
-                + "<td>" + esc(row.user_seq) + "</td>"
-                + "<td>" + esc(row.login_id) + "</td>"
-                + "<td>" + esc(row.user_nm) + "</td>"
-                + "<td>" + esc(row.use_yn || "Y") + "</td>"
-                + "<td>" + esc(row.login_fail_cnt || "0") + "</td>"
-                + "<td>" + esc(locked) + "</td>"
-                + "<td>" + esc(row.pwd_reset_yn || "N") + "</td>"
-                + "</tr>";
-        }).join("");
-
-        qsa("tr[data-user-seq]", tbody).forEach(function (tr) {
-            tr.addEventListener("click", function () {
-                qsa("tr", tbody).forEach(function (row) { row.classList.remove("is-selected"); });
-                tr.classList.add("is-selected");
-                loadDetail(Number(tr.getAttribute("data-user-seq")));
-            });
+    function loadList() {
+        return app.callJson("/user/list.json", {
+            keyword: UX.getValue("#userMgmtKeyword", root()),
+            use_yn: UX.getValue("#userMgmtUseYn", root())
+        }, function (data) {
+            renderList(Array.isArray(data) ? data : []);
         });
     }
 
-    async function loadList() {
-        var data = await api("/user/list.json", {
-            keyword: normalize(qs("#userMgmtKeyword", root()).value),
-            use_yn: normalize(qs("#userMgmtUseYn", root()).value)
+    function loadDetail(userSeq) {
+        return app.callJson("/user/detail.json", { user_seq: userSeq }, function (data) {
+            if (data) {
+                setSelectedUserSeq(userSeq);
+                fillForm(data);
+            }
         });
-        renderList(Array.isArray(data) ? data : []);
     }
 
-    async function loadDetail(userSeq) {
-        var data = await api("/user/detail.json", { user_seq: userSeq });
-        if (data) fillForm(data);
-    }
-
-    async function saveUser() {
+    function saveUser() {
         var payload = collectForm();
-        if (!payload.login_id) {
-            alert("로그인 아이디를 입력하세요.");
-            return;
-        }
-        if (!payload.user_nm) {
-            alert("사용자명을 입력하세요.");
-            return;
-        }
-        if (!payload.user_seq && !payload.user_pw) {
-            alert("신규 등록 시 비밀번호가 필요합니다.");
-            return;
-        }
-        await api("/user/save.json", payload);
-        await loadList();
-        clearForm();
+        if (!payload.login_id) return alert("LOGIN_ID is required");
+        if (!payload.user_nm) return alert("USER_NM is required");
+        if (!payload.user_seq && !payload.user_pw) return alert("Password is required");
+
+        app.callJson("/user/save.json", payload, function () {
+            loadList().then(clearForm);
+        });
     }
 
-    async function resetPassword() {
-        var seq = normalize(qs("#user_seq", root()).value);
-        if (!seq) {
-            alert("비밀번호를 초기화할 사용자를 선택하세요.");
-            return;
-        }
-        if (!confirm("비밀번호를 로그인 아이디와 동일하게 초기화하시겠습니까?")) return;
-        await api("/user/resetPassword.json", { user_seq: Number(seq) });
-        await loadDetail(Number(seq));
-        await loadList();
+    function resetPassword() {
+        var seq = UX.numOrNull(UX.getValue("#user_seq", root()));
+        if (!seq) return alert("Select a user first");
+        if (!confirm("Reset password to LOGIN_ID?")) return;
+
+        app.callJson("/user/resetPassword.json", { user_seq: seq }, function () {
+            loadDetail(seq);
+            loadList();
+        });
     }
 
-    async function unlockUser() {
-        var seq = normalize(qs("#user_seq", root()).value);
-        if (!seq) {
-            alert("잠금 해제할 사용자를 선택하세요.");
-            return;
-        }
-        await api("/user/unlock.json", { user_seq: Number(seq) });
-        await loadDetail(Number(seq));
-        await loadList();
+    function unlockUser() {
+        var seq = UX.numOrNull(UX.getValue("#user_seq", root()));
+        if (!seq) return alert("Select a user first");
+
+        app.callJson("/user/unlock.json", { user_seq: seq }, function () {
+            loadDetail(seq);
+            loadList();
+        });
     }
 
-    async function deactivateUser() {
-        var seq = normalize(qs("#user_seq", root()).value);
-        if (!seq) {
-            alert("비활성화할 사용자를 선택하세요.");
-            return;
-        }
-        if (!confirm("선택한 사용자를 비활성화하시겠습니까?")) return;
-        await api("/user/delete.json", { user_seq: Number(seq) });
-        await loadList();
-        clearForm();
+    function deactivateUser() {
+        var seq = UX.numOrNull(UX.getValue("#user_seq", root()));
+        if (!seq) return alert("Select a user first");
+        if (!confirm("Deactivate selected user?")) return;
+
+        app.callJson("/user/delete.json", { user_seq: seq }, function () {
+            loadList().then(clearForm);
+        });
     }
 
     function bind() {
-        qs("#btnUserMgmtSearch", root()).addEventListener("click", function () { loadList(); });
-        qs("#btnUserMgmtNew", root()).addEventListener("click", function () { clearForm(); });
-        qs("#btnUserMgmtSave", root()).addEventListener("click", function () { saveUser(); });
-        qs("#btnUserMgmtResetPw", root()).addEventListener("click", function () { resetPassword(); });
-        qs("#btnUserMgmtUnlock", root()).addEventListener("click", function () { unlockUser(); });
-        qs("#btnUserMgmtDelete", root()).addEventListener("click", function () { deactivateUser(); });
+        var page = root();
+        UX.bindOnce(UX.qs("#btnUserMgmtSearch", page), "click", loadList);
+        UX.bindOnce(UX.qs("#btnUserMgmtNew", page), "click", clearForm);
+        UX.bindOnce(UX.qs("#btnUserMgmtSave", page), "click", saveUser);
+        UX.bindOnce(UX.qs("#btnUserMgmtResetPw", page), "click", resetPassword);
+        UX.bindOnce(UX.qs("#btnUserMgmtUnlock", page), "click", unlockUser);
+        UX.bindOnce(UX.qs("#btnUserMgmtDelete", page), "click", deactivateUser);
 
-        var keyword = qs("#userMgmtKeyword", root());
+        var keyword = UX.qs("#userMgmtKeyword", page);
         if (keyword) {
             keyword.addEventListener("keydown", function (e) {
                 if (e.key === "Enter") {
@@ -178,21 +179,18 @@
         }
     }
 
-    async function init() {
+    function init() {
         var page = root();
-        if (!page) return;
-        if (page.dataset.inited === "1") return;
+        if (!page || page.dataset.inited === "1") return;
         page.dataset.inited = "1";
         bind();
+        ensureListView();
         clearForm();
-        await loadList();
+        loadList();
     }
 
     document.addEventListener("jsadmin:pageLoaded", function (e) {
-        var url = e && e.detail ? e.detail.url : "";
-        if (url === "/user/main.do") {
-            init();
-        }
+        if (e && e.detail && e.detail.url === "/user/main.do") init();
     });
 
     try { init(); } catch (e) {}

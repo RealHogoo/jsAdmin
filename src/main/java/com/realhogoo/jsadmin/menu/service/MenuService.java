@@ -7,7 +7,7 @@ import java.util.Map;
 
 public interface MenuService {
     List<MenuNode> getMenuTree(String userId);
-    List<Map<String, Object>> selectMenuListAll();
+    List<Map<String, Object>> selectMenuListAll(Map<String, Object> param);
 
     Map<String, Object> selectMenuDetail(Long menuSeq);
 

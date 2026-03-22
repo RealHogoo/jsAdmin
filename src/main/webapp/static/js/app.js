@@ -1,89 +1,84 @@
-(function () {
+(function (global) {
     "use strict";
 
-    /* =========================
-     * 공통 유틸
-     * - "DB/백/프론트 동일 함수명" 목적이면 ux.js에서 window.UX 및 Object.assign(window, UX)로 전역 제공
-     * - 여기서는 window.UX가 있으면 일부 정규화에 활용
-     * ========================= */
+    var UX = global.UX || {};
+    var app = global.app || {};
+    var SPA = global.jsAdminSpa || {};
+    var loadingDepth = 0;
 
-    function hasUX() {
-        return typeof window.UX === "object" && window.UX !== null;
+    function ensureLoadingBar() {
+        var bar = document.getElementById("appLoadingBar");
+        if (bar) return bar;
+
+        bar = document.createElement("div");
+        bar.id = "appLoadingBar";
+        bar.className = "app-loading-bar";
+        bar.innerHTML = "<span class='app-loading-bar__inner'></span>";
+        document.body.appendChild(bar);
+        return bar;
     }
 
-    // Oracle-like: "" -> null (프론트에서도 파라미터 정규화 일관성 유지)
-    function NORM(v) {
-        if (v === undefined || v === null) return null;
+    function showLoadingBar() {
+        loadingDepth += 1;
+        ensureLoadingBar().classList.add("is-active");
+    }
 
-        if (typeof v === "string") {
-            if (hasUX() && typeof window.UX.TRIM === "function") {
-                // TRIM 결과가 null일 수 있음(ux.js는 빈 문자열을 null 처리)
-                return window.UX.TRIM(v);
+    function hideLoadingBar() {
+        loadingDepth = Math.max(loadingDepth - 1, 0);
+        if (loadingDepth > 0) return;
+        ensureLoadingBar().classList.remove("is-active");
+    }
+
+    function normalizePayload(data) {
+        var obj = {};
+        Object.keys(data || {}).forEach(function (key) {
+            var value = data[key];
+            if (value === undefined) return;
+
+            if (typeof UX.strOrNull === "function" && typeof value === "string") {
+                value = UX.strOrNull(value);
             }
-            var t = v.trim();
-            return t.length === 0 ? null : t;
-        }
-        return v;
-    }
-
-    function toFormBody(data) {
-	    // form 전송과 동일 정책: undefined 제외, NORM 적용 후 null 제외
-	    var obj = {};
-	    if (!data) return "{}";
-	
-	    Object.keys(data).forEach(function (k) {
-	        var v = data[k];
-	        if (v === undefined) return;
-	
-	        v = NORM(v);
-	        if (v === null) return;
-	
-	        obj[k] = v;
-	    });
-	
-	    return JSON.stringify(obj);
-    }
-
-    async function postText(url, data) {
-	    var res = await fetch(url, {
-	        method: "POST",
-	        headers: {
-	            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
-	        },
-	        body: toFormBody(data),
-	        credentials: "same-origin"
-	    });
-	
-	    var text = await res.text();
-	
-	    if (!res.ok) {
-	        throw new Error("HTTP " + res.status + "\n" + text);
-	    }
-	
-	    return text;
-	}
-
-    async function postJson(url, data) {
-        var res = await fetch(url, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-                "Accept": "application/json"
-            },
-            body: toFormBody(data),
-            credentials: "same-origin"
+            if (value === null) return;
+            obj[key] = value;
         });
+        return JSON.stringify(obj);
+    }
 
-        var text = await res.text();
-
-        if (!res.ok) {
-            throw new Error("HTTP " + res.status + "\n" + text);
+    function authHeaders() {
+        var headers = {
+            "Content-Type": "application/json; charset=UTF-8",
+            "Accept": "application/json"
+        };
+        var token = UX.localGet ? UX.localGet("JWT", "") : "";
+        if (token) {
+            headers.Authorization = "Bearer " + token;
         }
+        return headers;
+    }
 
-        // 서버가 빈 문자열 응답할 수도 있으니 방어
-        if (!text || text.trim().length === 0) return null;
+    async function executeScripts(rootEl) {
+        var scripts = Array.from(rootEl.querySelectorAll("script"));
+        for (var i = 0; i < scripts.length; i++) {
+            var oldScript = scripts[i];
+            var newScript = document.createElement("script");
+            if (oldScript.type) newScript.type = oldScript.type;
 
-        return JSON.parse(text);
+            if (oldScript.src) {
+                newScript.src = oldScript.src;
+                newScript.async = false;
+
+                await new Promise(function (resolve) {
+                    newScript.onload = resolve;
+                    newScript.onerror = resolve;
+                    oldScript.parentNode.removeChild(oldScript);
+                    rootEl.appendChild(newScript);
+                });
+            } else {
+                newScript.text = oldScript.textContent;
+                oldScript.parentNode.removeChild(oldScript);
+                rootEl.appendChild(newScript);
+            }
+        }
     }
 
     function isDo(url) {
@@ -94,185 +89,161 @@
         return typeof url === "string" && url.toLowerCase().endsWith(".json");
     }
 
-    function renderHtml(html) {
-        var el = document.getElementById("app");
-        if (!el) throw new Error("#app not found");
-        el.innerHTML = html;
-    }
-    
-    /* =========================
-     * jsAdmin SPA 공개 API
-     * - 규칙: *.do, *.json 둘 다 POST 고정
-     * ========================= */
-
-    async function load(url, data) {
-	    // 실수 방지: main.do는 SPA 조각 대상이 아니므로 home.do로 치환
-	    if (url === "/main.do" || url === "main.do") {
-	        url = "/home.do";
-	    }
-	    
-        if (!isDo(url)) {
-            throw new Error("load(url): url must end with .do (got: " + url + ")");
+    async function handleUnauthorized() {
+        if (UX.localRemove) {
+            UX.localRemove(["JWT", "LOGIN_USER", "LOGIN_SESSION_ID"]);
         }
-        var html = await postText(url, data);
-        renderHtml(html);
-		await executeScripts(document.getElementById("app"));
-		// 화면 로드 완료 이벤트(화면별 JS/헤더가 여기서 반응)
-		document.dispatchEvent(new CustomEvent("jsadmin:pageLoaded", {
-		    detail: { url: url }
-		}));
+
+        document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+
+        if (global.__JSADMIN_AUTH_REDIRECTING) return null;
+
+        var appRoot = document.getElementById("app");
+        var isLoginFragment = appRoot && appRoot.querySelector("#loginForm, form[data-page='login'], [data-page='login']");
+        if (!isLoginFragment) {
+            global.__JSADMIN_AUTH_REDIRECTING = true;
+            try {
+                await loadPage("/login.do");
+            } finally {
+                global.__JSADMIN_AUTH_REDIRECTING = false;
+            }
+        }
+        return null;
     }
 
-	async function call(url, data) {
-	    if (!isJson(url)) {
-	        throw new Error("call(url): url must end with .json (got: " + url + ")");
-	    }
-		var headers = {
-        	"Content-Type": "application/json; charset=UTF-8",
-		    "Accept": "application/json"
-		};
+    async function requestHtml(url, data) {
+        var response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+            },
+            body: normalizePayload(data || {}),
+            credentials: "same-origin"
+        });
 
-		var token = localStorage.getItem("JWT");
-		if (token) {
-		    headers["Authorization"] = "Bearer " + token;
-		}
-	    var res = await fetch(url, {
-		    method: "POST",
-		    headers: headers,
-		    body: toFormBody(data),
-		    credentials: "same-origin"
-		});
-	
-	    var text = await res.text();
-	    var body = text && text.trim().length > 0 ? JSON.parse(text) : null;
-	
-		if (res.status === 401) {
-		    try { localStorage.removeItem("JWT"); } catch (e) {}
-		    try { localStorage.removeItem("LOGIN_USER"); } catch (e) {}
-		    try { localStorage.removeItem("LOGIN_SESSION_ID"); } catch (e) {}
-		
-		    // auth 변경 이벤트(헤더/화면별 JS가 반응)
-		    document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
-		    
-		    // 이미 리다이렉트 중이면 추가 처리 금지(무한루프 방지)
-		    if (window.__JSADMIN_AUTH_REDIRECTING) return null;
-		    
-			// 현재 화면이 로그인 조각이면 다시 login.do 로드하지 않기
-		    var app = document.getElementById("app");
-		    var isLoginFragment = app && app.querySelector("#loginForm, form[data-page='login'], [data-page='login']");
-		
-		    if (!isLoginFragment) {
-		        window.__JSADMIN_AUTH_REDIRECTING = true;
-		        try {
-		            await load("/login.do");
-		        } finally {
-		            // login.do 로드 완료 후 플래그 해제
-		            window.__JSADMIN_AUTH_REDIRECTING = false;
-		        }
-		    }
-		
-		    return null;
-		}
-	
-	    if (!res.ok) {
-	        throw new Error("HTTP " + res.status + "\n" + text);
-	    }
-	
-	    // 표준 envelope 해석
-	    if (!body || typeof body.ok !== "boolean") {
-	        throw new Error("INVALID_API_RESPONSE");
-	    }
-	
-	    if (!body.ok) {
-	        var msg = (body.code || "ERROR") + ": " + (body.message || "failed");
-	        throw new Error(msg);
-	    }
-	
-	    return body.data;
-	}
+        var text = await response.text();
+        if (!response.ok) {
+            throw new Error("HTTP " + response.status + "\n" + text);
+        }
+        return text;
+    }
 
+    async function requestJson(url, data) {
+        var response = await fetch(url, {
+            method: "POST",
+            headers: authHeaders(),
+            body: normalizePayload(data || {}),
+            credentials: "same-origin"
+        });
 
-    /* =========================
-     * 화면 이벤트 바인딩
-     * - <a data-spa="/home.do"> 형태로 화면 전환
-     * - (확장 가능) form[data-json="/xxx.json"] 자동 처리
-     * ========================= */
+        var text = await response.text();
+        var body = text && text.trim() ? JSON.parse(text) : null;
+
+        if (response.status === 401) {
+            return handleUnauthorized();
+        }
+        if (!response.ok) {
+            throw new Error("HTTP " + response.status + "\n" + text);
+        }
+        if (!body || typeof body.ok !== "boolean") {
+            throw new Error("INVALID_API_RESPONSE");
+        }
+        if (!body.ok) {
+            throw new Error((body.code || "ERROR") + ": " + (body.message || "failed"));
+        }
+        return body.data;
+    }
+
+    async function loadPage(url, data, callback) {
+        if (url === "/main.do" || url === "main.do") {
+            url = "/home.do";
+        }
+        if (!isDo(url)) {
+            throw new Error("loadPage(url): url must end with .do");
+        }
+
+        showLoadingBar();
+        try {
+            var html = await requestHtml(url, data);
+            var appRoot = document.getElementById("app");
+            if (!appRoot) throw new Error("#app not found");
+
+            appRoot.innerHTML = html;
+            await executeScripts(appRoot);
+            document.dispatchEvent(new CustomEvent("jsadmin:pageLoaded", { detail: { url: url } }));
+
+            if (typeof callback === "function") {
+                callback(html);
+            }
+            return html;
+        } finally {
+            hideLoadingBar();
+        }
+    }
+
+    async function callJson(arg1, arg2, arg3) {
+        var url;
+        var data;
+        var callback;
+
+        if (typeof arg1 === "string") {
+            url = arg1;
+            data = arg2 || {};
+            callback = arg3;
+        } else {
+            url = arg1 && arg1.url;
+            data = (arg1 && arg1.data) || {};
+            callback = arg2 || (arg1 && arg1.callback);
+        }
+
+        if (!isJson(url)) {
+            throw new Error("callJson(url): url must end with .json");
+        }
+
+        var result = await requestJson(url, data);
+        if (result === null) return null;
+
+        if (typeof callback === "function") {
+            callback(result);
+        }
+        return result;
+    }
 
     document.addEventListener("click", function (e) {
-        var a = e.target.closest("a[data-spa]");
-        if (!a) return;
-
+        var link = e.target.closest("a[data-spa]");
+        if (!link) return;
         e.preventDefault();
-
-        var url = a.getAttribute("data-spa");
-        if (!url) return;
-
-        load(url);
+        loadPage(link.getAttribute("data-spa"));
     });
 
-    document.addEventListener("submit", async function (e) {
+    document.addEventListener("submit", function (e) {
         var form = e.target.closest("form[data-json]");
         if (!form) return;
 
         e.preventDefault();
 
-        var url = form.getAttribute("data-json");
-        if (!url) return;
-
-        var fd = new FormData(form);
         var data = {};
-        fd.forEach(function (value, key) {
+        new FormData(form).forEach(function (value, key) {
             data[key] = value;
         });
 
-        try {
-            var result = await call(url, data);
-			if (result === null) return;
-            // 기본 후처리 훅(필요하면 form에 data-onsuccess="..." 같은 식으로 확장 가능)
-            console.log("JSON result:", result);
-        } catch (err) {
-            console.error(err);
+        callJson(form.getAttribute("data-json"), data).catch(function (err) {
             alert(err.message);
-        }
+        });
     });
-    
-	async function executeScripts(rootEl) {
-	    const scripts = Array.from(rootEl.querySelectorAll("script"));
-	
-	    for (const oldScript of scripts) {
-	        const newScript = document.createElement("script");
-	        if (oldScript.type) newScript.type = oldScript.type;
-	
-	        if (oldScript.src) {
-	            newScript.src = oldScript.src;
-	            newScript.async = false;
-	
-	            const p = new Promise((resolve) => {
-	                newScript.onload = resolve;
-	                newScript.onerror = resolve;
-	            });
-	
-	            oldScript.parentNode.removeChild(oldScript);
-	            rootEl.appendChild(newScript);
-	
-	            await p; // ★ src 로딩 완료 대기
-	        } else {
-	            newScript.text = oldScript.textContent;
-	            oldScript.parentNode.removeChild(oldScript);
-	            rootEl.appendChild(newScript);
-	        }
-	    }
-	}
-	window.__JSADMIN_AUTH_REDIRECTING = window.__JSADMIN_AUTH_REDIRECTING || false;
-	
-	// 전역 공개(기존 객체 재사용)
-	window.jsAdminSpa = window.jsAdminSpa || {};
-	window.jsAdminSpa.load = load;   // 화면 조각 로드 (*.do)
-	window.jsAdminSpa.call = call;   // JSON 호출 (*.json)
-	window.jsAdminSpa.NORM = NORM;   // 내부 유틸
-	
-	// 공통 http 유틸(필요한 것만 노출)
-	window.jsAdminSpa.http = window.jsAdminSpa.http || {};
-	window.jsAdminSpa.http.postText = postText;
-})();
 
+    global.__JSADMIN_AUTH_REDIRECTING = global.__JSADMIN_AUTH_REDIRECTING || false;
+
+    app.loadPage = loadPage;
+    app.callJson = callJson;
+    app.requestJson = requestJson;
+    app.requestHtml = requestHtml;
+
+    SPA.load = loadPage;
+    SPA.call = callJson;
+    SPA.http = SPA.http || {};
+    SPA.http.postText = requestHtml;
+
+    global.app = app;
+    global.jsAdminSpa = SPA;
+})(window);

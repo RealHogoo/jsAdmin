@@ -1,41 +1,18 @@
 (function (global) {
     "use strict";
 
+    var UX = global.UX;
+    var app = global.app;
+
     if (global.__ACCESS_PAGE_BOUND__) return;
     global.__ACCESS_PAGE_BOUND__ = true;
 
-    function qs(sel, root) {
-        return (root || document).querySelector(sel);
-    }
-
-    function qsa(sel, root) {
-        return Array.prototype.slice.call((root || document).querySelectorAll(sel));
-    }
-
-    function esc(v) {
-        if (v === null || v === undefined) return "";
-        return String(v)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#039;");
-    }
-
     function root() {
-        return qs("#accessRoot");
-    }
-
-    function api(url, body) {
-        return global.jsAdminSpa.call(url, body || {});
+        return UX.qs("#accessRoot");
     }
 
     function currentSessionId() {
-        try {
-            return localStorage.getItem("LOGIN_SESSION_ID") || "";
-        } catch (e) {
-            return "";
-        }
+        return UX.localGet("LOGIN_SESSION_ID", "");
     }
 
     function statusBadge(status) {
@@ -45,19 +22,7 @@
         else if (normalized === "EXPIRED") cls = "status-expired";
         else if (normalized === "REVOKED") cls = "status-revoked";
         else if (normalized === "LOGOUT") cls = "status-logout";
-
-        return "<span class='status-chip " + cls + "'>" + esc(normalized || "-") + "</span>";
-    }
-
-    function normalizeText(v) {
-        if (v === null || v === undefined) return "";
-        return String(v).trim();
-    }
-
-    function shortText(v, max) {
-        var text = normalizeText(v);
-        if (!text) return "-";
-        return text.length > max ? text.substring(0, max) + "..." : text;
+        return "<span class='status-chip " + cls + "'>" + UX.esc(normalized || "-") + "</span>";
     }
 
     function setSelectedSession(sessionId, loginId) {
@@ -65,8 +30,7 @@
         if (!page) return;
         page.dataset.selectedSessionId = sessionId || "";
         page.dataset.selectedLoginId = loginId || "";
-        var label = qs("#selectedSessionId", page);
-        if (label) label.textContent = sessionId || "-";
+        UX.setText("#selectedSessionId", sessionId || "-", page);
     }
 
     function selectedSessionId() {
@@ -80,48 +44,35 @@
     }
 
     function bindTabs(page) {
-        qsa(".tab", page).forEach(function (tab) {
+        UX.qsa(".tab", page).forEach(function (tab) {
             tab.addEventListener("click", function () {
                 var target = tab.getAttribute("data-tab");
-                qsa(".tab", page).forEach(function (item) { item.classList.remove("is-active"); });
-                qsa(".tab-pane", page).forEach(function (pane) {
+                UX.qsa(".tab", page).forEach(function (item) { item.classList.remove("is-active"); });
+                UX.qsa(".tab-pane", page).forEach(function (pane) {
                     pane.style.display = pane.getAttribute("data-pane") === target ? "" : "none";
                 });
                 tab.classList.add("is-active");
-                if (target === "HISTORY") {
-                    loadHistoryList();
-                }
+                if (target === "HISTORY") loadHistoryList();
             });
         });
     }
 
-    function formatDateInput(date) {
-        var year = date.getFullYear();
-        var month = String(date.getMonth() + 1).padStart(2, "0");
-        var day = String(date.getDate()).padStart(2, "0");
-        return year + "-" + month + "-" + day;
-    }
-
     function setDefaultHistoryRange(page) {
-        var fromEl = qs("#historyFromDt", page);
-        var toEl = qs("#historyToDt", page);
+        var fromEl = UX.qs("#historyFromDt", page);
+        var toEl = UX.qs("#historyToDt", page);
         if (!fromEl || !toEl) return;
-        if (normalizeText(fromEl.value) && normalizeText(toEl.value)) return;
+        if (UX.normalizeText(fromEl.value) && UX.normalizeText(toEl.value)) return;
 
         var today = new Date();
         var monthAgo = new Date(today.getTime());
         monthAgo.setMonth(monthAgo.getMonth() - 1);
 
-        if (!normalizeText(fromEl.value)) {
-            fromEl.value = formatDateInput(monthAgo);
-        }
-        if (!normalizeText(toEl.value)) {
-            toEl.value = formatDateInput(today);
-        }
+        if (!UX.normalizeText(fromEl.value)) fromEl.value = UX.formatDateInput(monthAgo);
+        if (!UX.normalizeText(toEl.value)) toEl.value = UX.formatDateInput(today);
     }
 
     function renderSessionList(rows) {
-        var tbody = qs("#sessionListBody", root());
+        var tbody = UX.qs("#sessionListBody", root());
         if (!tbody) return;
 
         if (!rows.length) {
@@ -132,26 +83,25 @@
 
         var currentId = currentSessionId();
         tbody.innerHTML = rows.map(function (row) {
-            var sessionId = normalizeText(row.session_id);
+            var sessionId = UX.normalizeText(row.session_id);
             var rowClass = sessionId && sessionId === currentId ? " class='is-selected'" : "";
-            var suffix = sessionId && sessionId === currentId ? " <span class='access-self'>(내 세션)</span>" : "";
-
+            var suffix = sessionId && sessionId === currentId ? " <span class='access-self'>(Current)</span>" : "";
             return ""
-                + "<tr" + rowClass + " data-session-id='" + esc(sessionId) + "' data-login-id='" + esc(row.login_id) + "'>"
-                + "  <td>" + statusBadge(row.view_status_cd || row.status_cd) + "</td>"
-                + "  <td>" + esc(row.login_id || "-") + suffix + "</td>"
-                + "  <td>" + esc(row.user_nm || "-") + "</td>"
-                + "  <td>" + esc(row.client_ip || "-") + "</td>"
-                + "  <td>" + esc(row.login_at || "-") + "</td>"
-                + "  <td>" + esc(row.last_access_at || "-") + "</td>"
-                + "  <td>" + esc(row.expires_at || "-") + "</td>"
-                + "  <td title='" + esc(row.user_agent || "") + "'>" + esc(shortText(row.user_agent, 72)) + "</td>"
+                + "<tr" + rowClass + " data-session-id='" + UX.esc(sessionId) + "' data-login-id='" + UX.esc(row.login_id) + "'>"
+                + "<td>" + statusBadge(row.view_status_cd || row.status_cd) + "</td>"
+                + "<td>" + UX.esc(row.login_id || "-") + suffix + "</td>"
+                + "<td>" + UX.esc(row.user_nm || "-") + "</td>"
+                + "<td>" + UX.esc(row.client_ip || "-") + "</td>"
+                + "<td>" + UX.esc(row.login_at || "-") + "</td>"
+                + "<td>" + UX.esc(row.last_access_at || "-") + "</td>"
+                + "<td>" + UX.esc(row.expires_at || "-") + "</td>"
+                + "<td title='" + UX.esc(row.user_agent || "") + "'>" + UX.esc(UX.shortText(row.user_agent, 72)) + "</td>"
                 + "</tr>";
         }).join("");
 
-        qsa("tr[data-session-id]", tbody).forEach(function (tr) {
+        UX.qsa("tr[data-session-id]", tbody).forEach(function (tr) {
             tr.addEventListener("click", function () {
-                qsa("tr", tbody).forEach(function (row) { row.classList.remove("is-selected"); });
+                UX.qsa("tr", tbody).forEach(function (row) { row.classList.remove("is-selected"); });
                 tr.classList.add("is-selected");
                 setSelectedSession(tr.getAttribute("data-session-id"), tr.getAttribute("data-login-id"));
             });
@@ -164,7 +114,7 @@
     }
 
     function renderHistoryList(rows) {
-        var tbody = qs("#historyListBody", root());
+        var tbody = UX.qs("#historyListBody", root());
         if (!tbody) return;
 
         if (!rows.length) {
@@ -175,42 +125,42 @@
         tbody.innerHTML = rows.map(function (row) {
             return ""
                 + "<tr>"
-                + "  <td>" + statusBadge(row.result_cd) + "</td>"
-                + "  <td>" + esc(row.login_id || "-") + "</td>"
-                + "  <td>" + esc(row.user_nm || "-") + "</td>"
-                + "  <td>" + esc(row.client_ip || "-") + "</td>"
-                + "  <td>" + esc(row.login_at || "-") + "</td>"
-                + "  <td title='" + esc(row.session_id || "") + "'>" + esc(shortText(row.session_id, 18)) + "</td>"
-                + "  <td title='" + esc(row.result_msg || "") + "'>" + esc(shortText(row.result_msg, 80)) + "</td>"
+                + "<td>" + statusBadge(row.result_cd) + "</td>"
+                + "<td>" + UX.esc(row.login_id || "-") + "</td>"
+                + "<td>" + UX.esc(row.user_nm || "-") + "</td>"
+                + "<td>" + UX.esc(row.client_ip || "-") + "</td>"
+                + "<td>" + UX.esc(row.login_at || "-") + "</td>"
+                + "<td title='" + UX.esc(row.session_id || "") + "'>" + UX.esc(UX.shortText(row.session_id, 18)) + "</td>"
+                + "<td title='" + UX.esc(row.result_msg || "") + "'>" + UX.esc(UX.shortText(row.result_msg, 80)) + "</td>"
                 + "</tr>";
         }).join("");
     }
 
-    async function loadSessionList() {
+    function loadSessionList() {
         var page = root();
-        if (!page) return;
-
-        var data = await api("/access/session/list.json", {
-            keyword: normalizeText(qs("#sessionKeyword", page).value),
-            status_cd: normalizeText(qs("#sessionStatus", page).value)
+        if (!page) return Promise.resolve();
+        return app.callJson("/access/session/list.json", {
+            keyword: UX.getValue("#sessionKeyword", page),
+            status_cd: UX.getValue("#sessionStatus", page)
+        }, function (data) {
+            renderSessionList(Array.isArray(data) ? data : []);
         });
-        renderSessionList(Array.isArray(data) ? data : []);
     }
 
-    async function loadHistoryList() {
+    function loadHistoryList() {
         var page = root();
-        if (!page) return;
-
-        var data = await api("/access/history/list.json", {
-            keyword: normalizeText(qs("#historyKeyword", page).value),
-            result_cd: normalizeText(qs("#historyResult", page).value),
-            from_dt: normalizeText(qs("#historyFromDt", page).value),
-            to_dt: normalizeText(qs("#historyToDt", page).value)
+        if (!page) return Promise.resolve();
+        return app.callJson("/access/history/list.json", {
+            keyword: UX.getValue("#historyKeyword", page),
+            result_cd: UX.getValue("#historyResult", page),
+            from_dt: UX.getValue("#historyFromDt", page),
+            to_dt: UX.getValue("#historyToDt", page)
+        }, function (data) {
+            renderHistoryList(Array.isArray(data) ? data : []);
         });
-        renderHistoryList(Array.isArray(data) ? data : []);
     }
 
-    async function expireSelectedSession() {
+    function expireSelectedSession() {
         var sessionId = selectedSessionId();
         if (!sessionId) {
             alert("만료할 세션을 선택하세요.");
@@ -218,21 +168,18 @@
         }
         if (!confirm("선택한 세션을 만료 처리하시겠습니까?")) return;
 
-        await api("/access/session/expire.json", { session_id: sessionId });
-        if (sessionId === currentSessionId()) {
-            try {
-                localStorage.removeItem("JWT");
-                localStorage.removeItem("LOGIN_USER");
-                localStorage.removeItem("LOGIN_SESSION_ID");
-            } catch (e) {}
-            document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
-            await global.jsAdminSpa.load("/login.do");
-            return;
-        }
-        await loadSessionList();
+        app.callJson("/access/session/expire.json", { session_id: sessionId }, function () {
+            if (sessionId === currentSessionId()) {
+                UX.localRemove(["JWT", "LOGIN_USER", "LOGIN_SESSION_ID"]);
+                document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+                app.loadPage("/login.do");
+                return;
+            }
+            loadSessionList();
+        });
     }
 
-    async function expireUserSessions() {
+    function expireUserSessions() {
         var loginId = selectedLoginId();
         if (!loginId) {
             alert("사용자 세션을 먼저 선택하세요.");
@@ -240,32 +187,28 @@
         }
         if (!confirm(loginId + " 사용자의 활성 세션을 모두 만료 처리하시겠습니까?")) return;
 
-        await api("/access/session/expireUser.json", { login_id: loginId });
-
-        try {
-            var raw = localStorage.getItem("LOGIN_USER");
-            var parsed = raw ? JSON.parse(raw) : {};
-            if (parsed && parsed.user_id && parsed.user_id === loginId) {
-                localStorage.removeItem("JWT");
-                localStorage.removeItem("LOGIN_USER");
-                localStorage.removeItem("LOGIN_SESSION_ID");
-                document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
-                await global.jsAdminSpa.load("/login.do");
-                return;
-            }
-        } catch (e) {}
-
-        await loadSessionList();
+        app.callJson("/access/session/expireUser.json", { login_id: loginId }, function () {
+            try {
+                var parsed = JSON.parse(UX.localGet("LOGIN_USER", "{}"));
+                if (parsed && parsed.user_id === loginId) {
+                    UX.localRemove(["JWT", "LOGIN_USER", "LOGIN_SESSION_ID"]);
+                    document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+                    app.loadPage("/login.do");
+                    return;
+                }
+            } catch (e) {}
+            loadSessionList();
+        });
     }
 
     function bindButtons(page) {
-        qs("#btnSessionSearch", page).addEventListener("click", function () { loadSessionList(); });
-        qs("#btnSessionExpire", page).addEventListener("click", function () { expireSelectedSession(); });
-        qs("#btnSessionExpireUser", page).addEventListener("click", function () { expireUserSessions(); });
-        qs("#btnHistorySearch", page).addEventListener("click", function () { loadHistoryList(); });
+        UX.bindOnce(UX.qs("#btnSessionSearch", page), "click", function () { loadSessionList(); });
+        UX.bindOnce(UX.qs("#btnSessionExpire", page), "click", function () { expireSelectedSession(); });
+        UX.bindOnce(UX.qs("#btnSessionExpireUser", page), "click", function () { expireUserSessions(); });
+        UX.bindOnce(UX.qs("#btnHistorySearch", page), "click", function () { loadHistoryList(); });
 
         ["#sessionKeyword", "#historyKeyword"].forEach(function (sel) {
-            var input = qs(sel, page);
+            var input = UX.qs(sel, page);
             if (!input) return;
             input.addEventListener("keydown", function (e) {
                 if (e.key !== "Enter") return;
@@ -276,23 +219,18 @@
         });
     }
 
-    async function init() {
+    function init() {
         var page = root();
-        if (!page) return;
-        if (page.dataset.inited === "1") return;
+        if (!page || page.dataset.inited === "1") return;
         page.dataset.inited = "1";
-
         bindTabs(page);
         bindButtons(page);
         setDefaultHistoryRange(page);
-        await loadSessionList();
+        loadSessionList();
     }
 
     document.addEventListener("jsadmin:pageLoaded", function (e) {
-        var url = e && e.detail ? e.detail.url : "";
-        if (url === "/access/main.do") {
-            init();
-        }
+        if (e && e.detail && e.detail.url === "/access/main.do") init();
     });
 
     try { init(); } catch (e) {}

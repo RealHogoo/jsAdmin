@@ -4,25 +4,25 @@
     <div class="login-shell panel">
         <div class="login-head">
             <div class="login-eyebrow">ADMIN SERVICE</div>
-            <h2 class="login-title">관리자 로그인</h2>
-            <p class="login-desc">운영 기능 접근을 위해 관리자 계정으로 로그인하세요.</p>
+            <h2 class="login-title">&#44288;&#47532;&#51088; &#47196;&#44536;&#51064;</h2>
+            <p class="login-desc">&#50868;&#50689; &#44592;&#45733; &#51217;&#44540;&#51012; &#50948;&#54644; &#44288;&#47532;&#51088; &#44228;&#51221;&#51004;&#47196; &#47196;&#44536;&#51064;&#54616;&#49464;&#50836;.</p>
         </div>
 
         <div class="login-form">
             <div class="form-item full">
-                <label for="login_user_id">아이디</label>
-                <input id="login_user_id" class="input login-input" type="text" autocomplete="username" placeholder="아이디를 입력하세요" />
+                <label for="login_user_id">&#50500;&#51060;&#46356;</label>
+                <input id="login_user_id" class="input login-input" type="text" autocomplete="username" placeholder="&#50500;&#51060;&#46356;&#47484; &#51077;&#47141;&#54616;&#49464;&#50836;" />
             </div>
 
             <div class="form-item full">
-                <label for="login_user_pw">비밀번호</label>
-                <input id="login_user_pw" class="input login-input" type="password" autocomplete="current-password" placeholder="비밀번호를 입력하세요" />
+                <label for="login_user_pw">&#48708;&#48128;&#48264;&#54840;</label>
+                <input id="login_user_pw" class="input login-input" type="password" autocomplete="current-password" placeholder="&#48708;&#48128;&#48264;&#54840;&#47484; &#51077;&#47141;&#54616;&#49464;&#50836;" />
             </div>
 
             <div id="loginMsg" class="login-msg" aria-live="polite"></div>
 
             <div class="btns login-actions">
-                <button type="button" id="btnLogin" class="btn login-submit">로그인</button>
+                <button type="button" id="btnLogin" class="btn login-submit">&#47196;&#44536;&#51064;</button>
             </div>
         </div>
     </div>

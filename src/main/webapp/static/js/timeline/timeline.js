@@ -16,4 +16,4 @@
     if (document.querySelector("#timelinePage")) {
         load(base + "timeline-main.js");
     }
-})();
+})(window);

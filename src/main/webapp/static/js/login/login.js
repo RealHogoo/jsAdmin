@@ -1,58 +1,31 @@
 (function (global) {
     "use strict";
 
+    var UX = global.UX;
+
     var countdownTimer = null;
     var retryUntilMs = 0;
-
-    function ctx() {
-        return global.CTX || "";
-    }
-
-    function byId(id) {
-        return document.getElementById(id);
-    }
-
-    function postJson(url, body) {
-        var full = url.indexOf("/") === 0 ? (ctx() + url) : (ctx() + "/" + url);
-        return fetch(full, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Accept": "application/json"
-            },
-            body: JSON.stringify(body || {})
-        }).then(function (r) {
-            var ct = (r.headers && r.headers.get("content-type")) || "";
-            if (ct.indexOf("application/json") >= 0) {
-                return r.json();
-            }
-            return r.text().then(function (t) {
-                throw new Error("HTTP " + r.status + " (non-json): " + t);
-            });
-        });
-    }
+    var MSG_READY = "\uB2E4\uC2DC \uB85C\uADF8\uC778\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.";
+    var MSG_RETRY_SUFFIX = "\uCD08 \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.";
+    var MSG_REQUIRED = "\uC544\uC774\uB514\uC640 \uBE44\uBC00\uBC88\uD638\uB97C \uC785\uB825\uD558\uC138\uC694.";
+    var MSG_FAIL = "\uB85C\uADF8\uC778\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.";
+    var MSG_SUCCESS = "\uB85C\uADF8\uC778\uB418\uC5C8\uC2B5\uB2C8\uB2E4.";
 
     function clearAuthStorage() {
-        try { localStorage.removeItem("JWT"); } catch (e) {}
-        try { localStorage.removeItem("LOGIN_USER"); } catch (e) {}
-        try { localStorage.removeItem("LOGIN_SESSION_ID"); } catch (e) {}
+        UX.localRemove(["JWT", "LOGIN_USER", "LOGIN_SESSION_ID"]);
     }
 
     function setMsg(text, type) {
-        var el = byId("loginMsg");
+        var el = UX.byId("loginMsg");
         if (!el) return;
         el.textContent = text || "";
         el.className = "login-msg" + (type ? " is-" + type : "");
     }
 
     function setDisabled(disabled) {
-        var btn = byId("btnLogin");
-        var userId = byId("login_user_id");
-        var userPw = byId("login_user_pw");
-
-        if (btn) btn.disabled = !!disabled;
-        if (userId) userId.disabled = !!disabled;
-        if (userPw) userPw.disabled = !!disabled;
+        UX.setDisabled(UX.byId("btnLogin"), disabled);
+        UX.setDisabled(UX.byId("login_user_id"), disabled);
+        UX.setDisabled(UX.byId("login_user_pw"), disabled);
     }
 
     function stopCountdown() {
@@ -61,7 +34,7 @@
             countdownTimer = null;
         }
         retryUntilMs = 0;
-        try { sessionStorage.removeItem("LOGIN_RETRY_UNTIL_MS"); } catch (e) {}
+        UX.sessionRemove("LOGIN_RETRY_UNTIL_MS");
     }
 
     function startCountdown(untilMs) {
@@ -72,7 +45,7 @@
             return;
         }
 
-        try { sessionStorage.setItem("LOGIN_RETRY_UNTIL_MS", String(retryUntilMs)); } catch (e) {}
+        UX.sessionSet("LOGIN_RETRY_UNTIL_MS", String(retryUntilMs));
         setDisabled(true);
 
         function tick() {
@@ -80,10 +53,10 @@
             if (remain <= 0) {
                 stopCountdown();
                 setDisabled(false);
-                setMsg("다시 로그인할 수 있습니다.", "info");
+                setMsg(MSG_READY, "info");
                 return;
             }
-            setMsg(remain + "초 후 다시 시도하세요.", "warn");
+            setMsg(remain + MSG_RETRY_SUFFIX, "warn");
         }
 
         tick();
@@ -91,16 +64,9 @@
     }
 
     function restoreCountdown() {
-        try {
-            var saved = sessionStorage.getItem("LOGIN_RETRY_UNTIL_MS");
-            if (!saved) return;
-            var untilMs = Number(saved);
-            if (untilMs > Date.now()) {
-                startCountdown(untilMs);
-            } else {
-                stopCountdown();
-            }
-        } catch (e) {}
+        var untilMs = Number(UX.sessionGet("LOGIN_RETRY_UNTIL_MS", "0"));
+        if (untilMs > Date.now()) startCountdown(untilMs);
+        else stopCountdown();
     }
 
     function applyDelayInfo(data) {
@@ -118,50 +84,66 @@
     }
 
     function focusPassword() {
-        var pw = byId("login_user_pw");
+        var pw = UX.byId("login_user_pw");
         if (pw && !pw.disabled) {
             pw.focus();
             pw.select();
         }
     }
 
+    function postLogin(body) {
+        var full = (global.CTX || "") + "/login.json";
+        return fetch(full, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify(body || {})
+        }).then(function (response) {
+            var ct = (response.headers && response.headers.get("content-type")) || "";
+            if (ct.indexOf("application/json") >= 0) {
+                return response.json();
+            }
+            return response.text().then(function (text) {
+                throw new Error("HTTP " + response.status + " (non-json): " + text);
+            });
+        });
+    }
+
     function doLogin() {
-        var userId = ((byId("login_user_id") && byId("login_user_id").value) || "").trim();
-        var userPw = ((byId("login_user_pw") && byId("login_user_pw").value) || "");
+        var userId = UX.normalizeText(UX.byId("login_user_id") && UX.byId("login_user_id").value);
+        var userPw = (UX.byId("login_user_pw") && UX.byId("login_user_pw").value) || "";
 
         if (!userId || !userPw) {
-            setMsg("아이디와 비밀번호를 입력하세요.", "error");
+            setMsg(MSG_REQUIRED, "error");
             return;
         }
 
-        postJson("/login.json", { user_id: userId, user_pw: userPw })
+        postLogin({ user_id: userId, user_pw: userPw })
             .then(function (res) {
                 if (!res || res.ok !== true) {
                     clearAuthStorage();
-
                     if (!applyDelayInfo(res && res.data ? res.data : null)) {
                         setDisabled(false);
-                        setMsg((res && res.message) ? res.message : "로그인에 실패했습니다.", "error");
+                        setMsg((res && res.message) ? res.message : MSG_FAIL, "error");
                     }
                     focusPassword();
                     return;
                 }
 
                 stopCountdown();
+                UX.localSet("JWT", res.data && res.data.token ? res.data.token : "");
+                UX.localSet("LOGIN_USER", JSON.stringify((res.data && res.data.user) ? res.data.user : {}));
+                UX.localSet("LOGIN_SESSION_ID", res.data && res.data.session_id ? res.data.session_id : "");
 
-                try {
-                    localStorage.setItem("JWT", res.data && res.data.token ? res.data.token : "");
-                    localStorage.setItem("LOGIN_USER", JSON.stringify((res.data && res.data.user) ? res.data.user : {}));
-                    localStorage.setItem("LOGIN_SESSION_ID", res.data && res.data.session_id ? res.data.session_id : "");
-                } catch (e) {}
+                setMsg(MSG_SUCCESS, "success");
+                document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
 
-                setMsg("로그인되었습니다.", "success");
-                try { document.dispatchEvent(new CustomEvent("jsadmin:authChanged")); } catch (e) {}
-
-                if (global.jsAdminSpa && typeof global.jsAdminSpa.load === "function") {
-                    global.jsAdminSpa.load("/home.do");
+                if (global.app && typeof global.app.loadPage === "function") {
+                    global.app.loadPage("/home.do");
                 } else {
-                    location.href = ctx() + "/main.do";
+                    location.href = (global.CTX || "") + "/main.do";
                 }
             })
             .catch(function (e) {
@@ -172,23 +154,20 @@
     }
 
     function init() {
-        var btn = byId("btnLogin");
-        if (!btn) return;
-        if (btn.getAttribute("data-bound") === "Y") return;
+        var btn = UX.byId("btnLogin");
+        if (!btn || btn.getAttribute("data-bound") === "Y") return;
         btn.setAttribute("data-bound", "Y");
 
         btn.onclick = doLogin;
 
-        var userId = byId("login_user_id");
-        var pw = byId("login_user_pw");
-
         function handleEnter(e) {
-            e = e || global.event;
             if (e.key === "Enter" && !(btn && btn.disabled)) {
                 doLogin();
             }
         }
 
+        var userId = UX.byId("login_user_id");
+        var pw = UX.byId("login_user_pw");
         if (userId) userId.onkeydown = handleEnter;
         if (pw) pw.onkeydown = handleEnter;
 

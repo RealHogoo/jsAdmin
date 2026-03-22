@@ -1,31 +1,25 @@
-(function () {
+(function (global) {
     "use strict";
 
-    if (window.__jsadminHealthBound === true) return;
-    window.__jsadminHealthBound = true;
+    var UX = global.UX;
+    var app = global.app;
+
+    if (global.__jsadminHealthBound === true) return;
+    global.__jsadminHealthBound = true;
 
     var timerId = null;
 
-    function qs(sel, root) {
-        return (root || document).querySelector(sel);
+    function root() {
+        return UX.qs("#healthPage");
     }
 
-    function getRoot() {
-        return qs("#healthPage");
-    }
-
-    function text(id, value) {
-        var el = qs("#" + id, getRoot());
-        if (!el) return;
-        el.textContent = value == null || value === "" ? "-" : String(value);
+    function setText(id, value) {
+        UX.setText("#" + id, value == null || value === "" ? "-" : String(value), root());
     }
 
     function setCardStatus(cardKey, status) {
-        var root = getRoot();
-        if (!root) return;
-        var card = qs('[data-health-card="' + cardKey + '"]', root);
+        var card = UX.qs("[data-health-card='" + cardKey + "']", root());
         if (!card) return;
-
         card.classList.remove("health-up", "health-down", "health-degraded");
         if (status === "UP") card.classList.add("health-up");
         else if (status === "DOWN") card.classList.add("health-down");
@@ -38,7 +32,7 @@
         var units = ["B", "KB", "MB", "GB", "TB"];
         var idx = 0;
         while (n >= 1024 && idx < units.length - 1) {
-            n = n / 1024;
+            n /= 1024;
             idx++;
         }
         return n.toFixed(idx === 0 ? 0 : 1) + " " + units[idx];
@@ -46,8 +40,7 @@
 
     function fmtMs(ms) {
         var n = Number(ms || 0);
-        if (!Number.isFinite(n)) return "-";
-        return n + " ms";
+        return Number.isFinite(n) ? (n + " ms") : "-";
     }
 
     function fmtUptime(ms) {
@@ -63,11 +56,9 @@
     }
 
     function renderDependencies(list) {
-        var root = getRoot();
-        var tbody = qs("#healthDependencyBody", root);
+        var tbody = UX.qs("#healthDependencyBody", root());
         if (!tbody) return;
-
-        if (!Array.isArray(list) || list.length === 0) {
+        if (!Array.isArray(list) || !list.length) {
             tbody.innerHTML = "<tr><td colspan='5'>No dependencies</td></tr>";
             return;
         }
@@ -75,24 +66,14 @@
         tbody.innerHTML = list.map(function (row) {
             var status = row && row.status ? String(row.status) : "-";
             var statusClass = status === "UP" ? "health-badge up" : (status === "DOWN" ? "health-badge down" : "health-badge degraded");
-            return "" +
-                "<tr>" +
-                "<td>" + esc(row.name) + "</td>" +
-                "<td>" + esc(row.type) + "</td>" +
-                "<td><span class='" + statusClass + "'>" + esc(status) + "</span></td>" +
-                "<td>" + esc(fmtMs(row.latency_ms)) + "</td>" +
-                "<td>" + esc(row.message) + "</td>" +
-                "</tr>";
+            return "<tr>"
+                + "<td>" + UX.esc(row.name) + "</td>"
+                + "<td>" + UX.esc(row.type) + "</td>"
+                + "<td><span class='" + statusClass + "'>" + UX.esc(status) + "</span></td>"
+                + "<td>" + UX.esc(fmtMs(row.latency_ms)) + "</td>"
+                + "<td>" + UX.esc(row.message) + "</td>"
+                + "</tr>";
         }).join("");
-    }
-
-    function esc(v) {
-        return String(v == null ? "" : v)
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;")
-            .replace(/"/g, "&quot;")
-            .replace(/'/g, "&#39;");
     }
 
     function render(data) {
@@ -100,73 +81,68 @@
         var db = data && data.db ? data.db : {};
         var server = data && data.server ? data.server : {};
 
-        text("healthOverallStatus", summary.overall_status);
-        text("healthServiceName", summary.service);
-        text("healthLiveness", summary.liveness);
-        text("healthReadiness", summary.readiness);
-        text("healthCheckedAt", summary.checked_at ? new Date(summary.checked_at).toLocaleString() : "-");
-        text("healthDbLatency", fmtMs(db.elapsed_ms));
-        text("healthDbMessage", db.ok ? "DB connection OK" : (db.error || "DB connection failed"));
+        setText("healthOverallStatus", summary.overall_status);
+        setText("healthServiceName", summary.service);
+        setText("healthLiveness", summary.liveness);
+        setText("healthReadiness", summary.readiness);
+        setText("healthCheckedAt", summary.checked_at ? new Date(summary.checked_at).toLocaleString() : "-");
+        setText("healthDbLatency", fmtMs(db.elapsed_ms));
+        setText("healthDbMessage", db.ok ? "DB connection OK" : (db.error || "DB connection failed"));
 
         setCardStatus("overall", summary.overall_status);
         setCardStatus("live", summary.liveness);
         setCardStatus("ready", summary.readiness);
         setCardStatus("db", db.ok ? "UP" : "DOWN");
 
-        text("dbStatusText", db.ok ? "UP" : "DOWN");
-        text("dbPing", db.ping);
-        text("dbElapsed", fmtMs(db.elapsed_ms));
-        text("dbError", db.error || "-");
-        text("dbPoolActive", db.pool ? db.pool.active : "-");
-        text("dbPoolIdle", db.pool ? db.pool.idle : "-");
-        text("dbPoolTotal", db.pool ? db.pool.total : "-");
-        text("dbPoolAwaiting", db.pool ? db.pool.threads_awaiting : "-");
+        setText("dbStatusText", db.ok ? "UP" : "DOWN");
+        setText("dbPing", db.ping);
+        setText("dbElapsed", fmtMs(db.elapsed_ms));
+        setText("dbError", db.error || "-");
+        setText("dbPoolActive", db.pool ? db.pool.active : "-");
+        setText("dbPoolIdle", db.pool ? db.pool.idle : "-");
+        setText("dbPoolTotal", db.pool ? db.pool.total : "-");
+        setText("dbPoolAwaiting", db.pool ? db.pool.threads_awaiting : "-");
 
-        text("svHost", server.host || "-");
-        text("svJava", server.java_version || "-");
-        text("svOs", [server.os_name, server.os_version, server.os_arch].filter(Boolean).join(" "));
-        text("svCpu", server.available_processors);
-        text("svUptime", fmtUptime(server.uptime_ms));
-        text("svInfo", server.server_info || "-");
-        text("svThreads", server.threads_live + " / peak " + server.threads_peak);
-        text("svHeap", fmtBytes(server.heap_total) + " / max " + fmtBytes(server.heap_max));
+        setText("svHost", server.host || "-");
+        setText("svJava", server.java_version || "-");
+        setText("svOs", [server.os_name, server.os_version, server.os_arch].filter(Boolean).join(" "));
+        setText("svCpu", server.available_processors);
+        setText("svUptime", fmtUptime(server.uptime_ms));
+        setText("svInfo", server.server_info || "-");
+        setText("svThreads", server.threads_live + " / peak " + server.threads_peak);
+        setText("svHeap", fmtBytes(server.heap_total) + " / max " + fmtBytes(server.heap_max));
 
         renderDependencies(data && data.dependencies ? data.dependencies : []);
     }
 
-    async function refresh() {
-        var data = await window.jsAdminSpa.call("/health/detail.json", {});
-        render(data || {});
+    function refresh() {
+        return app.callJson("/health/detail.json", {}, function (data) {
+            render(data || {});
+        });
     }
 
     function bind() {
-        var btn = qs("#btnHealthRefresh", getRoot());
-        if (!btn) return;
-        btn.addEventListener("click", function (e) {
+        UX.bindOnce(UX.qs("#btnHealthRefresh", root()), "click", function (e) {
             e.preventDefault();
             refresh();
         });
     }
 
     function init() {
-        var root = getRoot();
-        if (!root) return;
-        if (root.dataset.healthInited === "1") return;
-        root.dataset.healthInited = "1";
-
+        var page = root();
+        if (!page || page.dataset.healthInited === "1") return;
+        page.dataset.healthInited = "1";
         bind();
         refresh();
 
         if (timerId) clearInterval(timerId);
         timerId = setInterval(function () {
-            if (getRoot()) refresh();
+            if (root()) refresh();
         }, 15000);
     }
 
     document.addEventListener("jsadmin:pageLoaded", function (e) {
         var url = e && e.detail ? e.detail.url : "";
-        if (url === "/health/main.do" || url === "/dashboard/health.do") {
-            init();
-        }
+        if (url === "/health/main.do" || url === "/dashboard/health.do") init();
     });
-})();
+})(window);

@@ -124,4 +124,4 @@
         updateAuthButton();
         bindBrandClick();
     } catch (e) {}
-})();
+})(window);

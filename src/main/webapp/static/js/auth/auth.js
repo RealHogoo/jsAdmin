@@ -1,222 +1,70 @@
-(function () {
+(function (global) {
     "use strict";
 
-    if (window.__jsadminAuthBound === true) return;
-    window.__jsadminAuthBound = true;
+    var UX = global.UX;
+    var app = global.app;
 
-    function qs(sel, root) { return (root || document).querySelector(sel); }
-    function qsa(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
-    function getPageRoot() { return qs("#authRoot"); }
-    function safeText(v) { return (v === null || v === undefined) ? "" : String(v); }
+    if (global.__jsadminAuthBound === true) return;
+    global.__jsadminAuthBound = true;
 
-    function toNum(v, d) {
-        var n = Number(v);
-        return Number.isFinite(n) ? n : d;
+    var userTabLoaded = false;
+
+    function root() {
+        return UX.qs("#authRoot");
     }
 
-    function indentName(name, lvl) {
-        var depth = toNum(lvl, 1);
-        if (depth < 1) depth = 1;
-        var pad = "";
-        for (var i = 1; i < depth; i++) pad += "\u00A0\u00A0\u00A0\u00A0";
-        return pad + safeText(name);
+    function toNum(value, fallback) {
+        var num = Number(value);
+        return Number.isFinite(num) ? num : fallback;
     }
 
-    function isFolderRow(rowData) {
-        var url = rowData && rowData.menu_url != null ? String(rowData.menu_url).trim() : "";
-        return url === "";
+    function indentName(name, level) {
+        var depth = Math.max(toNum(level, 1), 1);
+        return new Array(depth).join("\u00A0\u00A0\u00A0\u00A0") + (name == null ? "" : String(name));
     }
 
-    async function api(url, body) {
-        return await window.jsAdminSpa.call(url, body || {});
+    function isFolderRow(row) {
+        return !UX.normalizeText(row && row.menu_url);
     }
 
-    function applyPerm(root) {
-        if (typeof window.applyPerm === "function") {
-            window.applyPerm();
-            return;
-        }
-
-        var permLvl = 10;
-        qsa("[data-perm-lvl]", root).forEach(function (el) {
-            var need = Number(el.getAttribute("data-perm-lvl"));
-            if (!Number.isFinite(need)) return;
-
-            if (permLvl < need) {
-                el.classList.add("is-disabled");
-                el.setAttribute("aria-disabled", "true");
-            } else {
-                el.classList.remove("is-disabled");
-                el.removeAttribute("aria-disabled");
-            }
+    function applyPerm() {
+        var page = root();
+        if (!page) return;
+        var permLvl = toNum(page.getAttribute("data-perm-lvl"), 0);
+        if (!permLvl) return;
+        UX.qsa("[data-perm-lvl]", page).forEach(function (el) {
+            var need = toNum(el.getAttribute("data-perm-lvl"), 0);
+            if (need) UX.setDisabled(el, permLvl < need);
         });
     }
 
-    function getSelectedGroupSeq() {
-        var root = getPageRoot();
-        return root && root.dataset && root.dataset.selectedGroupSeq ? Number(root.dataset.selectedGroupSeq) : null;
+    function setSelected(groupOrUser, seq) {
+        var page = root();
+        if (!page) return;
+        var dataKey = groupOrUser === "group" ? "selectedGroupSeq" : "selectedUserSeq";
+        var textKey = groupOrUser === "group" ? "#selectedGroupSeq" : "#selectedUserSeq";
+        page.dataset[dataKey] = seq ? String(seq) : "";
+        UX.setText(textKey, seq ? String(seq) : "-", page);
     }
 
-    function setSelectedGroupSeq(seq) {
-        var root = getPageRoot();
-        if (!root) return;
-        root.dataset.selectedGroupSeq = seq ? String(seq) : "";
-        var el = qs("#selectedGroupSeq", root);
-        if (el) el.textContent = seq ? String(seq) : "-";
+    function selectedSeq(groupOrUser) {
+        var page = root();
+        if (!page || !page.dataset) return null;
+        var dataKey = groupOrUser === "group" ? "selectedGroupSeq" : "selectedUserSeq";
+        return UX.numOrNull(page.dataset[dataKey]);
     }
 
-    function getSelectedUserSeq() {
-        var root = getPageRoot();
-        return root && root.dataset && root.dataset.selectedUserSeq ? Number(root.dataset.selectedUserSeq) : null;
-    }
-
-    function setSelectedUserSeq(seq) {
-        var root = getPageRoot();
-        if (!root) return;
-        root.dataset.selectedUserSeq = seq ? String(seq) : "";
-        var el = qs("#selectedUserSeq", root);
-        if (el) el.textContent = seq ? String(seq) : "-";
-    }
-
-    function bindTabs(root) {
-        qsa(".tab", root).forEach(function (tab) {
-            tab.addEventListener("click", function () {
-                var target = tab.dataset.tab;
-                qsa(".tab", root).forEach(function (t) { t.classList.remove("is-active"); });
-                tab.classList.add("is-active");
-
-                qsa(".tab-pane", root).forEach(function (p) {
-                    p.style.display = (p.dataset.pane === target) ? "" : "none";
-                });
-
-                if (target === "B") ensureUserTabLoaded();
-            });
+    function makeSelect(options, value, className) {
+        var select = document.createElement("select");
+        select.className = className;
+        options.forEach(function (option) {
+            var el = document.createElement("option");
+            el.value = option.value;
+            el.textContent = option.label;
+            select.appendChild(el);
         });
-    }
-
-    function bindToolbarA(root) {
-        var btnReload = qs("#btnGroupReload", root);
-        var btnSave = qs("#btnGroupSave", root);
-
-        if (btnReload) {
-            btnReload.addEventListener("click", function () {
-                if (btnReload.classList.contains("is-disabled")) return;
-                loadGroups(true);
-            });
-        }
-
-        if (btnSave) {
-            btnSave.addEventListener("click", function () {
-                if (btnSave.classList.contains("is-disabled")) return;
-                saveGroupMenus();
-            });
-        }
-    }
-
-    function bindToolbarB(root) {
-        var btnSearch = qs("#btnUserSearch", root);
-        var btnSave = qs("#btnUserExceptionSave", root);
-        var kwInput = qs("#userKeyword", root);
-
-        if (kwInput) {
-            kwInput.addEventListener("keydown", function (e) {
-                if (e.key === "Enter") {
-                    e.preventDefault();
-                    searchUsers(true);
-                }
-            });
-        }
-
-        if (btnSearch) {
-            btnSearch.addEventListener("click", function () {
-                if (btnSearch.classList.contains("is-disabled")) return;
-                searchUsers(true);
-            });
-        }
-
-        if (btnSave) {
-            btnSave.addEventListener("click", function () {
-                if (btnSave.classList.contains("is-disabled")) return;
-                saveUserExceptions();
-            });
-        }
-    }
-
-    async function loadGroups(forceSelectFirst) {
-        var root = getPageRoot();
-        var tbody = qs("#groupListBody", root);
-        var menuBody = qs("#menuPermBody", root);
-        if (!tbody || !menuBody) return;
-
-        tbody.innerHTML = "<tr><td colspan='3'>Loading...</td></tr>";
-        var list = await api("/auth/group/list.json", {});
-        if (!Array.isArray(list)) list = [];
-
-        tbody.innerHTML = "";
-        if (list.length === 0) {
-            tbody.innerHTML = "<tr><td colspan='3'>No Data</td></tr>";
-            menuBody.innerHTML = "";
-            setSelectedGroupSeq(null);
-            return;
-        }
-
-        list.forEach(function (g) {
-            var tr = document.createElement("tr");
-            tr.dataset.authGroupSeq = String(g.auth_group_seq);
-            tr.innerHTML =
-                "<td>" + safeText(g.auth_group_seq) + "</td>" +
-                "<td>" + safeText(g.auth_group_nm) + "</td>" +
-                "<td>" + safeText(g.use_yn || "Y") + "</td>";
-
-            tr.addEventListener("click", function () {
-                qsa("#groupListBody tr", root).forEach(function (r) { r.classList.remove("is-selected"); });
-                tr.classList.add("is-selected");
-
-                var seq = Number(tr.dataset.authGroupSeq);
-                setSelectedGroupSeq(seq);
-                loadGroupMenus(seq);
-            });
-
-            tbody.appendChild(tr);
-        });
-
-        if (forceSelectFirst === true) {
-            var first = tbody.querySelector("tr");
-            if (first) first.click();
-        }
-    }
-
-    function makePermSelect(val) {
-        var v = toNum(val, 0);
-        if (![0, 1, 5, 10].includes(v)) v = 0;
-
-        var wrap = document.createElement("div");
-        wrap.innerHTML = "" +
-            "<select class='permLvl'>" +
-            "<option value='0'>없음</option>" +
-            "<option value='1'>1(조회)</option>" +
-            "<option value='5'>5(등록/수정)</option>" +
-            "<option value='10'>10(삭제)</option>" +
-            "</select>";
-
-        var sel = wrap.firstChild;
-        sel.value = String(v);
-        return sel;
-    }
-
-    function makeUseSelect(val) {
-        var v = (val === "Y") ? "Y" : "N";
-
-        var wrap = document.createElement("div");
-        wrap.innerHTML = "" +
-            "<select class='useYn'>" +
-            "<option value='Y'>Y</option>" +
-            "<option value='N'>N</option>" +
-            "</select>";
-
-        var sel = wrap.firstChild;
-        sel.value = v;
-        return sel;
+        select.value = String(value);
+        return select;
     }
 
     function markDirty(tr) {
@@ -224,56 +72,100 @@
         tr.classList.add("is-dirty");
     }
 
-    function applyFolderToDescendants(folderTr, tbody, newPerm, newUse) {
+    function renderGroupList(list) {
+        var tbody = UX.qs("#groupListBody", root());
+        var menuBody = UX.qs("#menuPermBody", root());
+        if (!tbody || !menuBody) return;
+
+        if (!list.length) {
+            tbody.innerHTML = "<tr><td colspan='3'>No Data</td></tr>";
+            menuBody.innerHTML = "";
+            setSelected("group", null);
+            return;
+        }
+
+        tbody.innerHTML = list.map(function (row) {
+            return "<tr data-auth-group-seq='" + UX.esc(row.auth_group_seq) + "'>"
+                + "<td>" + UX.esc(row.auth_group_seq) + "</td>"
+                + "<td>" + UX.esc(row.auth_group_nm) + "</td>"
+                + "<td>" + UX.esc(row.use_yn || "Y") + "</td>"
+                + "</tr>";
+        }).join("");
+
+        UX.qsa("tr[data-auth-group-seq]", tbody).forEach(function (tr) {
+            tr.addEventListener("click", function () {
+                UX.qsa("tr", tbody).forEach(function (row) { row.classList.remove("is-selected"); });
+                tr.classList.add("is-selected");
+                var seq = Number(tr.getAttribute("data-auth-group-seq"));
+                setSelected("group", seq);
+                loadGroupMenus(seq);
+            });
+        });
+
+        var first = tbody.querySelector("tr[data-auth-group-seq]");
+        if (first) first.click();
+    }
+
+    function loadGroups() {
+        var tbody = UX.qs("#groupListBody", root());
+        if (tbody) tbody.innerHTML = "<tr><td colspan='3'>Loading...</td></tr>";
+        return app.callJson("/auth/group/list.json", {}, function (list) {
+            renderGroupList(Array.isArray(list) ? list : []);
+        });
+    }
+
+    function applyFolderToDescendants(folderTr, tbody, perm, useYn) {
+        var rows = UX.qsa("tr", tbody);
         var folderLvl = toNum(folderTr.dataset.treeLvl, 1);
-        var rows = qsa("tr", tbody);
-        var idx = rows.indexOf(folderTr);
-        if (idx < 0) return;
+        var startIdx = rows.indexOf(folderTr);
+        if (startIdx < 0) return;
 
-        for (var i = idx + 1; i < rows.length; i++) {
+        for (var i = startIdx + 1; i < rows.length; i++) {
             var tr = rows[i];
-            var lvl = toNum(tr.dataset.treeLvl, 1);
-            if (lvl <= folderLvl) break;
-
-            qs(".permLvl", tr).value = String(newPerm);
-            qs(".useYn", tr).value = String(newUse);
+            var level = toNum(tr.dataset.treeLvl, 1);
+            if (level <= folderLvl) break;
+            UX.qs(".permLvl", tr).value = String(perm);
+            UX.qs(".useYn", tr).value = String(useYn);
             markDirty(tr);
         }
     }
 
-    async function loadGroupMenus(authGroupSeq) {
-        var root = getPageRoot();
-        var tbody = qs("#menuPermBody", root);
+    function renderGroupMenus(list) {
+        var tbody = UX.qs("#menuPermBody", root());
         if (!tbody) return;
-
-        tbody.innerHTML = "<tr><td colspan='4'>Loading...</td></tr>";
-        var list = await api("/auth/group/menu/list.json", { auth_group_seq: authGroupSeq });
-        if (!Array.isArray(list)) list = [];
-
-        tbody.innerHTML = "";
-        if (list.length === 0) {
+        if (!list.length) {
             tbody.innerHTML = "<tr><td colspan='4'>No Data</td></tr>";
             return;
         }
 
-        list.forEach(function (m) {
-            var isFolder = isFolderRow(m);
+        tbody.innerHTML = "";
+        list.forEach(function (row) {
             var tr = document.createElement("tr");
-            tr.dataset.menuSeq = String(m.menu_seq);
-            tr.dataset.treeLvl = String(m.tree_lvl || 1);
+            var isFolder = isFolderRow(row);
+            tr.dataset.menuSeq = String(row.menu_seq);
+            tr.dataset.treeLvl = String(row.tree_lvl || 1);
             tr.dataset.isFolder = isFolder ? "1" : "0";
 
-            var permSel = makePermSelect(m.perm_lvl);
-            var useSel = makeUseSelect(m.map_use_yn || "N");
-
             tr.innerHTML =
-                "<td>" + safeText(m.menu_seq) + "</td>" +
-                "<td class='menuNm'>" + indentName(m.menu_nm, m.tree_lvl) + "</td>" +
+                "<td>" + UX.esc(row.menu_seq) + "</td>" +
+                "<td class='menuNm'>" + UX.esc(indentName(row.menu_nm, row.tree_lvl)) + "</td>" +
                 "<td class='permCell'></td>" +
                 "<td class='useCell'></td>";
 
-            qs(".permCell", tr).appendChild(permSel);
-            qs(".useCell", tr).appendChild(useSel);
+            var permSel = makeSelect([
+                { value: "0", label: "없음" },
+                { value: "1", label: "1(조회)" },
+                { value: "5", label: "5(등록/수정)" },
+                { value: "10", label: "10(삭제)" }
+            ], [0, 1, 5, 10].indexOf(toNum(row.perm_lvl, 0)) >= 0 ? toNum(row.perm_lvl, 0) : 0, "permLvl");
+
+            var useSel = makeSelect([
+                { value: "Y", label: "Y" },
+                { value: "N", label: "N" }
+            ], row.map_use_yn === "Y" ? "Y" : "N", "useYn");
+
+            UX.qs(".permCell", tr).appendChild(permSel);
+            UX.qs(".useCell", tr).appendChild(useSel);
 
             permSel.addEventListener("change", function () {
                 markDirty(tr);
@@ -281,7 +173,6 @@
                     applyFolderToDescendants(tr, tbody, Number(permSel.value), useSel.value);
                 }
             });
-
             useSel.addEventListener("change", function () {
                 markDirty(tr);
                 if (tr.dataset.isFolder === "1") {
@@ -293,208 +184,215 @@
         });
     }
 
-    async function saveGroupMenus() {
-        var root = getPageRoot();
-        var authGroupSeq = getSelectedGroupSeq();
-        var tbody = qs("#menuPermBody", root);
+    function loadGroupMenus(authGroupSeq) {
+        var tbody = UX.qs("#menuPermBody", root());
+        if (tbody) tbody.innerHTML = "<tr><td colspan='4'>Loading...</td></tr>";
+        return app.callJson("/auth/group/menu/list.json", { auth_group_seq: authGroupSeq }, function (list) {
+            renderGroupMenus(Array.isArray(list) ? list : []);
+        });
+    }
+
+    function saveGroupMenus() {
+        var authGroupSeq = selectedSeq("group");
+        var tbody = UX.qs("#menuPermBody", root());
         if (!authGroupSeq || !tbody) return;
 
-        var items = [];
-        qsa("tr", tbody).forEach(function (tr) {
-            if (tr.dataset.isFolder === "1") return;
-            if (tr.dataset.dirty !== "1") return;
-
-            var perm = Number(qs(".permLvl", tr).value);
-            var useYn = qs(".useYn", tr).value;
-            if (!Number.isFinite(perm)) perm = 0;
-
-            items.push({
+        var items = UX.qsa("tr", tbody).filter(function (tr) {
+            return tr.dataset.isFolder !== "1" && tr.dataset.dirty === "1";
+        }).map(function (tr) {
+            return {
                 menu_seq: Number(tr.dataset.menuSeq),
-                perm_lvl: perm,
-                use_yn: useYn === "Y" ? "Y" : "N"
-            });
+                perm_lvl: toNum(UX.qs(".permLvl", tr).value, 0),
+                use_yn: UX.qs(".useYn", tr).value === "Y" ? "Y" : "N"
+            };
         });
 
-        if (items.length === 0) {
+        if (!items.length) {
             alert("변경된 항목이 없습니다.");
             return;
         }
 
-        await api("/auth/group/menu/save.json", { auth_group_seq: authGroupSeq, items: items });
-        await loadGroupMenus(authGroupSeq);
+        app.callJson("/auth/group/menu/save.json", { auth_group_seq: authGroupSeq, items: items }, function () {
+            loadGroupMenus(authGroupSeq);
+        });
     }
 
-    var userTabLoaded = false;
+    function renderUserList(list) {
+        var tbody = UX.qs("#userListBody", root());
+        var exBody = UX.qs("#userExceptionBody", root());
+        if (!tbody || !exBody) return;
 
-    function ensureUserTabLoaded() {
-        if (userTabLoaded) return;
-        userTabLoaded = true;
-        searchUsers(true);
-    }
-
-    async function searchUsers(selectFirst) {
-        var root = getPageRoot();
-        var tbody = qs("#userListBody", root);
-        if (!tbody) return;
-
-        var keyword = safeText(qs("#userKeyword", root).value).trim();
-        tbody.innerHTML = "<tr><td colspan='3'>Loading...</td></tr>";
-
-        var list = await api("/auth/user/search.json", { keyword: keyword });
-        if (!Array.isArray(list)) list = [];
-
-        tbody.innerHTML = "";
-        if (list.length === 0) {
+        if (!list.length) {
             tbody.innerHTML = "<tr><td colspan='3'>No Data</td></tr>";
-            setSelectedUserSeq(null);
-            qs("#userExceptionBody", root).innerHTML = "";
+            exBody.innerHTML = "";
+            setSelected("user", null);
             return;
         }
 
-        list.forEach(function (u) {
-            var tr = document.createElement("tr");
-            tr.dataset.userSeq = String(u.user_seq);
-            tr.innerHTML =
-                "<td>" + safeText(u.user_seq) + "</td>" +
-                "<td>" + safeText(u.login_id) + "</td>" +
-                "<td>" + safeText(u.user_nm) + "</td>";
+        tbody.innerHTML = list.map(function (row) {
+            return "<tr data-user-seq='" + UX.esc(row.user_seq) + "'>"
+                + "<td>" + UX.esc(row.user_seq) + "</td>"
+                + "<td>" + UX.esc(row.login_id) + "</td>"
+                + "<td>" + UX.esc(row.user_nm) + "</td>"
+                + "</tr>";
+        }).join("");
 
+        UX.qsa("tr[data-user-seq]", tbody).forEach(function (tr) {
             tr.addEventListener("click", function () {
-                qsa("#userListBody tr", root).forEach(function (r) { r.classList.remove("is-selected"); });
+                UX.qsa("tr", tbody).forEach(function (row) { row.classList.remove("is-selected"); });
                 tr.classList.add("is-selected");
-
-                var userSeq = Number(tr.dataset.userSeq);
-                setSelectedUserSeq(userSeq);
-                loadUserMenuPermList(userSeq);
+                var seq = Number(tr.getAttribute("data-user-seq"));
+                setSelected("user", seq);
+                loadUserMenuPermList(seq);
             });
-
-            tbody.appendChild(tr);
         });
 
-        if (selectFirst) {
-            var first = tbody.querySelector("tr");
-            if (first) first.click();
-        }
+        var first = tbody.querySelector("tr[data-user-seq]");
+        if (first) first.click();
     }
 
-    function basePermLabel(v) {
-        var n = toNum(v, 0);
-        if (n >= 10) return "10";
-        if (n >= 5) return "5";
-        if (n >= 1) return "1";
+    function searchUsers() {
+        var tbody = UX.qs("#userListBody", root());
+        if (tbody) tbody.innerHTML = "<tr><td colspan='3'>Loading...</td></tr>";
+
+        return app.callJson("/auth/user/search.json", {
+            keyword: UX.getValue("#userKeyword", root())
+        }, function (list) {
+            renderUserList(Array.isArray(list) ? list : []);
+        });
+    }
+
+    function basePermLabel(value) {
+        var num = toNum(value, 0);
+        if (num >= 10) return "10";
+        if (num >= 5) return "5";
+        if (num >= 1) return "1";
         return "0";
     }
 
-    function makeExceptionStateSelect(state) {
-        var v = (state === "Y" || state === "X") ? state : "N";
-        var wrap = document.createElement("div");
-        wrap.innerHTML = "" +
-            "<select class='exStateSel'>" +
-            "<option value='N'>설정없음</option>" +
-            "<option value='Y'>Y(접근가능)</option>" +
-            "<option value='X'>X(접근불가)</option>" +
-            "</select>";
-        var sel = wrap.firstChild;
-        sel.value = v;
-        return sel;
-    }
-
-    async function loadUserMenuPermList(userSeq) {
-        var root = getPageRoot();
-        var tbody = qs("#userExceptionBody", root);
+    function renderUserExceptions(list) {
+        var tbody = UX.qs("#userExceptionBody", root());
         if (!tbody) return;
-
-        tbody.innerHTML = "<tr><td colspan='4'>Loading...</td></tr>";
-        var list = await api("/auth/user/menuPermList.json", { user_seq: userSeq });
-        if (!Array.isArray(list)) list = [];
-
-        tbody.innerHTML = "";
-        if (list.length === 0) {
+        if (!list.length) {
             tbody.innerHTML = "<tr><td colspan='4'>No Data</td></tr>";
             return;
         }
 
-        list.forEach(function (m) {
-            var folder = isFolderRow(m);
+        tbody.innerHTML = "";
+        list.forEach(function (row) {
             var tr = document.createElement("tr");
-            tr.dataset.menuSeq = String(m.menu_seq);
-            tr.dataset.treeLvl = String(m.tree_lvl || 1);
-            tr.dataset.isFolder = folder ? "1" : "0";
-
-            var state = (m.ex_access_yn === "Y" || m.ex_access_yn === "X") ? m.ex_access_yn : "N";
-            if (folder) state = "N";
-            var stateSel = makeExceptionStateSelect(state);
+            var isFolder = isFolderRow(row);
+            var state = (row.ex_access_yn === "Y" || row.ex_access_yn === "X") ? row.ex_access_yn : "N";
+            tr.dataset.menuSeq = String(row.menu_seq);
+            tr.dataset.treeLvl = String(row.tree_lvl || 1);
+            tr.dataset.isFolder = isFolder ? "1" : "0";
 
             tr.innerHTML =
-                "<td>" + safeText(m.menu_seq) + "</td>" +
-                "<td>" + indentName(m.menu_nm, m.tree_lvl) + "</td>" +
-                "<td>" + basePermLabel(m.base_perm_lvl) + "</td>" +
+                "<td>" + UX.esc(row.menu_seq) + "</td>" +
+                "<td>" + UX.esc(indentName(row.menu_nm, row.tree_lvl)) + "</td>" +
+                "<td>" + UX.esc(basePermLabel(row.base_perm_lvl)) + "</td>" +
                 "<td class='exStateCell'></td>";
 
-            qs(".exStateCell", tr).appendChild(stateSel);
-            if (folder) {
-                stateSel.disabled = true;
-            }
-            stateSel.addEventListener("change", function () {
-                markDirty(tr);
-            });
+            var stateSel = makeSelect([
+                { value: "N", label: "설정없음" },
+                { value: "Y", label: "Y(접근허용)" },
+                { value: "X", label: "X(접근불가)" }
+            ], isFolder ? "N" : state, "exStateSel");
 
+            if (isFolder) stateSel.disabled = true;
+            stateSel.addEventListener("change", function () { markDirty(tr); });
+            UX.qs(".exStateCell", tr).appendChild(stateSel);
             tbody.appendChild(tr);
         });
     }
 
-    async function saveUserExceptions() {
-        var root = getPageRoot();
-        var userSeq = getSelectedUserSeq();
-        var tbody = qs("#userExceptionBody", root);
+    function loadUserMenuPermList(userSeq) {
+        var tbody = UX.qs("#userExceptionBody", root());
+        if (tbody) tbody.innerHTML = "<tr><td colspan='4'>Loading...</td></tr>";
+        return app.callJson("/auth/user/menuPermList.json", { user_seq: userSeq }, function (list) {
+            renderUserExceptions(Array.isArray(list) ? list : []);
+        });
+    }
+
+    function saveUserExceptions() {
+        var userSeq = selectedSeq("user");
+        var tbody = UX.qs("#userExceptionBody", root());
         if (!userSeq || !tbody) return;
 
-        var exceptions = [];
-        qsa("tr", tbody).forEach(function (tr) {
-            if (tr.dataset.isFolder === "1") return;
-            var stateSel = qs(".exStateSel", tr);
-            if (!stateSel) return;
-            var state = stateSel.value;
-            if (state !== "Y" && state !== "X") return;
-
-            exceptions.push({
+        var exceptions = UX.qsa("tr", tbody).filter(function (tr) {
+            return tr.dataset.isFolder !== "1";
+        }).map(function (tr) {
+            var sel = UX.qs(".exStateSel", tr);
+            return sel ? {
                 menu_seq: Number(tr.dataset.menuSeq),
-                access_yn: state,
-                perm_lvl: state === "Y" ? 1 : 0
-            });
+                access_yn: sel.value,
+                perm_lvl: sel.value === "Y" ? 1 : 0
+            } : null;
+        }).filter(function (row) {
+            return row && (row.access_yn === "Y" || row.access_yn === "X");
         });
 
-        await api("/auth/user/exception/save.json", {
+        app.callJson("/auth/user/exception/save.json", {
             user_seq: userSeq,
             exceptions: exceptions
+        }, function () {
+            loadUserMenuPermList(userSeq);
+            document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+            if (typeof global.SIDEBAR_INIT === "function") {
+                global.SIDEBAR_INIT();
+            }
         });
+    }
 
-        await loadUserMenuPermList(userSeq);
-        document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
-        if (typeof window.SIDEBAR_INIT === "function") {
-            window.SIDEBAR_INIT();
+    function ensureUserTabLoaded() {
+        if (userTabLoaded) return;
+        userTabLoaded = true;
+        searchUsers();
+    }
+
+    function bindTabs(page) {
+        UX.qsa(".tab", page).forEach(function (tab) {
+            tab.addEventListener("click", function () {
+                var target = tab.dataset.tab;
+                UX.qsa(".tab", page).forEach(function (el) { el.classList.remove("is-active"); });
+                tab.classList.add("is-active");
+                UX.qsa(".tab-pane", page).forEach(function (pane) {
+                    pane.style.display = pane.dataset.pane === target ? "" : "none";
+                });
+                if (target === "B") ensureUserTabLoaded();
+            });
+        });
+    }
+
+    function bind(page) {
+        UX.bindOnce(UX.qs("#btnGroupReload", page), "click", function () { loadGroups(); });
+        UX.bindOnce(UX.qs("#btnGroupSave", page), "click", saveGroupMenus);
+        UX.bindOnce(UX.qs("#btnUserSearch", page), "click", searchUsers);
+        UX.bindOnce(UX.qs("#btnUserExceptionSave", page), "click", saveUserExceptions);
+
+        var kwInput = UX.qs("#userKeyword", page);
+        if (kwInput) {
+            kwInput.addEventListener("keydown", function (e) {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    searchUsers();
+                }
+            });
         }
     }
 
     function init() {
-        var root = getPageRoot();
-        if (!root) return;
-
-        if (root.dataset.authInited === "1") return;
-        root.dataset.authInited = "1";
-
-        bindTabs(root);
-        bindToolbarA(root);
-        bindToolbarB(root);
-        applyPerm(root);
-        loadGroups(true);
+        var page = root();
+        if (!page || page.dataset.authInited === "1") return;
+        page.dataset.authInited = "1";
+        userTabLoaded = false;
+        bindTabs(page);
+        bind(page);
+        applyPerm();
+        loadGroups();
     }
 
     document.addEventListener("jsadmin:pageLoaded", function (e) {
-        var url = e && e.detail ? e.detail.url : "";
-        if (url === "/auth/main.do") {
-            userTabLoaded = false;
-            init();
-        }
+        if (e && e.detail && e.detail.url === "/auth/main.do") init();
     });
-})();
+})(window);

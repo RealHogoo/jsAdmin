@@ -7,6 +7,108 @@ body {
     background: #f8fafc;
 }
 
+html,
+body {
+    height: 100%;
+}
+
+body.app-shell {
+    overflow: hidden;
+}
+
+.app-shell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.app-header {
+    flex: 0 0 auto;
+    padding: 12px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: #fff;
+}
+
+.app-header-brand {
+    font-weight: 700;
+    color: inherit;
+    text-decoration: none;
+}
+
+.app-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.app-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    overflow: hidden;
+}
+
+.app-sidebar {
+    border-right: 1px solid #ddd;
+    padding: 12px;
+    overflow: auto;
+    background: #fff;
+}
+
+.app-main {
+    min-height: 0;
+    min-width: 0;
+    overflow: auto;
+    padding: 12px;
+}
+
+.app-footer {
+    flex: 0 0 auto;
+    padding: 12px;
+    border-top: 1px solid #ddd;
+    background: #fff;
+}
+
+.app-loading-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 9999;
+    transition: opacity 0.12s ease;
+}
+
+.app-loading-bar.is-active {
+    opacity: 1;
+}
+
+.app-loading-bar__inner {
+    display: block;
+    width: 35%;
+    height: 100%;
+    background: linear-gradient(90deg, #2563eb 0%, #14b8a6 100%);
+    border-radius: 0 999px 999px 0;
+    animation: app-loading-slide 1s ease-in-out infinite;
+    box-shadow: 0 0 10px rgba(37, 99, 235, 0.28);
+}
+
+@keyframes app-loading-slide {
+    0% {
+        transform: translateX(-110%);
+    }
+    100% {
+        transform: translateX(320%);
+    }
+}
+
 .page-root {
     display: flex;
     flex-direction: column;
@@ -155,6 +257,18 @@ body {
 
 .tbl tbody tr.is-dirty {
     box-shadow: inset 3px 0 0 #f59e0b;
+}
+
+.tbl tbody tr.virtual-spacer td {
+    padding: 0;
+    border: 0;
+    height: 0;
+    background: transparent;
+}
+
+.virtual-spacer__block {
+    display: block;
+    width: 1px;
 }
 
 .tbl select {
@@ -378,6 +492,29 @@ body {
 }
 
 @media (max-width: 1024px) {
+    body.app-shell {
+        overflow: auto;
+    }
+
+    .app-shell {
+        min-height: auto;
+    }
+
+    .app-body {
+        display: block;
+        overflow: visible;
+    }
+
+    .app-sidebar {
+        border-right: 0;
+        border-bottom: 1px solid #ddd;
+        overflow: visible;
+    }
+
+    .app-main {
+        overflow: visible;
+    }
+
     .toolbar .meta {
         margin-left: 0;
         width: 100%;
