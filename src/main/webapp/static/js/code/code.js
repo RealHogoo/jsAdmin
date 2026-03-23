@@ -2,6 +2,7 @@
     "use strict";
 
     var UX = global.UX;
+    var Grid = global.Grid;
     var app = global.app;
     var listView = null;
 
@@ -79,8 +80,9 @@
         var tbody = UX.qs("#codeListBody");
         if (!tbody || listView) return;
 
-        listView = UX.createVirtualTable({
+        listView = Grid.createVirtualTable({
             tbody: tbody,
+            scroller: UX.qs("#codeListWrap"),
             colCount: 7,
             rowHeight: 42,
             emptyHtml: "<tr><td colspan='7'>No Data</td></tr>",

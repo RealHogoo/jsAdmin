@@ -2,6 +2,7 @@
     "use strict";
 
     var UX = global.UX;
+    var Grid = global.Grid;
     var app = global.app;
 
     if (global.__USER_PAGE_BOUND__) return;
@@ -58,32 +59,41 @@
     }
 
     function ensureListView() {
-        var tbody = UX.qs("#userMgmtListBody", root());
-        if (!tbody || listView) return;
+        var gridRoot = UX.qs("#userMgmtGrid", root());
+        if (!gridRoot || listView) return;
 
-        listView = UX.createVirtualTable({
-            tbody: tbody,
-            colCount: 7,
+        listView = Grid.createVirtualGrid({
+            root: gridRoot,
             rowHeight: 42,
-            emptyHtml: "<tr><td colspan='7'>No Data</td></tr>",
+            overscan: 10,
+            emptyHtml: "No Data",
+            columns: [
+                { label: "번호", width: "80px" },
+                { label: "로그인 아이디", width: "140px" },
+                { label: "사용자명", width: "140px" },
+                { label: "사용", width: "80px" },
+                { label: "실패", width: "80px" },
+                { label: "잠금", width: "90px" },
+                { label: "초기화", width: "90px" }
+            ],
             renderRow: function (row) {
                 var locked = row.lock_yn === "Y" ? "LOCK" : (row.lock_until_at ? "DELAY" : "-");
-                var rowClass = Number(row.user_seq) === selectedUserSeq() ? " class='is-selected'" : "";
+                var selectedClass = Number(row.user_seq) === selectedUserSeq() ? " is-selected" : "";
                 return ""
-                    + "<tr" + rowClass + " data-user-seq='" + UX.esc(row.user_seq) + "'>"
-                    + "<td>" + UX.esc(row.user_seq) + "</td>"
-                    + "<td>" + UX.esc(row.login_id) + "</td>"
-                    + "<td>" + UX.esc(row.user_nm) + "</td>"
-                    + "<td>" + UX.esc(row.use_yn || "Y") + "</td>"
-                    + "<td>" + UX.esc(row.login_fail_cnt || "0") + "</td>"
-                    + "<td>" + UX.esc(locked) + "</td>"
-                    + "<td>" + UX.esc(row.pwd_reset_yn || "N") + "</td>"
-                    + "</tr>";
+                    + "<div class='vgrid-row" + selectedClass + "' data-user-seq='" + UX.esc(row.user_seq) + "'>"
+                    + "<div class='vgrid-cell'>" + UX.esc(row.user_seq) + "</div>"
+                    + "<div class='vgrid-cell'>" + UX.esc(row.login_id) + "</div>"
+                    + "<div class='vgrid-cell'>" + UX.esc(row.user_nm) + "</div>"
+                    + "<div class='vgrid-cell'>" + UX.esc(row.use_yn || "Y") + "</div>"
+                    + "<div class='vgrid-cell'>" + UX.esc(row.login_fail_cnt || "0") + "</div>"
+                    + "<div class='vgrid-cell'>" + UX.esc(locked) + "</div>"
+                    + "<div class='vgrid-cell'>" + UX.esc(row.pwd_reset_yn || "N") + "</div>"
+                    + "</div>";
             },
             onRendered: function () {
-                UX.qsa("tr[data-user-seq]", tbody).forEach(function (tr) {
-                    tr.addEventListener("click", function () {
-                        var userSeq = Number(tr.getAttribute("data-user-seq"));
+                UX.qsa(".vgrid-row[data-user-seq]", gridRoot).forEach(function (rowEl) {
+                    rowEl.addEventListener("click", function () {
+                        var userSeq = Number(rowEl.getAttribute("data-user-seq"));
                         setSelectedUserSeq(userSeq);
                         loadDetail(userSeq);
                     });

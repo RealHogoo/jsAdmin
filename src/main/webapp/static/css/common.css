@@ -63,8 +63,17 @@ body.app-shell {
 .app-main {
     min-height: 0;
     min-width: 0;
-    overflow: auto;
+    overflow: hidden;
     padding: 12px;
+    display: flex;
+    flex-direction: column;
+}
+
+#app {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .app-footer {
@@ -112,6 +121,9 @@ body.app-shell {
 .page-root {
     display: flex;
     flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
     gap: 12px;
 }
 
@@ -203,10 +215,25 @@ body.app-shell {
     font-weight: 600;
 }
 
+.tab-pane {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
 .grid-2col {
     display: grid;
     grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
     gap: 12px;
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;
+}
+
+.grid-2col > * {
+    min-height: 0;
 }
 
 .panel {
@@ -214,13 +241,168 @@ body.app-shell {
     border: 1px solid #e5e7eb;
     border-radius: 10px;
     padding: 10px;
+    box-sizing: border-box;
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    min-height: 0;
+}
+
+.panel-list {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;
+}
+
+.panel-list > .grid-scroll,
+.panel-list > .card-scroll,
+.panel-list > .vgrid,
+.panel-list > .vgrid-fill {
+    flex: 1 1 auto;
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+    align-self: stretch;
 }
 
 .panel-title {
     font-size: 14px;
     font-weight: 700;
     margin-bottom: 8px;
+}
+
+.grid-scroll {
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    scrollbar-gutter: stable;
+}
+
+.grid-scroll .tbl {
+    margin: 0;
+}
+
+.grid-scroll .tbl th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.card-scroll {
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+}
+
+.vgrid {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+    --vgrid-columns: minmax(0, 1fr);
+}
+
+.vgrid-fill {
+    min-height: 0;
+}
+
+.vgrid.vgrid-fill {
+    min-height: 0;
+    height: 100%;
+    max-height: none;
+}
+
+.vgrid-head,
+.vgrid-row {
+    display: grid;
+    width: 100%;
+    grid-template-columns: var(--vgrid-columns);
+}
+
+.vgrid-head {
+    flex: 0 0 auto;
+    background: #f3f4f6;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.vgrid-body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+}
+
+.vgrid-spacer {
+    width: 1px;
+    opacity: 0;
+}
+
+.vgrid-rows {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    will-change: transform;
+}
+
+.vgrid-cell {
+    box-sizing: border-box;
+    padding: 8px;
+    font-size: 13px;
+    border-right: 1px solid #e5e7eb;
+    border-bottom: 1px solid #e5e7eb;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vgrid-cell:last-child {
+    border-right: 0;
+}
+
+.vgrid-head-cell {
+    font-weight: 600;
+    color: #374151;
+}
+
+.vgrid-row {
+    background: #fff;
+    height: 42px;
+}
+
+.vgrid-row:hover {
+    background: #f9fafb;
+}
+
+.vgrid-row.is-selected {
+    background: #eff6ff;
+}
+
+.vgrid-empty {
+    padding: 16px;
+    color: #6b7280;
+    font-size: 13px;
 }
 
 .tbl {

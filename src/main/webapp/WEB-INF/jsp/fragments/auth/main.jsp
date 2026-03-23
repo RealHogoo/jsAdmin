@@ -16,33 +16,37 @@
         </div>
 
         <div class="grid-2col">
-            <div class="panel">
+            <div class="panel panel-list">
                 <div class="panel-title">&#xad8c;&#xd55c; &#xadf8;&#xb8f9;</div>
-                <table class="tbl">
-                    <thead>
-                    <tr>
-                        <th style="width:90px;">SEQ</th>
-                        <th>&#xadf8;&#xb8f9;&#xba85;</th>
-                        <th style="width:70px;">USE</th>
-                    </tr>
-                    </thead>
-                    <tbody id="groupListBody"></tbody>
-                </table>
+                <div class="grid-scroll" id="groupListWrap">
+                    <table class="tbl">
+                        <thead>
+                        <tr>
+                            <th style="width:90px;">SEQ</th>
+                            <th>&#xadf8;&#xb8f9;&#xba85;</th>
+                            <th style="width:70px;">USE</th>
+                        </tr>
+                        </thead>
+                        <tbody id="groupListBody"></tbody>
+                    </table>
+                </div>
             </div>
 
-            <div class="panel">
+            <div class="panel panel-list">
                 <div class="panel-title">&#xba54;&#xb274; &#xad8c;&#xd55c;</div>
-                <table class="tbl">
-                    <thead>
-                    <tr>
-                        <th style="width:90px;">SEQ</th>
-                        <th>&#xba54;&#xb274;</th>
-                        <th style="width:120px;">&#xad8c;&#xd55c;</th>
-                        <th style="width:70px;">USE</th>
-                    </tr>
-                    </thead>
-                    <tbody id="menuPermBody"></tbody>
-                </table>
+                <div class="grid-scroll" id="menuPermWrap">
+                    <table class="tbl">
+                        <thead>
+                        <tr>
+                            <th style="width:90px;">SEQ</th>
+                            <th>&#xba54;&#xb274;</th>
+                            <th style="width:120px;">&#xad8c;&#xd55c;</th>
+                            <th style="width:70px;">USE</th>
+                        </tr>
+                        </thead>
+                        <tbody id="menuPermBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </section>
@@ -56,33 +60,37 @@
         </div>
 
         <div class="grid-2col">
-            <div class="panel">
+            <div class="panel panel-list">
                 <div class="panel-title">&#xc0ac;&#xc6a9;&#xc790; &#xbaa9;&#xb85d;</div>
-                <table class="tbl">
-                    <thead>
-                    <tr>
-                        <th style="width:90px;">USER_SEQ</th>
-                        <th>LOGIN_ID</th>
-                        <th>&#xc0ac;&#xc6a9;&#xc790;&#xba85;</th>
-                    </tr>
-                    </thead>
-                    <tbody id="userListBody"></tbody>
-                </table>
+                <div class="grid-scroll" id="authUserListWrap">
+                    <table class="tbl">
+                        <thead>
+                        <tr>
+                            <th style="width:90px;">USER_SEQ</th>
+                            <th>LOGIN_ID</th>
+                            <th>&#xc0ac;&#xc6a9;&#xc790;&#xba85;</th>
+                        </tr>
+                        </thead>
+                        <tbody id="userListBody"></tbody>
+                    </table>
+                </div>
             </div>
 
-            <div class="panel">
+            <div class="panel panel-list">
                 <div class="panel-title">&#xc608;&#xc678; &#xad8c;&#xd55c; &#xba54;&#xb274;</div>
-                <table class="tbl">
-                    <thead>
-                    <tr>
-                        <th style="width:90px;">SEQ</th>
-                        <th>&#xba54;&#xb274;</th>
-                        <th style="width:90px;">&#xae30;&#xbcf8; &#xad8c;&#xd55c;</th>
-                        <th style="width:110px;">&#xc608;&#xc678; &#xad8c;&#xd55c;</th>
-                    </tr>
-                    </thead>
-                    <tbody id="userExceptionBody"></tbody>
-                </table>
+                <div class="grid-scroll" id="userExceptionWrap">
+                    <table class="tbl">
+                        <thead>
+                        <tr>
+                            <th style="width:90px;">SEQ</th>
+                            <th>&#xba54;&#xb274;</th>
+                            <th style="width:90px;">&#xae30;&#xbcf8; &#xad8c;&#xd55c;</th>
+                            <th style="width:110px;">&#xc608;&#xc678; &#xad8c;&#xd55c;</th>
+                        </tr>
+                        </thead>
+                        <tbody id="userExceptionBody"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </section>

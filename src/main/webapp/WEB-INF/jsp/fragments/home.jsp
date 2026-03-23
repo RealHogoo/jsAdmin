@@ -1,8 +1,8 @@
-<%@ page contentType="text/html; charset=UTF-8" %>
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
 <div class="page-root dashboard-page" id="homePage">
     <h2 class="page-title">대시보드</h2>
-    <p class="muted">프로젝트 소개와 최근 공지, 주요 관리 화면으로 바로 이동할 수 있습니다.</p>
+    <p class="muted">프로젝트 개요, 최근 공지, 주요 관리 화면으로 바로 이동할 수 있습니다.</p>
 
     <div class="home-grid">
         <section class="panel home-intro">
@@ -19,11 +19,13 @@
             <pre id="homeIntroRaw" class="home-intro-raw"></pre>
         </section>
 
-        <section class="panel home-notice">
+        <section class="panel home-notice panel-list">
             <div class="home-notice-head">
                 <div class="panel-title">공지사항</div>
             </div>
-            <div id="homeNoticeTrack" class="home-notice-track"></div>
+            <div class="card-scroll">
+                <div id="homeNoticeTrack" class="home-notice-track"></div>
+            </div>
         </section>
     </div>
 </div>

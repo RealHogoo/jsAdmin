@@ -43,6 +43,7 @@
     </script>
 
     <script src="${pageContext.request.contextPath}/static/js/ux.js"></script>
+    <script src="${pageContext.request.contextPath}/static/js/grid.js?v=20260323_01"></script>
     <script src="${pageContext.request.contextPath}/static/js/app.js"></script>
     <script src="${pageContext.request.contextPath}/static/js/header/header.js"></script>
     <script src="${pageContext.request.contextPath}/static/js/footer/footer.js"></script>

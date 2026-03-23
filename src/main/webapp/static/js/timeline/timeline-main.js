@@ -2,17 +2,24 @@
     "use strict";
 
     var UX = global.UX;
+    var Grid = global.Grid;
     var app = global.app;
 
     if (global.__TIMELINE_MAIN_BOUND__) return;
     global.__TIMELINE_MAIN_BOUND__ = true;
 
-    function pageRoot() {
-        return UX.qs("#timelinePage") || document;
+    var listView = null;
+
+    function pageRoot() { return UX.qs("#timelinePage") || document; }
+    function formRoot() { return UX.qs("#timelineForm") || document; }
+
+    function setSelectedTimelineSeq(seq) {
+        pageRoot().dataset.selectedTimelineSeq = seq ? String(seq) : "";
+        if (listView) listView.refresh();
     }
 
-    function formRoot() {
-        return UX.qs("#timelineForm") || document;
+    function selectedTimelineSeq() {
+        return UX.numOrNull(pageRoot().dataset.selectedTimelineSeq);
     }
 
     function applyPerm() {
@@ -26,6 +33,7 @@
 
     function clearForm() {
         var root = formRoot();
+        setSelectedTimelineSeq(null);
         UX.setValue("#timeline_seq", "", root);
         UX.setValue("#timeline_type_cd", "", root);
         UX.setValue("#title", "", root);
@@ -64,33 +72,42 @@
         };
     }
 
-    function renderTable(list) {
+    function ensureListView() {
         var tbody = UX.qs("#timelineListBody");
-        if (!tbody) return;
-        tbody.innerHTML = (list || []).map(function (row) {
-            return "<tr class='timeline-row' data-timeline-seq='" + UX.esc(UX.value(row, ["timeline_seq", "timelineSeq"], "")) + "'>"
-                + "<td>" + UX.esc(UX.value(row, ["timeline_seq", "timelineSeq"], "")) + "</td>"
-                + "<td>" + UX.esc(UX.value(row, ["timeline_type_cd", "timelineTypeCd"], "")) + "</td>"
-                + "<td>" + UX.esc(UX.value(row, ["title"], "")) + "</td>"
-                + "<td>" + UX.esc(UX.value(row, ["event_dt", "eventDt"], "")) + "</td>"
-                + "<td>" + UX.esc(UX.value(row, ["use_yn", "useYn"], "")) + "</td>"
-                + "</tr>";
-        }).join("");
-
-        UX.qsa("tr.timeline-row", tbody).forEach(function (tr) {
-            tr.addEventListener("click", function () {
-                UX.qsa("tr.timeline-row.selected", tbody).forEach(function (row) { row.classList.remove("selected"); });
-                tr.classList.add("selected");
-                var seq = UX.numOrNull(tr.getAttribute("data-timeline-seq"));
-                if (!seq) return;
-                app.callJson("/timeline/detail.json", { timeline_seq: seq }, function (data) {
-                    if (data) fillForm(data);
-                }).catch(function (e) {
-                    alert("상세 조회 실패: " + (e && e.message ? e.message : e));
+        if (!tbody || listView) return;
+        listView = Grid.createVirtualTable({
+            tbody: tbody,
+            scroller: UX.qs("#timelineListWrap"),
+            colCount: 5,
+            rowHeight: 42,
+            emptyHtml: "<tr><td colspan='5'>No Data</td></tr>",
+            renderRow: function (row) {
+                var seq = UX.value(row, ["timeline_seq", "timelineSeq"], "");
+                var selectedClass = String(seq) === String(selectedTimelineSeq() || "") ? " class='timeline-row selected'" : " class='timeline-row'";
+                return "<tr" + selectedClass + " data-timeline-seq='" + UX.esc(seq) + "'>"
+                    + "<td>" + UX.esc(seq) + "</td>"
+                    + "<td>" + UX.esc(UX.value(row, ["timeline_type_cd", "timelineTypeCd"], "")) + "</td>"
+                    + "<td>" + UX.esc(UX.value(row, ["title"], "")) + "</td>"
+                    + "<td>" + UX.esc(UX.value(row, ["event_dt", "eventDt"], "")) + "</td>"
+                    + "<td>" + UX.esc(UX.value(row, ["use_yn", "useYn"], "")) + "</td>"
+                    + "</tr>";
+            },
+            onRendered: function () {
+                UX.qsa("tr.timeline-row", tbody).forEach(function (tr) {
+                    tr.addEventListener("click", function () {
+                        var seq = UX.numOrNull(tr.getAttribute("data-timeline-seq"));
+                        if (!seq) return;
+                        setSelectedTimelineSeq(seq);
+                        app.callJson("/timeline/detail.json", { timeline_seq: seq }, function (data) {
+                            if (data) fillForm(data);
+                        }).catch(function (e) { alert("상세 조회 실패: " + (e && e.message ? e.message : e)); });
+                    });
                 });
-            });
+            }
         });
     }
+
+    function renderTable(list) { ensureListView(); if (listView) listView.setItems(list || []); }
 
     function loadList() {
         return app.callJson("/timeline/list.json", collectSearchParam(), function (rows) {
@@ -102,28 +119,22 @@
         var param = collectFormParam();
         if (!param.title) return alert("제목은 필수입니다.");
         if (!param.event_dt) return alert("이벤트 일자는 필수입니다.");
-
         app.callJson("/timeline/save.json", param, function () {
             loadList();
             clearForm();
             alert("저장 완료");
-        }).catch(function (e) {
-            alert("저장 실패: " + (e && e.message ? e.message : e));
-        });
+        }).catch(function (e) { alert("저장 실패: " + (e && e.message ? e.message : e)); });
     }
 
     function deleteTimeline() {
         var seq = UX.numOrNull(UX.getValue("#timeline_seq", formRoot()));
         if (!seq) return alert("삭제할 타임라인을 선택하세요.");
         if (!confirm("삭제하시겠습니까?")) return;
-
         app.callJson("/timeline/delete.json", { timeline_seq: seq }, function () {
             loadList();
             clearForm();
             alert("삭제 완료");
-        }).catch(function (e) {
-            alert("삭제 실패: " + (e && e.message ? e.message : e));
-        });
+        }).catch(function (e) { alert("삭제 실패: " + (e && e.message ? e.message : e)); });
     }
 
     function bind() {
@@ -138,6 +149,7 @@
         if (!UX.qs("#timelineListBody")) return;
         bind();
         applyPerm();
+        ensureListView();
         clearForm();
         loadList();
     }

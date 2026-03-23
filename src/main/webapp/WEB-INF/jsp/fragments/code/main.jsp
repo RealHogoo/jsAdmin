@@ -52,22 +52,24 @@
             </div>
         </div>
 
-        <div class="panel">
+        <div class="panel panel-list">
             <div class="panel-title">코드 목록</div>
-            <table class="tbl" id="codeTable">
-                <thead>
-                    <tr>
-                        <th>CODE_SEQ</th>
-                        <th>CODE_GRP_CD</th>
-                        <th>CODE_CD</th>
-                        <th>CODE_NM</th>
-                        <th>CODE_DESC</th>
-                        <th>SORT_ORD</th>
-                        <th>USE_YN</th>
-                    </tr>
-                </thead>
-                <tbody id="codeListBody"></tbody>
-            </table>
+            <div class="grid-scroll" id="codeListWrap">
+                <table class="tbl" id="codeTable">
+                    <thead>
+                        <tr>
+                            <th>CODE_SEQ</th>
+                            <th>CODE_GRP_CD</th>
+                            <th>CODE_CD</th>
+                            <th>CODE_NM</th>
+                            <th>CODE_DESC</th>
+                            <th>SORT_ORD</th>
+                            <th>USE_YN</th>
+                        </tr>
+                    </thead>
+                    <tbody id="codeListBody"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

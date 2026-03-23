@@ -55,7 +55,7 @@
                     <input type="text" class="input" id="lock_yn" readonly>
                 </div>
                 <div class="form-item">
-                    <label for="lock_until_at">지연 잠금 만료</label>
+                    <label for="lock_until_at">지연/잠금 만료</label>
                     <input type="text" class="input" id="lock_until_at" readonly>
                 </div>
                 <div class="form-item">
@@ -69,22 +69,9 @@
             </div>
         </section>
 
-        <section class="panel">
+        <section class="panel panel-list">
             <div class="panel-title">사용자 목록</div>
-            <table class="tbl">
-                <thead>
-                <tr>
-                    <th style="width:80px;">번호</th>
-                    <th style="width:140px;">로그인 아이디</th>
-                    <th style="width:140px;">사용자명</th>
-                    <th style="width:80px;">사용</th>
-                    <th style="width:80px;">실패</th>
-                    <th style="width:90px;">잠금</th>
-                    <th style="width:90px;">초기화</th>
-                </tr>
-                </thead>
-                <tbody id="userMgmtListBody"></tbody>
-            </table>
+            <div id="userMgmtGrid" class="vgrid"></div>
         </section>
     </div>
 </div>

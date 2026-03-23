@@ -68,23 +68,25 @@
             </div>
         </div>
 
-        <div class="panel">
+        <div class="panel panel-list">
             <div class="panel-title">메뉴 목록</div>
-            <table class="tbl" id="menuTable">
-                <thead>
-                    <tr>
-                        <th>menu_seq</th>
-                        <th>up_menu_seq</th>
-                        <th>menu_nm</th>
-                        <th>menu_url</th>
-                        <th>menu_type_cd</th>
-                        <th>icon_class</th>
-                        <th>sort_ord</th>
-                        <th>use_yn</th>
-                    </tr>
-                </thead>
-                <tbody id="menuListBody"></tbody>
-            </table>
+            <div class="grid-scroll" id="menuListWrap">
+                <table class="tbl" id="menuTable">
+                    <thead>
+                        <tr>
+                            <th>menu_seq</th>
+                            <th>up_menu_seq</th>
+                            <th>menu_nm</th>
+                            <th>menu_url</th>
+                            <th>menu_type_cd</th>
+                            <th>icon_class</th>
+                            <th>sort_ord</th>
+                            <th>use_yn</th>
+                        </tr>
+                    </thead>
+                    <tbody id="menuListBody"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

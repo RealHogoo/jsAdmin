@@ -80,12 +80,13 @@
     function setupInfiniteScroll() {
         disconnectObserver();
         var sentinel = UX.qs("#timelineHomeSentinel");
+        var scrollRoot = UX.qs("#timelineHomeScroll");
         if (!sentinel) return;
         state.observer = new IntersectionObserver(function (entries) {
             entries.forEach(function (entry) {
                 if (entry.isIntersecting) loadNextPage();
             });
-        }, { root: null, rootMargin: "200px 0px 200px 0px", threshold: 0 });
+        }, { root: scrollRoot || null, rootMargin: "200px 0px 200px 0px", threshold: 0 });
         state.observer.observe(sentinel);
     }
 

@@ -1,4 +1,4 @@
-<%@ page contentType="text/html; charset=UTF-8" %>
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
 <div class="page-root" id="noticePage">
     <h2 class="page-title">공지사항 관리</h2>
@@ -18,32 +18,32 @@
                 <input type="hidden" id="noti_seq" name="noti_seq" />
 
                 <div class="form-item">
-                    <label>NOTI_TYPE_CD</label>
+                    <label>공지 유형</label>
                     <input type="text" class="input" id="noti_type_cd" name="noti_type_cd" maxlength="10" />
                 </div>
 
                 <div class="form-item full">
-                    <label>TITLE *</label>
+                    <label>제목 *</label>
                     <input type="text" class="input" id="title" name="title" maxlength="500" />
                 </div>
 
                 <div class="form-item full">
-                    <label>CONTENT</label>
+                    <label>내용</label>
                     <textarea class="textarea" id="content" name="content" rows="10"></textarea>
                 </div>
 
                 <div class="form-item">
-                    <label>START_DT</label>
+                    <label>시작일</label>
                     <input type="date" class="input" id="start_dt" name="start_dt" />
                 </div>
 
                 <div class="form-item">
-                    <label>END_DT</label>
+                    <label>종료일</label>
                     <input type="date" class="input" id="end_dt" name="end_dt" />
                 </div>
 
                 <div class="form-item">
-                    <label>PIN_YN</label>
+                    <label>상단고정</label>
                     <select class="input" id="pin_yn" name="pin_yn">
                         <option value="N">N</option>
                         <option value="Y">Y</option>
@@ -51,7 +51,7 @@
                 </div>
 
                 <div class="form-item">
-                    <label>POPUP_YN</label>
+                    <label>팝업</label>
                     <select class="input" id="popup_yn" name="popup_yn">
                         <option value="N">N</option>
                         <option value="Y">Y</option>
@@ -59,7 +59,7 @@
                 </div>
 
                 <div class="form-item">
-                    <label>USE_YN</label>
+                    <label>사용여부</label>
                     <select class="input" id="use_yn" name="use_yn">
                         <option value="Y">Y</option>
                         <option value="N">N</option>
@@ -67,29 +67,31 @@
                 </div>
 
                 <div class="form-item">
-                    <label>VIEW_CNT</label>
+                    <label>조회수</label>
                     <input type="text" class="input" id="view_cnt" name="view_cnt" readonly />
                 </div>
             </div>
         </div>
 
-        <div class="panel">
+        <div class="panel panel-list">
             <div class="panel-title">공지 목록</div>
-            <table class="tbl" id="noticeTable">
-                <thead>
-                    <tr>
-                        <th>NOTI_SEQ</th>
-                        <th>TYPE</th>
-                        <th>TITLE</th>
-                        <th>기간</th>
-                        <th>PIN</th>
-                        <th>POPUP</th>
-                        <th>VIEW</th>
-                        <th>USE</th>
-                    </tr>
-                </thead>
-                <tbody id="noticeListBody"></tbody>
-            </table>
+            <div class="grid-scroll" id="noticeListWrap">
+                <table class="tbl" id="noticeTable">
+                    <thead>
+                        <tr>
+                            <th>NOTI_SEQ</th>
+                            <th>TYPE</th>
+                            <th>TITLE</th>
+                            <th>기간</th>
+                            <th>PIN</th>
+                            <th>POPUP</th>
+                            <th>VIEW</th>
+                            <th>USE</th>
+                        </tr>
+                    </thead>
+                    <tbody id="noticeListBody"></tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>

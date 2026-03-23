@@ -24,23 +24,25 @@
             <span class="meta">선택 세션: <b id="selectedSessionId">-</b></span>
         </div>
 
-        <section class="panel">
+        <section class="panel panel-list">
             <div class="panel-title">현재 세션 목록</div>
-            <table class="tbl access-table">
-                <thead>
-                <tr>
-                    <th style="width:120px;">상태</th>
-                    <th style="width:120px;">LOGIN_ID</th>
-                    <th style="width:110px;">사용자명</th>
-                    <th style="width:110px;">IP</th>
-                    <th style="width:180px;">로그인 시각</th>
-                    <th style="width:180px;">최근 접근</th>
-                    <th style="width:180px;">만료 예정</th>
-                    <th>USER_AGENT</th>
-                </tr>
-                </thead>
-                <tbody id="sessionListBody"></tbody>
-            </table>
+            <div class="grid-scroll" id="sessionListWrap">
+                <table class="tbl access-table">
+                    <thead>
+                    <tr>
+                        <th style="width:120px;">상태</th>
+                        <th style="width:120px;">LOGIN_ID</th>
+                        <th style="width:110px;">사용자명</th>
+                        <th style="width:110px;">IP</th>
+                        <th style="width:180px;">로그인 시각</th>
+                        <th style="width:180px;">최근 접근</th>
+                        <th style="width:180px;">만료 예정</th>
+                        <th>USER_AGENT</th>
+                    </tr>
+                    </thead>
+                    <tbody id="sessionListBody"></tbody>
+                </table>
+            </div>
         </section>
     </section>
 
@@ -58,24 +60,25 @@
             <a href="javascript:void(0)" class="btn" id="btnHistorySearch">조회</a>
         </div>
 
-        <section class="panel">
-            <div class="panel-title">로그인 이력</div>
-            <table class="tbl access-table">
-                <thead>
-                <tr>
-                    <th style="width:110px;">결과</th>
-                    <th style="width:120px;">LOGIN_ID</th>
-                    <th style="width:110px;">사용자명</th>
-                    <th style="width:110px;">IP</th>
-                    <th style="width:180px;">로그인 시각</th>
-                    <th style="width:160px;">세션 ID</th>
-                    <th>상세 사유</th>
-                </tr>
-                </thead>
-                <tbody id="historyListBody"></tbody>
-            </table>
+        <section class="panel panel-list">
+            <div id="historyGrid" class="vgrid vgrid-fill">
+                <div class="vgrid-head">
+                    <div class="vgrid-cell vgrid-head-cell">결과</div>
+                    <div class="vgrid-cell vgrid-head-cell">LOGIN_ID</div>
+                    <div class="vgrid-cell vgrid-head-cell">사용자명</div>
+                    <div class="vgrid-cell vgrid-head-cell">IP</div>
+                    <div class="vgrid-cell vgrid-head-cell">로그인 시각</div>
+                    <div class="vgrid-cell vgrid-head-cell">세션 ID</div>
+                    <div class="vgrid-cell vgrid-head-cell">상세 사유</div>
+                </div>
+                <div class="vgrid-body">
+                    <div class="vgrid-spacer" aria-hidden="true"></div>
+                    <div class="vgrid-rows"></div>
+                    <div class="vgrid-empty" style="display:none;"></div>
+                </div>
+            </div>
         </section>
     </section>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/access/access.js"></script>
+<script src="${pageContext.request.contextPath}/static/js/access/access.js?v=20260323_01"></script>

@@ -2,18 +2,26 @@
     "use strict";
 
     var UX = global.UX;
+    var Grid = global.Grid;
     var app = global.app;
     var MENU_TYPE_GROUP_CD = "MENU_TYPE";
 
     if (global.__MENU_PAGE_BOUND__) return;
     global.__MENU_PAGE_BOUND__ = true;
 
-    function pageRoot() {
-        return UX.qs("#menuPage") || document;
+    var listView = null;
+
+    function pageRoot() { return UX.qs("#menuPage") || document; }
+    function formRoot() { return UX.qs("#menuForm") || document; }
+
+    function setSelectedMenuSeq(menuSeq) {
+        var page = pageRoot();
+        page.dataset.selectedMenuSeq = menuSeq ? String(menuSeq) : "";
+        if (listView) listView.refresh();
     }
 
-    function formRoot() {
-        return UX.qs("#menuForm") || document;
+    function selectedMenuSeq() {
+        return UX.numOrNull(pageRoot().dataset.selectedMenuSeq);
     }
 
     function getPermLvl() {
@@ -33,9 +41,7 @@
     function ensureSelectValue(selectEl, value) {
         if (!selectEl) return;
         var target = value == null ? "" : String(value);
-        var exists = Array.prototype.some.call(selectEl.options, function (opt) {
-            return opt.value === target;
-        });
+        var exists = Array.prototype.some.call(selectEl.options, function (opt) { return opt.value === target; });
         if (!exists && target !== "") {
             var opt = document.createElement("option");
             opt.value = target;
@@ -47,9 +53,7 @@
 
     function appendOption(selectEl, value, label) {
         if (!selectEl || !value) return;
-        var exists = Array.prototype.some.call(selectEl.options, function (opt) {
-            return opt.value === String(value);
-        });
+        var exists = Array.prototype.some.call(selectEl.options, function (opt) { return opt.value === String(value); });
         if (exists) return;
         var opt = document.createElement("option");
         opt.value = value;
@@ -77,11 +81,7 @@
                     return String(UX.value(a, ["code_cd", "codeCd"], "")).localeCompare(String(UX.value(b, ["code_cd", "codeCd"], "")));
                 })
                 .forEach(function (row) {
-                    appendOption(
-                        selectEl,
-                        UX.value(row, ["code_cd", "codeCd"], ""),
-                        UX.value(row, ["code_nm", "codeNm"], "")
-                    );
+                    appendOption(selectEl, UX.value(row, ["code_cd", "codeCd"], ""), UX.value(row, ["code_nm", "codeNm"], ""));
                 });
             ensureSelectValue(selectEl, currentValue);
         });
@@ -102,6 +102,7 @@
     function clearForm() {
         fillForm({});
         UX.setValue("#use_yn", "Y", formRoot());
+        setSelectedMenuSeq(null);
     }
 
     function collectFormParam() {
@@ -124,40 +125,48 @@
     }
 
     function collectSearchParam() {
-        return {
-            use_yn: UX.strOrNull(UX.getValue("#search_use_yn", pageRoot()))
-        };
+        return { use_yn: UX.strOrNull(UX.getValue("#search_use_yn", pageRoot())) };
     }
 
-    function renderTable(list) {
+    function ensureListView() {
         var tbody = UX.qs("#menuListBody");
-        if (!tbody) return;
-
-        tbody.innerHTML = (list || []).map(function (row) {
-            return "<tr class='menu-row' data-menu-seq='" + UX.esc(UX.value(row, ["menu_seq", "menuSeq"], "")) + "'>"
-                + "<td>" + UX.esc(UX.value(row, ["menu_seq", "menuSeq"], "")) + "</td>"
-                + "<td>" + UX.esc(UX.value(row, ["up_menu_seq", "upMenuSeq"], "")) + "</td>"
-                + "<td>" + UX.esc(UX.value(row, ["menu_nm", "menuNm"], "")) + "</td>"
-                + "<td>" + UX.esc(UX.value(row, ["menu_url", "menuUrl"], "")) + "</td>"
-                + "<td>" + UX.esc(UX.value(row, ["menu_type_cd", "menuTypeCd"], "")) + "</td>"
-                + "<td>" + UX.esc(UX.value(row, ["icon_class", "iconClass"], "")) + "</td>"
-                + "<td>" + UX.esc(UX.value(row, ["sort_ord", "sort_no", "sortNo"], "")) + "</td>"
-                + "<td>" + UX.esc(UX.value(row, ["use_yn", "useYn"], "")) + "</td>"
-                + "</tr>";
-        }).join("");
-
-        UX.qsa("tr.menu-row", tbody).forEach(function (tr) {
-            tr.addEventListener("click", function () {
-                UX.qsa("tr.menu-row.selected", tbody).forEach(function (row) { row.classList.remove("selected"); });
-                tr.classList.add("selected");
-                var menuSeq = tr.getAttribute("data-menu-seq");
-                var found = (list || []).find(function (row) {
-                    return String(UX.value(row, ["menu_seq", "menuSeq"], "")) === String(menuSeq);
+        if (!tbody || listView) return;
+        listView = Grid.createVirtualTable({
+            tbody: tbody,
+            scroller: UX.qs("#menuListWrap"),
+            colCount: 8,
+            rowHeight: 42,
+            emptyHtml: "<tr><td colspan='8'>No Data</td></tr>",
+            renderRow: function (row) {
+                var menuSeq = UX.value(row, ["menu_seq", "menuSeq"], "");
+                var selectedClass = String(menuSeq) === String(selectedMenuSeq() || "") ? " class='menu-row selected'" : " class='menu-row'";
+                return "<tr" + selectedClass + " data-menu-seq='" + UX.esc(menuSeq) + "'>"
+                    + "<td>" + UX.esc(menuSeq) + "</td>"
+                    + "<td>" + UX.esc(UX.value(row, ["up_menu_seq", "upMenuSeq"], "")) + "</td>"
+                    + "<td>" + UX.esc(UX.value(row, ["menu_nm", "menuNm"], "")) + "</td>"
+                    + "<td>" + UX.esc(UX.value(row, ["menu_url", "menuUrl"], "")) + "</td>"
+                    + "<td>" + UX.esc(UX.value(row, ["menu_type_cd", "menuTypeCd"], "")) + "</td>"
+                    + "<td>" + UX.esc(UX.value(row, ["icon_class", "iconClass"], "")) + "</td>"
+                    + "<td>" + UX.esc(UX.value(row, ["sort_ord", "sort_no", "sortNo"], "")) + "</td>"
+                    + "<td>" + UX.esc(UX.value(row, ["use_yn", "useYn"], "")) + "</td>"
+                    + "</tr>";
+            },
+            onRendered: function () {
+                UX.qsa("tr.menu-row", tbody).forEach(function (tr) {
+                    tr.addEventListener("click", function () {
+                        var menuSeq = tr.getAttribute("data-menu-seq");
+                        var found = listView.getItems().find(function (row) {
+                            return String(UX.value(row, ["menu_seq", "menuSeq"], "")) === String(menuSeq);
+                        });
+                        setSelectedMenuSeq(menuSeq);
+                        if (found) fillForm(found);
+                    });
                 });
-                if (found) fillForm(found);
-            });
+            }
         });
     }
+
+    function renderTable(list) { ensureListView(); if (listView) listView.setItems(list || []); }
 
     function loadList() {
         return app.callJson("/menu/list.json", collectSearchParam(), function (list) {
@@ -167,42 +176,30 @@
 
     function refreshSidebar() {
         document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
-        if (typeof global.SIDEBAR_INIT === "function") {
-            try { global.SIDEBAR_INIT(); } catch (e) {}
-        }
+        if (typeof global.SIDEBAR_INIT === "function") { try { global.SIDEBAR_INIT(); } catch (e) {} }
     }
 
     function saveMenu() {
         var param = collectFormParam();
-        if (!param.menu_nm) {
-            alert("메뉴명은 필수입니다.");
-            return;
-        }
+        if (!param.menu_nm) return alert("메뉴명은 필수입니다.");
         app.callJson("/menu/save.json", param, function () {
             loadList();
             refreshSidebar();
             clearForm();
             alert("저장 완료");
-        }).catch(function (e) {
-            alert("저장 실패: " + (e && e.message ? e.message : e));
-        });
+        }).catch(function (e) { alert("저장 실패: " + (e && e.message ? e.message : e)); });
     }
 
     function deleteMenu() {
         var menuSeq = UX.numOrNull(UX.getValue("#menu_seq", formRoot()));
-        if (!menuSeq) {
-            alert("삭제할 메뉴를 선택하세요.");
-            return;
-        }
+        if (!menuSeq) return alert("삭제할 메뉴를 선택하세요.");
         if (!confirm("삭제하시겠습니까?")) return;
         app.callJson("/menu/delete.json", { menu_seq: menuSeq }, function () {
             loadList();
             refreshSidebar();
             clearForm();
             alert("삭제 완료");
-        }).catch(function (e) {
-            alert("삭제 실패: " + (e && e.message ? e.message : e));
-        });
+        }).catch(function (e) { alert("삭제 실패: " + (e && e.message ? e.message : e)); });
     }
 
     function bind() {
@@ -218,10 +215,8 @@
         if (!UX.qs("#menuListBody")) return;
         bind();
         applyPerm();
-        loadMenuTypeOptions().then(function () {
-            clearForm();
-            loadList();
-        });
+        ensureListView();
+        loadMenuTypeOptions().then(function () { clearForm(); loadList(); });
     }
 
     document.addEventListener("jsadmin:pageLoaded", function (e) {
