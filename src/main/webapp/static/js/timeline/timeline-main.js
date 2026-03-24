@@ -9,9 +9,17 @@
     global.__TIMELINE_MAIN_BOUND__ = true;
 
     var listView = null;
+    var listLoader = null;
 
     function pageRoot() { return UX.qs("#timelinePage") || document; }
     function formRoot() { return UX.qs("#timelineForm") || document; }
+
+    function resetViews() {
+        if (listView && typeof listView.destroy === "function") listView.destroy();
+        if (listLoader && typeof listLoader.destroy === "function") listLoader.destroy();
+        listView = null;
+        listLoader = null;
+    }
 
     function setSelectedTimelineSeq(seq) {
         pageRoot().dataset.selectedTimelineSeq = seq ? String(seq) : "";
@@ -81,15 +89,15 @@
             colCount: 5,
             rowHeight: 42,
             emptyHtml: "<tr><td colspan='5'>No Data</td></tr>",
-            renderRow: function (row) {
+            renderRow: function (row, index) {
                 var seq = UX.value(row, ["timeline_seq", "timelineSeq"], "");
                 var selectedClass = String(seq) === String(selectedTimelineSeq() || "") ? " class='timeline-row selected'" : " class='timeline-row'";
                 return "<tr" + selectedClass + " data-timeline-seq='" + UX.esc(seq) + "'>"
-                    + "<td>" + UX.esc(seq) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["timeline_type_cd", "timelineTypeCd"], "")) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["title"], "")) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["event_dt", "eventDt"], "")) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["use_yn", "useYn"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(index + 1) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["timeline_type_cd", "timelineTypeCd"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["title"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["event_dt", "eventDt"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["use_yn", "useYn"], "") === "Y" ? "사용" : "미사용") + "</td>"
                     + "</tr>";
             },
             onRendered: function () {
@@ -107,11 +115,29 @@
         });
     }
 
+    function ensureListLoader() {
+        if (listLoader || !listView || !Grid.createChunkLoader) return;
+        listLoader = Grid.createChunkLoader({
+            pageSize: 100,
+            threshold: 120,
+            getScrollElement: function () {
+                return UX.qs("#timelineListWrap");
+            },
+            onData: function (result) {
+                renderTable(result.items || []);
+            }
+        });
+    }
+
     function renderTable(list) { ensureListView(); if (listView) listView.setItems(list || []); }
 
     function loadList() {
+        ensureListView();
+        ensureListLoader();
         return app.callJson("/timeline/list.json", collectSearchParam(), function (rows) {
-            renderTable(Array.isArray(rows) ? rows : []);
+            var list = Array.isArray(rows) ? rows : [];
+            if (listLoader) listLoader.replaceItems(list);
+            else renderTable(list.slice(0, 100));
         });
     }
 
@@ -147,9 +173,11 @@
 
     function init() {
         if (!UX.qs("#timelineListBody")) return;
+        resetViews();
         bind();
         applyPerm();
         ensureListView();
+        ensureListLoader();
         clearForm();
         loadList();
     }

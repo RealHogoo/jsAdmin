@@ -1,6 +1,6 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
-<div class="page-root" id="noticePage">
+<div class="page-root" id="noticePage" data-page-url="/notice/main.do">
     <h2 class="page-title">공지사항 관리</h2>
 
     <div class="toolbar btns" role="toolbar" aria-label="notice actions">
@@ -43,7 +43,7 @@
                 </div>
 
                 <div class="form-item">
-                    <label>상단고정</label>
+                    <label>상단고정여부</label>
                     <select class="input" id="pin_yn" name="pin_yn">
                         <option value="N">N</option>
                         <option value="Y">Y</option>
@@ -51,7 +51,7 @@
                 </div>
 
                 <div class="form-item">
-                    <label>팝업</label>
+                    <label>팝업여부</label>
                     <select class="input" id="popup_yn" name="popup_yn">
                         <option value="N">N</option>
                         <option value="Y">Y</option>
@@ -79,14 +79,14 @@
                 <table class="tbl" id="noticeTable">
                     <thead>
                         <tr>
-                            <th>NOTI_SEQ</th>
-                            <th>TYPE</th>
-                            <th>TITLE</th>
-                            <th>기간</th>
-                            <th>PIN</th>
-                            <th>POPUP</th>
-                            <th>VIEW</th>
-                            <th>USE</th>
+                            <th style="width:30px;">No.</th>
+                            <th style="width:120px;">유형</th>
+                            <th style="width:260px;">제목</th>
+                            <th style="width:240px;">기간</th>
+                            <th style="width:100px;">상단고정여부</th>
+                            <th style="width:100px;">팝업여부</th>
+                            <th style="width:90px;">조회수</th>
+                            <th style="width:100px;">사용여부</th>
                         </tr>
                     </thead>
                     <tbody id="noticeListBody"></tbody>
@@ -96,4 +96,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/notice/notice.js"></script>
+<script src="${pageContext.request.contextPath}/static/js/notice/notice.js?v=20260324_02"></script>

@@ -1,8 +1,18 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
 <div id="userPage" class="page-root" data-page-url="/user/main.do">
-    <h2 class="page-title">사용자 관리</h2>
-    <p class="muted">계정 등록, 수정, 비활성화, 잠금 해제와 비밀번호 초기화를 처리합니다.</p>
+    <div class="page-title-row">
+        <div class="page-title-group">
+            <h2 class="page-title">사용자 관리</h2>
+        </div>
+    </div>
+
+    <details class="page-help">
+        <summary><span class="page-help-toggle">?</span></summary>
+        <div class="page-help-body">
+            계정 등록, 수정, 비활성화, 잠금 해제와 비밀번호 초기화를 처리합니다.
+        </div>
+    </details>
 
     <div class="toolbar btns">
         <input type="text" class="input" id="userMgmtKeyword" placeholder="로그인 아이디 또는 사용자명" style="max-width:220px;">
@@ -76,4 +86,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/user/user.js"></script>
+<script src="${pageContext.request.contextPath}/static/js/user/user.js?v=20260325_01"></script>

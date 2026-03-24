@@ -3,6 +3,129 @@
 
     var UX = global.UX || {};
     var Grid = global.Grid || {};
+    var viewerBound = false;
+
+    function escapeAttr(value) {
+        return String(value == null ? "" : value)
+            .replace(/&/g, "&amp;")
+            .replace(/"/g, "&quot;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+    }
+
+    function escapeHtml(value) {
+        return String(value == null ? "" : value)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    function toHtmlWithLineBreaks(value) {
+        return escapeHtml(value).replace(/\r?\n/g, "<br>");
+    }
+
+    function ensureViewer() {
+        var modal = document.getElementById("gridTextViewer");
+        if (!modal) {
+            modal = document.createElement("div");
+            modal.id = "gridTextViewer";
+            modal.className = "grid-viewer";
+            modal.innerHTML =
+                "<div class='grid-viewer__backdrop' data-grid-viewer-close='1'></div>" +
+                "<div class='grid-viewer__dialog' role='dialog' aria-modal='true' aria-labelledby='gridViewerTitle'>" +
+                    "<div class='grid-viewer__head'>" +
+                        "<strong id='gridViewerTitle'>상세 내용</strong>" +
+                        "<button type='button' class='grid-viewer__close' data-grid-viewer-close='1'>닫기</button>" +
+                    "</div>" +
+                    "<div class='grid-viewer__body'></div>" +
+                "</div>";
+            document.body.appendChild(modal);
+        }
+
+        if (!viewerBound) {
+            viewerBound = true;
+
+            document.addEventListener("click", function (e) {
+                var trigger = e.target.closest(".grid-text.is-truncated");
+                if (trigger) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    openViewer(trigger.getAttribute("data-grid-fulltext") || "");
+                    return;
+                }
+
+                var closer = e.target.closest("[data-grid-viewer-close='1']");
+                if (closer) {
+                    e.preventDefault();
+                    closeViewer();
+                }
+            });
+
+            document.addEventListener("keydown", function (e) {
+                var trigger = e.target.closest && e.target.closest(".grid-text.is-truncated");
+                if (trigger && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    openViewer(trigger.getAttribute("data-grid-fulltext") || "");
+                    return;
+                }
+
+                if (e.key === "Escape") {
+                    closeViewer();
+                }
+            });
+        }
+
+        return modal;
+    }
+
+    function openViewer(text) {
+        var modal = ensureViewer();
+        var body = modal.querySelector(".grid-viewer__body");
+        body.innerHTML = toHtmlWithLineBreaks(text || "");
+        modal.classList.add("is-open");
+    }
+
+    function closeViewer() {
+        var modal = document.getElementById("gridTextViewer");
+        if (!modal) return;
+        modal.classList.remove("is-open");
+    }
+
+    function applyOverflowState(root) {
+        if (!root) return;
+        var nodes = root.querySelectorAll(".grid-text[data-grid-fulltext]");
+        Array.prototype.forEach.call(nodes, function (node) {
+            var overflowY = node.scrollHeight > node.clientHeight + 1;
+            var overflowX = node.scrollWidth > node.clientWidth + 1;
+            var truncated = overflowX || overflowY;
+
+            node.classList.toggle("is-truncated", truncated);
+            if (truncated) {
+                node.setAttribute("role", "button");
+                node.setAttribute("tabindex", "0");
+            } else {
+                node.removeAttribute("role");
+                node.removeAttribute("tabindex");
+            }
+        });
+    }
+
+    function syncHeadScroll(head, body) {
+        if (!head || !body) return;
+        head.style.transform = "translateX(" + (-body.scrollLeft) + "px)";
+    }
+
+    function textCell(value, options) {
+        var text = value == null ? "" : String(value);
+        var hasNewLine = /\r?\n/.test(text);
+        var className = options && options.className ? " " + options.className : "";
+        return "<div class='grid-text " + (hasNewLine ? "grid-text--multi" : "grid-text--single") + className
+            + "' data-grid-fulltext=\"" + escapeAttr(text) + "\">"
+            + toHtmlWithLineBreaks(text || "-")
+            + "</div>";
+    }
 
     function createVirtualTable(options) {
         var tbody = options && options.tbody;
@@ -29,6 +152,9 @@
                 html += renderRow(items[i], i);
             }
             tbody.innerHTML = html;
+            global.requestAnimationFrame(function () {
+                applyOverflowState(tbody);
+            });
 
             if (onRendered) {
                 onRendered({ start: 0, end: items.length, items: items.slice() });
@@ -113,16 +239,9 @@
             }).join(" ");
         }
 
-        function escapeAttr(value) {
-            return String(value == null ? "" : value)
-                .replace(/&/g, "&amp;")
-                .replace(/"/g, "&quot;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;");
-        }
-
         function renderHead() {
             root.style.setProperty("--vgrid-columns", columnTemplate());
+            root.style.setProperty("--vgrid-row-height", rowHeight + "px");
             if (!head.children.length) {
                 head.innerHTML = columns.map(function (col) {
                     var extraClass = col.className ? " " + col.className : "";
@@ -168,6 +287,10 @@
                 html += renderRow(items[i], i);
             }
             rowsRoot.innerHTML = html;
+            global.requestAnimationFrame(function () {
+                applyOverflowState(rowsRoot);
+                syncHeadScroll(head, body);
+            });
 
             if (onRendered) {
                 onRendered({ start: start, end: end, items: items.slice(start, end) });
@@ -182,9 +305,11 @@
             });
         }
 
-        function setItems(nextItems) {
+        function setItems(nextItems, options) {
             items = Array.isArray(nextItems) ? nextItems.slice() : [];
-            body.scrollTop = 0;
+            if (!(options && options.preserveScroll)) {
+                body.scrollTop = 0;
+            }
             requestRender();
         }
 
@@ -215,7 +340,287 @@
         };
     }
 
+    function createPagedLoader(options) {
+        var loadPage = options && options.loadPage;
+        var onData = options && options.onData;
+        var getScrollElement = options && options.getScrollElement;
+        var onStateChange = options && options.onStateChange;
+        var pageSize = Number((options && options.pageSize) || 100);
+        var threshold = Number((options && options.threshold) || 160);
+        var state = {
+            items: [],
+            params: {},
+            offset: 0,
+            hasMore: true,
+            loading: false,
+            requestSeq: 0
+        };
+        var scrollEl = null;
+
+        if (typeof loadPage !== "function") throw new Error("loadPage is required");
+        if (typeof onData !== "function") throw new Error("onData is required");
+
+        function notifyState() {
+            if (typeof onStateChange === "function") {
+                onStateChange({
+                    items: state.items.slice(),
+                    params: state.params,
+                    offset: state.offset,
+                    hasMore: state.hasMore,
+                    loading: state.loading
+                });
+            }
+        }
+
+        function resolveScrollElement() {
+            scrollEl = typeof getScrollElement === "function" ? getScrollElement() : null;
+            return scrollEl;
+        }
+
+        function maybeLoadMore() {
+            var el = scrollEl || resolveScrollElement();
+            if (!el || state.loading || !state.hasMore) return;
+            var remain = el.scrollHeight - el.clientHeight - el.scrollTop;
+            if (remain <= threshold) {
+                loadMore();
+            }
+        }
+
+        function afterDataApplied() {
+            global.requestAnimationFrame(function () {
+                maybeLoadMore();
+            });
+        }
+
+        async function loadMore() {
+            if (state.loading || !state.hasMore) return state.items.slice();
+
+            state.loading = true;
+            state.requestSeq += 1;
+            var requestSeq = state.requestSeq;
+            notifyState();
+
+            try {
+                var page = await loadPage({
+                    offset: state.offset,
+                    limit: pageSize,
+                    params: state.params
+                });
+
+                if (requestSeq !== state.requestSeq) {
+                    return state.items.slice();
+                }
+
+                var rows = Array.isArray(page && page.rows) ? page.rows : [];
+                state.items = state.items.concat(rows);
+                state.offset = Number(page && page.next_offset);
+                if (!Number.isFinite(state.offset)) {
+                    state.offset = state.items.length;
+                }
+                state.hasMore = !!(page && (page.has_more || page.hasMore));
+                onData({
+                    items: state.items.slice(),
+                    append: true,
+                    page: page || {}
+                });
+                afterDataApplied();
+                return state.items.slice();
+            } finally {
+                state.loading = false;
+                notifyState();
+            }
+        }
+
+        async function reload(nextParams) {
+            state.params = nextParams || {};
+            state.items = [];
+            state.offset = 0;
+            state.hasMore = true;
+            state.loading = true;
+            state.requestSeq += 1;
+            var requestSeq = state.requestSeq;
+            notifyState();
+
+            try {
+                var page = await loadPage({
+                    offset: 0,
+                    limit: pageSize,
+                    params: state.params
+                });
+
+                if (requestSeq !== state.requestSeq) {
+                    return state.items.slice();
+                }
+
+                var rows = Array.isArray(page && page.rows) ? page.rows : [];
+                state.items = rows.slice();
+                state.offset = Number(page && page.next_offset);
+                if (!Number.isFinite(state.offset)) {
+                    state.offset = state.items.length;
+                }
+                state.hasMore = !!(page && (page.has_more || page.hasMore));
+                onData({
+                    items: state.items.slice(),
+                    append: false,
+                    page: page || {}
+                });
+                afterDataApplied();
+                return state.items.slice();
+            } finally {
+                state.loading = false;
+                notifyState();
+            }
+        }
+
+        function bindScroll() {
+            var el = resolveScrollElement();
+            if (!el || el.dataset.vgridPagedBound === "1") return;
+            el.dataset.vgridPagedBound = "1";
+            el.addEventListener("scroll", maybeLoadMore, { passive: true });
+        }
+
+        function destroy() {
+            if (scrollEl) {
+                scrollEl.removeEventListener("scroll", maybeLoadMore);
+                if (scrollEl.dataset) delete scrollEl.dataset.vgridPagedBound;
+            }
+        }
+
+        bindScroll();
+
+        return {
+            reload: reload,
+            loadMore: loadMore,
+            destroy: destroy,
+            getItems: function () { return state.items.slice(); },
+            getState: function () {
+                return {
+                    items: state.items.slice(),
+                    params: state.params,
+                    offset: state.offset,
+                    hasMore: state.hasMore,
+                    loading: state.loading
+                };
+            }
+        };
+    }
+
+    function createChunkLoader(options) {
+        var onData = options && options.onData;
+        var getScrollElement = options && options.getScrollElement;
+        var onStateChange = options && options.onStateChange;
+        var pageSize = Number((options && options.pageSize) || 100);
+        var threshold = Number((options && options.threshold) || 160);
+        var state = {
+            allItems: [],
+            visibleItems: [],
+            cursor: 0,
+            loading: false,
+            hasMore: false
+        };
+        var scrollEl = null;
+
+        if (typeof onData !== "function") throw new Error("onData is required");
+
+        function notifyState() {
+            if (typeof onStateChange === "function") {
+                onStateChange({
+                    allItems: state.allItems.slice(),
+                    visibleItems: state.visibleItems.slice(),
+                    cursor: state.cursor,
+                    loading: state.loading,
+                    hasMore: state.hasMore
+                });
+            }
+        }
+
+        function resolveScrollElement() {
+            scrollEl = typeof getScrollElement === "function" ? getScrollElement() : null;
+            return scrollEl;
+        }
+
+        function applyVisibleItems(append) {
+            onData({
+                items: state.visibleItems.slice(),
+                append: !!append,
+                hasMore: state.hasMore
+            });
+            notifyState();
+        }
+
+        function appendNext() {
+            if (!state.hasMore || state.loading) return state.visibleItems.slice();
+
+            state.loading = true;
+            var nextCursor = Math.min(state.cursor + pageSize, state.allItems.length);
+            state.visibleItems = state.allItems.slice(0, nextCursor);
+            state.cursor = nextCursor;
+            state.hasMore = state.cursor < state.allItems.length;
+            state.loading = false;
+            applyVisibleItems(true);
+            return state.visibleItems.slice();
+        }
+
+        function maybeAppend() {
+            var el = scrollEl || resolveScrollElement();
+            if (!el || state.loading || !state.hasMore) return;
+            var remain = el.scrollHeight - el.clientHeight - el.scrollTop;
+            if (remain <= threshold) {
+                appendNext();
+            }
+        }
+
+        function bindScroll() {
+            var el = resolveScrollElement();
+            if (!el || el.dataset.vgridChunkBound === "1") return;
+            el.dataset.vgridChunkBound = "1";
+            el.addEventListener("scroll", maybeAppend, { passive: true });
+        }
+
+        function replaceItems(items) {
+            state.allItems = Array.isArray(items) ? items.slice() : [];
+            state.cursor = Math.min(pageSize, state.allItems.length);
+            state.visibleItems = state.allItems.slice(0, state.cursor);
+            state.hasMore = state.cursor < state.allItems.length;
+            state.loading = false;
+            applyVisibleItems(false);
+            global.requestAnimationFrame(function () {
+                maybeAppend();
+            });
+            return state.visibleItems.slice();
+        }
+
+        function destroy() {
+            if (scrollEl) {
+                scrollEl.removeEventListener("scroll", maybeAppend);
+                if (scrollEl.dataset) delete scrollEl.dataset.vgridChunkBound;
+            }
+        }
+
+        bindScroll();
+
+        return {
+            replaceItems: replaceItems,
+            appendNext: appendNext,
+            destroy: destroy,
+            getVisibleItems: function () { return state.visibleItems.slice(); },
+            getAllItems: function () { return state.allItems.slice(); },
+            getState: function () {
+                return {
+                    allItems: state.allItems.slice(),
+                    visibleItems: state.visibleItems.slice(),
+                    cursor: state.cursor,
+                    loading: state.loading,
+                    hasMore: state.hasMore
+                };
+            }
+        };
+    }
+
     Grid.createVirtualTable = createVirtualTable;
     Grid.createVirtualGrid = createVirtualGrid;
+    Grid.createPagedLoader = createPagedLoader;
+    Grid.createChunkLoader = createChunkLoader;
+    Grid.textCell = textCell;
     global.Grid = Grid;
 })(window);

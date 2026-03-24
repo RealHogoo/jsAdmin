@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.realhogoo.jsadmin.access.service.AccessService;
 import com.realhogoo.jsadmin.api.ApiCode;
 import com.realhogoo.jsadmin.api.ApiResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.context.support.WebApplicationContextUtils;
 import org.springframework.web.servlet.FrameworkServlet;
@@ -28,6 +30,7 @@ import java.util.List;
 import java.util.Set;
 
 public class JwtAuthFilter implements Filter {
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthFilter.class);
 
     private static final Set<String> PERMIT = new HashSet<String>(Arrays.asList(
         "/login.json",
@@ -102,9 +105,15 @@ public class JwtAuthFilter implements Filter {
 
             AccessService accessSvc = (accessService != null) ? accessService : resolveAccessService();
             if (accessSvc != null && sessionId != null && !sessionId.trim().isEmpty()) {
-                boolean active = accessSvc.touchSession(sessionId, Instant.now());
-                if (!active) {
-                    writeUnauthorized(req, resp);
+                try {
+                    boolean active = accessSvc.touchSession(sessionId, Instant.now());
+                    if (!active) {
+                        writeUnauthorized(req, resp);
+                        return;
+                    }
+                } catch (Exception e) {
+                    log.error("session touch failed. uri={}, sessionId={}", path, sessionId, e);
+                    writeJson(resp, 500, ApiResponse.fail(ApiCode.SERVER_ERROR, "session validation failed", getTraceId(req)));
                     return;
                 }
             }
@@ -116,7 +125,8 @@ public class JwtAuthFilter implements Filter {
         } catch (JWTVerificationException e) {
             writeUnauthorized(req, resp);
         } catch (Exception e) {
-            writeUnauthorized(req, resp);
+            log.error("jwt filter error. uri={}", path, e);
+            writeJson(resp, 500, ApiResponse.fail(ApiCode.SERVER_ERROR, "auth processing failed", getTraceId(req)));
         }
     }
 

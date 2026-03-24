@@ -1,6 +1,6 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
-<div class="page-root timeline-home-page" id="timelineHomePage">
+<div class="page-root timeline-home-page" id="timelineHomePage" data-page-url="/timeline/home.do">
     <h2 class="page-title">타임라인</h2>
     <div id="timelineHomeScroll" class="card-scroll">
         <div id="timelineHomeCardList" class="timeline-card-list"></div>

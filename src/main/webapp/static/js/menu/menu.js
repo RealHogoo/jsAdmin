@@ -10,9 +10,17 @@
     global.__MENU_PAGE_BOUND__ = true;
 
     var listView = null;
+    var listLoader = null;
 
     function pageRoot() { return UX.qs("#menuPage") || document; }
     function formRoot() { return UX.qs("#menuForm") || document; }
+
+    function resetViews() {
+        if (listView && typeof listView.destroy === "function") listView.destroy();
+        if (listLoader && typeof listLoader.destroy === "function") listLoader.destroy();
+        listView = null;
+        listLoader = null;
+    }
 
     function setSelectedMenuSeq(menuSeq) {
         var page = pageRoot();
@@ -137,18 +145,18 @@
             colCount: 8,
             rowHeight: 42,
             emptyHtml: "<tr><td colspan='8'>No Data</td></tr>",
-            renderRow: function (row) {
+            renderRow: function (row, index) {
                 var menuSeq = UX.value(row, ["menu_seq", "menuSeq"], "");
                 var selectedClass = String(menuSeq) === String(selectedMenuSeq() || "") ? " class='menu-row selected'" : " class='menu-row'";
                 return "<tr" + selectedClass + " data-menu-seq='" + UX.esc(menuSeq) + "'>"
-                    + "<td>" + UX.esc(menuSeq) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["up_menu_seq", "upMenuSeq"], "")) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["menu_nm", "menuNm"], "")) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["menu_url", "menuUrl"], "")) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["menu_type_cd", "menuTypeCd"], "")) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["icon_class", "iconClass"], "")) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["sort_ord", "sort_no", "sortNo"], "")) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["use_yn", "useYn"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(index + 1) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["up_menu_seq", "upMenuSeq"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["menu_nm", "menuNm"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["menu_url", "menuUrl"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["menu_type_cd", "menuTypeCd"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["icon_class", "iconClass"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["sort_ord", "sort_no", "sortNo"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["use_yn", "useYn"], "") === "Y" ? "사용" : "미사용") + "</td>"
                     + "</tr>";
             },
             onRendered: function () {
@@ -166,11 +174,29 @@
         });
     }
 
+    function ensureListLoader() {
+        if (listLoader || !listView || !Grid.createChunkLoader) return;
+        listLoader = Grid.createChunkLoader({
+            pageSize: 100,
+            threshold: 120,
+            getScrollElement: function () {
+                return UX.qs("#menuListWrap");
+            },
+            onData: function (result) {
+                renderTable(result.items || []);
+            }
+        });
+    }
+
     function renderTable(list) { ensureListView(); if (listView) listView.setItems(list || []); }
 
     function loadList() {
+        ensureListView();
+        ensureListLoader();
         return app.callJson("/menu/list.json", collectSearchParam(), function (list) {
-            renderTable(Array.isArray(list) ? list : []);
+            var rows = Array.isArray(list) ? list : [];
+            if (listLoader) listLoader.replaceItems(rows);
+            else renderTable(rows.slice(0, 100));
         });
     }
 
@@ -213,9 +239,11 @@
 
     function init() {
         if (!UX.qs("#menuListBody")) return;
+        resetViews();
         bind();
         applyPerm();
         ensureListView();
+        ensureListLoader();
         loadMenuTypeOptions().then(function () { clearForm(); loadList(); });
     }
 

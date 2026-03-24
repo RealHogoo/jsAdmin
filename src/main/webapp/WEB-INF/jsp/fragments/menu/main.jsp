@@ -1,18 +1,19 @@
-﻿<%@ page contentType="text/html; charset=UTF-8" %>
+<%@ page contentType="text/html; charset=UTF-8" %>
 
-<div id="menuPage" class="page-root">
-    <h2 class="page-title">메뉴관리</h2>
+<div id="menuPage" class="page-root" data-page-url="/menu/main.do">
+    <div class="page-title-row">
+        <div class="page-title-group">
+            <h2 class="page-title">메뉴관리</h2>
+        </div>
+    </div>
 
-    <div class="toolbar">
+    <div class="toolbar btns no-wrap" role="toolbar" aria-label="page actions">
         <label for="search_use_yn">사용여부</label>
         <select class="input" id="search_use_yn" style="max-width:140px;">
             <option value="Y">사용</option>
             <option value="N">미사용</option>
             <option value="">전체</option>
         </select>
-    </div>
-
-    <div class="toolbar btns" role="toolbar" aria-label="page actions">
         <a href="#" class="btn" data-perm-lvl="1" id="btnSearch" role="button">조회</a>
         <a href="#" class="btn" data-perm-lvl="5" id="btnSave" role="button">저장</a>
         <a href="#" class="btn" data-perm-lvl="10" id="btnDelete" role="button">삭제</a>
@@ -73,16 +74,16 @@
             <div class="grid-scroll" id="menuListWrap">
                 <table class="tbl" id="menuTable">
                     <thead>
-                        <tr>
-                            <th>menu_seq</th>
-                            <th>up_menu_seq</th>
-                            <th>menu_nm</th>
-                            <th>menu_url</th>
-                            <th>menu_type_cd</th>
-                            <th>icon_class</th>
-                            <th>sort_ord</th>
-                            <th>use_yn</th>
-                        </tr>
+                    <tr>
+                        <th style="width:30px;">No.</th>
+                        <th style="width:120px;">상위메뉴</th>
+                        <th style="width:180px;">메뉴명</th>
+                        <th style="width:280px;">URL</th>
+                        <th style="width:140px;">메뉴유형</th>
+                        <th style="width:180px;">아이콘</th>
+                        <th style="width:100px;">정렬순서</th>
+                        <th style="width:100px;">사용여부</th>
+                    </tr>
                     </thead>
                     <tbody id="menuListBody"></tbody>
                 </table>
@@ -91,4 +92,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/menu/menu.js"></script>
+<script src="${pageContext.request.contextPath}/static/js/menu/menu.js?v=20260325_01"></script>

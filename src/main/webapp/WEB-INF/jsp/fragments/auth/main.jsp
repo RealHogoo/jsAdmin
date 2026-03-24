@@ -1,30 +1,40 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
 <div id="authRoot" class="page-root" data-page-url="/auth/main.do">
-    <h2 class="page-title">&#xad8c;&#xd55c;&#xad00;&#xb9ac;</h2>
-
-    <div class="tabs">
-        <a href="javascript:void(0)" class="tab is-active" data-tab="A">&#xadf8;&#xb8f9;-&#xba54;&#xb274;</a>
-        <a href="javascript:void(0)" class="tab" data-tab="B">&#xc0ac;&#xc6a9;&#xc790; &#xc608;&#xc678;</a>
+    <div class="page-title-row">
+        <div class="page-title-group">
+            <h2 class="page-title">권한관리</h2>
+            <div class="tabs">
+                <a href="javascript:void(0)" class="tab is-active" data-tab="A">그룹-메뉴</a>
+                <a href="javascript:void(0)" class="tab" data-tab="B">사용자 예외</a>
+            </div>
+        </div>
     </div>
+
+    <details class="page-help">
+        <summary><span class="page-help-toggle">?</span></summary>
+        <div class="page-help-body">
+            권한 그룹별 메뉴 권한과 사용자별 예외 권한을 관리합니다.
+        </div>
+    </details>
 
     <section class="tab-pane" data-pane="A">
         <div class="toolbar btns">
-            <a href="javascript:void(0)" class="btn" data-perm-lvl="1" id="btnGroupReload">&#xadf8;&#xb8f9; &#xc870;&#xd68c;</a>
-            <a href="javascript:void(0)" class="btn" data-perm-lvl="5" id="btnGroupSave">&#xc800;&#xc7a5;</a>
-            <span class="meta">&#xc120;&#xd0dd; &#xadf8;&#xb8f9;: <b id="selectedGroupSeq">-</b></span>
+            <span class="meta">선택 그룹: <b id="selectedGroupSeq">-</b></span>
+            <a href="javascript:void(0)" class="btn" data-perm-lvl="1" id="btnGroupReload">그룹 조회</a>
+            <a href="javascript:void(0)" class="btn" data-perm-lvl="5" id="btnGroupSave">저장</a>
         </div>
 
         <div class="grid-2col">
             <div class="panel panel-list">
-                <div class="panel-title">&#xad8c;&#xd55c; &#xadf8;&#xb8f9;</div>
+                <div class="panel-title">권한 그룹</div>
                 <div class="grid-scroll" id="groupListWrap">
                     <table class="tbl">
                         <thead>
                         <tr>
-                            <th style="width:90px;">SEQ</th>
-                            <th>&#xadf8;&#xb8f9;&#xba85;</th>
-                            <th style="width:70px;">USE</th>
+                            <th style="width:30px;">No.</th>
+                            <th>그룹명</th>
+                            <th style="width:100px;">사용여부</th>
                         </tr>
                         </thead>
                         <tbody id="groupListBody"></tbody>
@@ -33,15 +43,15 @@
             </div>
 
             <div class="panel panel-list">
-                <div class="panel-title">&#xba54;&#xb274; &#xad8c;&#xd55c;</div>
+                <div class="panel-title">메뉴 권한</div>
                 <div class="grid-scroll" id="menuPermWrap">
                     <table class="tbl">
                         <thead>
                         <tr>
-                            <th style="width:90px;">SEQ</th>
-                            <th>&#xba54;&#xb274;</th>
-                            <th style="width:120px;">&#xad8c;&#xd55c;</th>
-                            <th style="width:70px;">USE</th>
+                            <th style="width:30px;">No.</th>
+                            <th>메뉴</th>
+                            <th style="width:120px;">권한</th>
+                            <th style="width:100px;">사용여부</th>
                         </tr>
                         </thead>
                         <tbody id="menuPermBody"></tbody>
@@ -53,22 +63,22 @@
 
     <section class="tab-pane" data-pane="B" style="display:none;">
         <div class="toolbar btns">
-            <input type="text" class="input" id="userKeyword" placeholder="&#xb85c;&#xadf8;&#xc778; ID / &#xc0ac;&#xc6a9;&#xc790;&#xba85;" style="max-width:220px;">
-            <a href="javascript:void(0)" class="btn" data-perm-lvl="1" id="btnUserSearch">&#xc0ac;&#xc6a9;&#xc790; &#xc870;&#xd68c;</a>
-            <a href="javascript:void(0)" class="btn" data-perm-lvl="5" id="btnUserExceptionSave">&#xc608;&#xc678; &#xc800;&#xc7a5;</a>
-            <span class="meta">&#xc120;&#xd0dd; &#xc0ac;&#xc6a9;&#xc790;: <b id="selectedUserSeq">-</b></span>
+            <input type="text" class="input" id="userKeyword" placeholder="로그인 ID / 사용자명" style="max-width:220px;">
+            <span class="meta">선택 사용자: <b id="selectedUserSeq">-</b></span>
+            <a href="javascript:void(0)" class="btn" data-perm-lvl="1" id="btnUserSearch">사용자 조회</a>
+            <a href="javascript:void(0)" class="btn" data-perm-lvl="5" id="btnUserExceptionSave">예외 저장</a>
         </div>
 
         <div class="grid-2col">
             <div class="panel panel-list">
-                <div class="panel-title">&#xc0ac;&#xc6a9;&#xc790; &#xbaa9;&#xb85d;</div>
+                <div class="panel-title">사용자 목록</div>
                 <div class="grid-scroll" id="authUserListWrap">
                     <table class="tbl">
                         <thead>
                         <tr>
-                            <th style="width:90px;">USER_SEQ</th>
-                            <th>LOGIN_ID</th>
-                            <th>&#xc0ac;&#xc6a9;&#xc790;&#xba85;</th>
+                            <th style="width:30px;">No.</th>
+                            <th>로그인 아이디</th>
+                            <th>사용자명</th>
                         </tr>
                         </thead>
                         <tbody id="userListBody"></tbody>
@@ -77,15 +87,15 @@
             </div>
 
             <div class="panel panel-list">
-                <div class="panel-title">&#xc608;&#xc678; &#xad8c;&#xd55c; &#xba54;&#xb274;</div>
+                <div class="panel-title">예외 권한 메뉴</div>
                 <div class="grid-scroll" id="userExceptionWrap">
                     <table class="tbl">
                         <thead>
                         <tr>
-                            <th style="width:90px;">SEQ</th>
-                            <th>&#xba54;&#xb274;</th>
-                            <th style="width:90px;">&#xae30;&#xbcf8; &#xad8c;&#xd55c;</th>
-                            <th style="width:110px;">&#xc608;&#xc678; &#xad8c;&#xd55c;</th>
+                            <th style="width:30px;">No.</th>
+                            <th>메뉴</th>
+                            <th style="width:110px;">기본 권한</th>
+                            <th style="width:120px;">예외 권한</th>
                         </tr>
                         </thead>
                         <tbody id="userExceptionBody"></tbody>
@@ -96,4 +106,4 @@
     </section>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/auth/auth.js?v=20260322_1"></script>
+<script src="${pageContext.request.contextPath}/static/js/auth/auth.js?v=20260325_01"></script>

@@ -1,6 +1,6 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
-<div class="page-root dashboard-page" id="homePage">
+<div class="page-root dashboard-page" id="homePage" data-page-url="/home.do">
     <h2 class="page-title">대시보드</h2>
     <p class="muted">프로젝트 개요, 최근 공지, 주요 관리 화면으로 바로 이동할 수 있습니다.</p>
 

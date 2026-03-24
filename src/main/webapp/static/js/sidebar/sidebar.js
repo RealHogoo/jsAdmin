@@ -8,6 +8,7 @@
     var loadedOnce = false;
     var inFlight = false;
     var activeSpaUrl = "";
+    var menuTree = [];
 
     function esc(s) {
         return String(s == null ? "" : s).replace(/[&<>"']/g, function (m) {
@@ -69,6 +70,45 @@
         }
 
         return '<li class="menu-item" data-menu-seq="' + esc(node.menuSeq) + '">' + label + childrenHtml + "</li>";
+    }
+
+    function normalizePageUrl(url) {
+        if (!url) return "";
+        var s = String(url).trim();
+        if (!s) return "";
+        if (s.charAt(0) !== "/") s = "/" + s;
+        return s;
+    }
+
+    function findMenuPath(nodes, targetUrl, trail) {
+        var list = Array.isArray(nodes) ? nodes : [];
+        var prefix = Array.isArray(trail) ? trail : [];
+        for (var i = 0; i < list.length; i++) {
+            var node = list[i];
+            var nextTrail = prefix.concat([node.menuNm]);
+            var spaUrl = normalizePageUrl(toSpaUrl(node.menuUrl));
+            if (spaUrl && spaUrl === targetUrl) {
+                return nextTrail;
+            }
+            var found = findMenuPath(node.children, targetUrl, nextTrail);
+            if (found) return found;
+        }
+        return null;
+    }
+
+    function updatePageTitle(url) {
+        var pageRoot = document.querySelector(".page-root");
+        var titleEl = document.querySelector(".page-title");
+        if (!pageRoot || !titleEl) return;
+
+        var targetUrl = normalizePageUrl(url || pageRoot.getAttribute("data-page-url") || activeSpaUrl);
+        if (!targetUrl) return;
+
+        var path = findMenuPath(menuTree, targetUrl, []);
+        if (!path || !path.length) return;
+
+        titleEl.textContent = path.join(" > ");
+        titleEl.classList.add("page-breadcrumb");
     }
 
     function clearMenu(container) {
@@ -156,9 +196,12 @@
                 container.innerHTML = '<ul class="menu-root">' + tree.map(renderNode).join("") + "</ul>";
             }
 
+            menuTree = tree.slice();
+
             if (activeSpaUrl) {
                 markActive(activeSpaUrl);
             }
+            updatePageTitle(activeSpaUrl);
 
             loadedOnce = true;
         } finally {
@@ -210,7 +253,10 @@
 
         document.addEventListener("jsadmin:pageLoaded", function (e) {
             var url = e && e.detail ? e.detail.url : "";
-            if (url) markActive(url);
+            if (url) {
+                markActive(url);
+                updatePageTitle(url);
+            }
         });
 
         document.addEventListener("click", function (e) {

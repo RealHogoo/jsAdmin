@@ -84,11 +84,11 @@
             return;
         }
 
-        tbody.innerHTML = list.map(function (row) {
+        tbody.innerHTML = list.map(function (row, index) {
             return "<tr data-auth-group-seq='" + UX.esc(row.auth_group_seq) + "'>"
-                + "<td>" + UX.esc(row.auth_group_seq) + "</td>"
+                + "<td>" + UX.esc(index + 1) + "</td>"
                 + "<td>" + UX.esc(row.auth_group_nm) + "</td>"
-                + "<td>" + UX.esc(row.use_yn || "Y") + "</td>"
+                + "<td>" + UX.esc((row.use_yn || "Y") === "Y" ? "사용" : "미사용") + "</td>"
                 + "</tr>";
         }).join("");
 
@@ -139,7 +139,7 @@
         }
 
         tbody.innerHTML = "";
-        list.forEach(function (row) {
+        list.forEach(function (row, index) {
             var tr = document.createElement("tr");
             var isFolder = isFolderRow(row);
             tr.dataset.menuSeq = String(row.menu_seq);
@@ -147,7 +147,7 @@
             tr.dataset.isFolder = isFolder ? "1" : "0";
 
             tr.innerHTML =
-                "<td>" + UX.esc(row.menu_seq) + "</td>" +
+                "<td>" + UX.esc(index + 1) + "</td>" +
                 "<td class='menuNm'>" + UX.esc(indentName(row.menu_nm, row.tree_lvl)) + "</td>" +
                 "<td class='permCell'></td>" +
                 "<td class='useCell'></td>";
@@ -229,9 +229,9 @@
             return;
         }
 
-        tbody.innerHTML = list.map(function (row) {
+        tbody.innerHTML = list.map(function (row, index) {
             return "<tr data-user-seq='" + UX.esc(row.user_seq) + "'>"
-                + "<td>" + UX.esc(row.user_seq) + "</td>"
+                + "<td>" + UX.esc(index + 1) + "</td>"
                 + "<td>" + UX.esc(row.login_id) + "</td>"
                 + "<td>" + UX.esc(row.user_nm) + "</td>"
                 + "</tr>";
@@ -279,7 +279,7 @@
         }
 
         tbody.innerHTML = "";
-        list.forEach(function (row) {
+        list.forEach(function (row, index) {
             var tr = document.createElement("tr");
             var isFolder = isFolderRow(row);
             var state = (row.ex_access_yn === "Y" || row.ex_access_yn === "X") ? row.ex_access_yn : "N";
@@ -288,7 +288,7 @@
             tr.dataset.isFolder = isFolder ? "1" : "0";
 
             tr.innerHTML =
-                "<td>" + UX.esc(row.menu_seq) + "</td>" +
+                "<td>" + UX.esc(index + 1) + "</td>" +
                 "<td>" + UX.esc(indentName(row.menu_nm, row.tree_lvl)) + "</td>" +
                 "<td>" + UX.esc(basePermLabel(row.base_perm_lvl)) + "</td>" +
                 "<td class='exStateCell'></td>";

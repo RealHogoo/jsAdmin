@@ -6,7 +6,7 @@
 <head>
     <meta charset="UTF-8"/>
     <title>jsAdmin</title>
-    <link rel="stylesheet" href="/static/css/common.css">
+    <link rel="stylesheet" href="/static/css/common.css?v=20260325_02">
 </head>
 <script>
 (function () {
@@ -43,11 +43,11 @@
     </script>
 
     <script src="${pageContext.request.contextPath}/static/js/ux.js"></script>
-    <script src="${pageContext.request.contextPath}/static/js/grid.js?v=20260323_01"></script>
+    <script src="${pageContext.request.contextPath}/static/js/grid.js?v=20260324_04"></script>
     <script src="${pageContext.request.contextPath}/static/js/app.js"></script>
     <script src="${pageContext.request.contextPath}/static/js/header/header.js"></script>
     <script src="${pageContext.request.contextPath}/static/js/footer/footer.js"></script>
-    <script src="${pageContext.request.contextPath}/static/js/sidebar/sidebar.js"></script>
+    <script src="${pageContext.request.contextPath}/static/js/sidebar/sidebar.js?v=20260324_01"></script>
 
     <script>
         (function () {

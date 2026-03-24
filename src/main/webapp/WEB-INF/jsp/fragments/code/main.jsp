@@ -1,6 +1,6 @@
 ﻿<%@ page contentType="text/html; charset=UTF-8" %>
 
-<div class="page-root" id="codePage">
+<div class="page-root" id="codePage" data-page-url="/code/main.do">
     <h2 class="page-title">코드관리</h2>
 
     <div class="toolbar btns" role="toolbar" aria-label="page actions">
@@ -58,13 +58,13 @@
                 <table class="tbl" id="codeTable">
                     <thead>
                         <tr>
-                            <th>CODE_SEQ</th>
-                            <th>CODE_GRP_CD</th>
-                            <th>CODE_CD</th>
-                            <th>CODE_NM</th>
-                            <th>CODE_DESC</th>
-                            <th>SORT_ORD</th>
-                            <th>USE_YN</th>
+                            <th style="width:30px;">No.</th>
+                            <th style="width:160px;">코드그룹</th>
+                            <th style="width:160px;">코드</th>
+                            <th style="width:220px;">코드명</th>
+                            <th style="width:320px;">코드설명</th>
+                            <th style="width:100px;">정렬순서</th>
+                            <th style="width:100px;">사용여부</th>
                         </tr>
                     </thead>
                     <tbody id="codeListBody"></tbody>
@@ -74,4 +74,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/code/code.js"></script>
+<script src="${pageContext.request.contextPath}/static/js/code/code.js?v=20260324_02"></script>

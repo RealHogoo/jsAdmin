@@ -1,6 +1,6 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
-<div class="page-root" id="timelinePage">
+<div class="page-root" id="timelinePage" data-page-url="/timeline/main.do">
     <h2 class="page-title">타임라인 관리</h2>
 
     <div class="toolbar btns" role="toolbar" aria-label="timeline actions">
@@ -68,11 +68,11 @@
                 <table class="tbl" id="timelineTable">
                     <thead>
                         <tr>
-                            <th style="width:90px;">SEQ</th>
-                            <th style="width:120px;">TYPE</th>
-                            <th>TITLE</th>
-                            <th style="width:120px;">EVENT_DT</th>
-                            <th style="width:70px;">USE</th>
+                            <th style="width:30px;">No.</th>
+                            <th style="width:140px;">유형</th>
+                            <th style="width:320px;">제목</th>
+                            <th style="width:140px;">이벤트일자</th>
+                            <th style="width:80px;">사용여부</th>
                         </tr>
                     </thead>
                     <tbody id="timelineListBody"></tbody>
@@ -82,4 +82,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/timeline/timeline-main.js"></script>
+<script src="${pageContext.request.contextPath}/static/js/timeline/timeline-main.js?v=20260324_02"></script>

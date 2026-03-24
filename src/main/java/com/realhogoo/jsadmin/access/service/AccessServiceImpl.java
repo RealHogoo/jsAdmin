@@ -203,6 +203,7 @@ public class AccessServiceImpl implements AccessService {
         return String.valueOf(value).trim();
     }
 
+
     private Long toLong(Object value) {
         if (value == null) return null;
         if (value instanceof Number) return ((Number) value).longValue();

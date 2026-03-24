@@ -5,6 +5,7 @@
     var Grid = global.Grid;
     var app = global.app;
     var listView = null;
+    var listLoader = null;
 
     function pageRoot() {
         return UX.qs("#codePage") || document;
@@ -12,6 +13,13 @@
 
     function formRoot() {
         return UX.qs("#codeForm") || document;
+    }
+
+    function resetViews() {
+        if (listView && typeof listView.destroy === "function") listView.destroy();
+        if (listLoader && typeof listLoader.destroy === "function") listLoader.destroy();
+        listView = null;
+        listLoader = null;
     }
 
     function setSelectedCodeSeq(codeSeq) {
@@ -86,18 +94,18 @@
             colCount: 7,
             rowHeight: 42,
             emptyHtml: "<tr><td colspan='7'>No Data</td></tr>",
-            renderRow: function (row) {
+            renderRow: function (row, index) {
                 var codeSeq = UX.value(row, ["code_seq", "codeSeq"], "");
                 var selectedClass = String(codeSeq) === String(selectedCodeSeq() || "") ? " class='code-row selected'" : " class='code-row'";
                 return ""
                     + "<tr" + selectedClass + " data-code-seq='" + UX.esc(codeSeq) + "'>"
-                    + "<td>" + UX.esc(codeSeq) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["code_grp_cd", "codeGrpCd"], "")) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["code_cd", "codeCd"], "")) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["code_nm", "codeNm"], "")) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["code_desc", "codeDesc"], "")) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["sort_ord", "sortOrd"], "")) + "</td>"
-                    + "<td>" + UX.esc(UX.value(row, ["use_yn", "useYn"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(index + 1) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["code_grp_cd", "codeGrpCd"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["code_cd", "codeCd"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["code_nm", "codeNm"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["code_desc", "codeDesc"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["sort_ord", "sortOrd"], "")) + "</td>"
+                    + "<td>" + Grid.textCell(UX.value(row, ["use_yn", "useYn"], "") === "Y" ? "사용" : "미사용") + "</td>"
                     + "</tr>";
             },
             onRendered: function () {
@@ -116,6 +124,20 @@
         });
     }
 
+    function ensureListLoader() {
+        if (listLoader || !listView || !Grid.createChunkLoader) return;
+        listLoader = Grid.createChunkLoader({
+            pageSize: 100,
+            threshold: 120,
+            getScrollElement: function () {
+                return UX.qs("#codeListWrap");
+            },
+            onData: function (result) {
+                renderTable(result.items || []);
+            }
+        });
+    }
+
     function renderTable(list) {
         ensureListView();
         if (!listView) return;
@@ -123,8 +145,12 @@
     }
 
     function loadList() {
+        ensureListView();
+        ensureListLoader();
         return app.callJson("/code/list.json", {}, function (rows) {
-            renderTable(Array.isArray(rows) ? rows : []);
+            var list = Array.isArray(rows) ? rows : [];
+            if (listLoader) listLoader.replaceItems(list);
+            else renderTable(list.slice(0, 100));
         });
     }
 
@@ -169,9 +195,11 @@
 
     function init() {
         if (!UX.qs("#codeListBody")) return;
+        resetViews();
         bind();
         applyPerm();
         ensureListView();
+        ensureListLoader();
         clearForm();
         loadList();
     }
