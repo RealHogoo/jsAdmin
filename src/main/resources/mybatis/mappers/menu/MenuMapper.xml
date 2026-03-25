@@ -95,6 +95,7 @@
 	    M.MENU_SEQ      AS MENU_SEQ,
 	    M.MENU_NM       AS MENU_NM,
 	    M.MENU_URL      AS MENU_URL,
+	    M.ICON_CLASS    AS ICON_CLASS,
 	    M.UP_MENU_SEQ   AS UP_MENU_SEQ,
 	    M.SORT_ORD      AS SORT_NO,
 	
@@ -138,6 +139,7 @@
         M.MENU_SEQ      AS MENU_SEQ,
         M.MENU_NM       AS MENU_NM,
         M.MENU_URL      AS MENU_URL,
+        M.ICON_CLASS    AS ICON_CLASS,
         M.UP_MENU_SEQ   AS UP_MENU_SEQ,
         M.SORT_ORD      AS SORT_NO,
         CASE

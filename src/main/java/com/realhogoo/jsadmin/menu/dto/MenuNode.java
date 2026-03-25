@@ -6,11 +6,11 @@ import java.util.List;
 public class MenuNode {
     private Long menuSeq;
     private String menuNm;
-    private String menuUrl;      // 예: "/health.do"
-    private Long upMenuSeq;      // 부모 메뉴
-    private Integer sortNo;      // 정렬
+    private String menuUrl;
+    private String iconClass;
+    private Long upMenuSeq;
+    private Integer sortNo;
     private Integer permLvl;
-    
     private List<MenuNode> children = new ArrayList<>();
 
     public Long getMenuSeq() { return menuSeq; }
@@ -22,6 +22,9 @@ public class MenuNode {
     public String getMenuUrl() { return menuUrl; }
     public void setMenuUrl(String menuUrl) { this.menuUrl = menuUrl; }
 
+    public String getIconClass() { return iconClass; }
+    public void setIconClass(String iconClass) { this.iconClass = iconClass; }
+
     public Long getUpMenuSeq() { return upMenuSeq; }
     public void setUpMenuSeq(Long upMenuSeq) { this.upMenuSeq = upMenuSeq; }
 
@@ -30,7 +33,7 @@ public class MenuNode {
 
     public Integer getPermLvl() { return permLvl; }
     public void setPermLvl(Integer permLvl) { this.permLvl = permLvl; }
-    
+
     public List<MenuNode> getChildren() { return children; }
     public void setChildren(List<MenuNode> children) { this.children = children; }
 }

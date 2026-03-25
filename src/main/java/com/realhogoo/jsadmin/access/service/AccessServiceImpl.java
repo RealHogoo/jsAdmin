@@ -85,7 +85,6 @@ public class AccessServiceImpl implements AccessService {
     @Override
     @Transactional
     public boolean touchSession(String sessionId, Instant now) {
-        ensureSchema();
         if (sessionId == null || sessionId.trim().isEmpty()) {
             return true;
         }
@@ -112,13 +111,11 @@ public class AccessServiceImpl implements AccessService {
 
     @Override
     public List<Map<String, Object>> getLoginSessionList(Map<String, Object> param) {
-        ensureSchema();
         return accessMapper.selectLoginSessionList(param == null ? new HashMap<String, Object>() : param);
     }
 
     @Override
     public List<Map<String, Object>> getLoginHistoryList(Map<String, Object> param) {
-        ensureSchema();
         return accessMapper.selectLoginHistoryList(param == null ? new HashMap<String, Object>() : param);
     }
 

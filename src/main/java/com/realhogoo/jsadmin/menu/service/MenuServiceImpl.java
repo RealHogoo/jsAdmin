@@ -37,6 +37,7 @@ public class MenuServiceImpl implements MenuService {
             node.setMenuSeq(toLong(row.get("menu_seq")));
             node.setMenuNm((String) row.get("menu_nm"));
             node.setMenuUrl((String) row.get("menu_url"));
+            node.setIconClass(stringValue(row, "icon_class", "ICON_CLASS", "iconClass"));
             node.setUpMenuSeq(toLongNullable(row.get("up_menu_seq")));
             node.setSortNo(toInt(row.get("sort_no")));
             node.setPermLvl(toInt(row.get("perm_lvl")));
@@ -136,5 +137,15 @@ public class MenuServiceImpl implements MenuService {
             return ((Number) value).intValue();
         }
         return Integer.parseInt(String.valueOf(value));
+    }
+
+    private String stringValue(Map<String, Object> row, String... keys) {
+        for (String key : keys) {
+            Object value = row.get(key);
+            if (value != null) {
+                return String.valueOf(value);
+            }
+        }
+        return null;
     }
 }

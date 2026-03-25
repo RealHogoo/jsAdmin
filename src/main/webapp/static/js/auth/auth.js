@@ -38,13 +38,13 @@
         });
     }
 
-    function setSelected(groupOrUser, seq) {
+    function setSelected(groupOrUser, seq, label) {
         var page = root();
         if (!page) return;
         var dataKey = groupOrUser === "group" ? "selectedGroupSeq" : "selectedUserSeq";
         var textKey = groupOrUser === "group" ? "#selectedGroupSeq" : "#selectedUserSeq";
         page.dataset[dataKey] = seq ? String(seq) : "";
-        UX.setText(textKey, seq ? String(seq) : "-", page);
+        UX.setText(textKey, label || (seq ? String(seq) : "-"), page);
     }
 
     function selectedSeq(groupOrUser) {
@@ -97,7 +97,7 @@
                 UX.qsa("tr", tbody).forEach(function (row) { row.classList.remove("is-selected"); });
                 tr.classList.add("is-selected");
                 var seq = Number(tr.getAttribute("data-auth-group-seq"));
-                setSelected("group", seq);
+                setSelected("group", seq, UX.normalizeText(tr.children[1] && tr.children[1].textContent) || String(seq));
                 loadGroupMenus(seq);
             });
         });
@@ -242,7 +242,7 @@
                 UX.qsa("tr", tbody).forEach(function (row) { row.classList.remove("is-selected"); });
                 tr.classList.add("is-selected");
                 var seq = Number(tr.getAttribute("data-user-seq"));
-                setSelected("user", seq);
+                setSelected("user", seq, UX.normalizeText((tr.children[2] && tr.children[2].textContent) || (tr.children[1] && tr.children[1].textContent)) || String(seq));
                 loadUserMenuPermList(seq);
             });
         });

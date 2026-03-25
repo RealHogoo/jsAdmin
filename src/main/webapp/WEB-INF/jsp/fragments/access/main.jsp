@@ -73,14 +73,14 @@
         <section class="panel panel-list">
             <div id="historyGrid" class="vgrid vgrid-fill">
                 <div class="vgrid-head">
-                    <div class="vgrid-cell vgrid-head-cell">No.</div>
-                    <div class="vgrid-cell vgrid-head-cell">결과</div>
-                    <div class="vgrid-cell vgrid-head-cell">로그인 아이디</div>
-                    <div class="vgrid-cell vgrid-head-cell">사용자명</div>
-                    <div class="vgrid-cell vgrid-head-cell">IP</div>
-                    <div class="vgrid-cell vgrid-head-cell">로그인 시각</div>
-                    <div class="vgrid-cell vgrid-head-cell">세션 ID</div>
-                    <div class="vgrid-cell vgrid-head-cell">상세 사유</div>
+                    <div class="vgrid-cell vgrid-head-cell" data-width="30px" data-align="center">No.</div>
+                    <div class="vgrid-cell vgrid-head-cell" data-width="110px" data-align="center">결과</div>
+                    <div class="vgrid-cell vgrid-head-cell" data-width="140px" data-align="left">로그인 아이디</div>
+                    <div class="vgrid-cell vgrid-head-cell" data-width="140px" data-align="left">사용자명</div>
+                    <div class="vgrid-cell vgrid-head-cell" data-width="140px" data-align="center">IP</div>
+                    <div class="vgrid-cell vgrid-head-cell" data-width="180px" data-align="center">로그인 시각</div>
+                    <div class="vgrid-cell vgrid-head-cell" data-width="220px" data-align="left">세션 ID</div>
+                    <div class="vgrid-cell vgrid-head-cell" data-width="420px" data-align="left">상세 사유</div>
                 </div>
                 <div class="vgrid-body">
                     <div class="vgrid-spacer" aria-hidden="true"></div>
@@ -92,4 +92,4 @@
     </section>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/access/access.js?v=20260325_01"></script>
+<script src="${pageContext.request.contextPath}/static/js/access/access.js?v=20260325_02"></script>

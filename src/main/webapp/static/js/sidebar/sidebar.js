@@ -7,8 +7,10 @@
 
     var loadedOnce = false;
     var inFlight = false;
+    var retryTimer = null;
     var activeSpaUrl = "";
     var menuTree = [];
+    var MenuIconCatalog = global.MenuIconCatalog;
 
     function esc(s) {
         return String(s == null ? "" : s).replace(/[&<>"']/g, function (m) {
@@ -58,11 +60,14 @@
         var name = esc(node.menuNm);
         var url = toSpaUrl(node.menuUrl);
         var children = Array.isArray(node.children) ? node.children : [];
+        var iconHtml = MenuIconCatalog && typeof MenuIconCatalog.render === "function"
+            ? MenuIconCatalog.render(node.iconClass)
+            : "";
 
         // app.js 규칙에 맞춰 a[data-spa] 링크 생성
         var label = url
-            ? '<a href="#" data-spa="' + esc(url) + '">' + name + "</a>"
-            : "<span>" + name + "</span>";
+            ? '<a href="#" data-spa="' + esc(url) + '">' + iconHtml + "<span class='menu-link-label'>" + name + "</span></a>"
+            : "<span>" + iconHtml + "<span class='menu-link-label'>" + name + "</span></span>";
 
         var childrenHtml = "";
         if (children.length > 0) {
@@ -118,6 +123,22 @@
             return;
         }
         container.innerHTML = "";
+    }
+
+    function hasRenderedMenu(container) {
+        var el = container || resolveContainer();
+        if (!el) return false;
+        return !!el.querySelector("a[data-spa], .menu-item");
+    }
+
+    function scheduleReload(delay) {
+        if (retryTimer) {
+            clearTimeout(retryTimer);
+        }
+        retryTimer = setTimeout(function () {
+            retryTimer = null;
+            loadMenuTree();
+        }, delay || 500);
     }
 
     function normalizeSpaUrl(url) {
@@ -185,6 +206,7 @@
             if (!Array.isArray(tree)) {
                 loadedOnce = false;
                 clearMenu(container);
+                scheduleReload(700);
                 return;
             }
 
@@ -204,6 +226,17 @@
             updatePageTitle(activeSpaUrl);
 
             loadedOnce = true;
+            if (retryTimer) {
+                clearTimeout(retryTimer);
+                retryTimer = null;
+            }
+        } catch (e) {
+            loadedOnce = false;
+            if (!hasRenderedMenu(container)) {
+                clearMenu(container);
+            }
+            try { console.warn("[sidebar] loadMenuTree failed", e); } catch (ignore) {}
+            scheduleReload(900);
         } finally {
             inFlight = false;
         }
@@ -248,7 +281,7 @@
 
         // 화면 전환 시 컨테이너 재렌더링 대비
         document.addEventListener("jsadmin:pageLoaded", function () {
-            if (!loadedOnce) loadMenuTree();
+            if (!loadedOnce || !hasRenderedMenu()) loadMenuTree();
         });
 
         document.addEventListener("jsadmin:pageLoaded", function (e) {

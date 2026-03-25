@@ -67,7 +67,7 @@
                         CREATED_AT       TIMESTAMP(6) DEFAULT SYSTIMESTAMP NOT NULL,
                         CREATED_BY       VARCHAR2(100),
                         CONSTRAINT PK_ADM_LOGIN_HIST PRIMARY KEY (HIST_SEQ),
-                        CONSTRAINT CK_ADM_LOGIN_HIST_01 CHECK (RESULT_CD IN (''SUCCESS'', ''FAIL'', ''LOGOUT''))
+                        CONSTRAINT CK_ADM_LOGIN_HIST_01 CHECK (RESULT_CD IN (''SUCCESS'', ''FAIL'', ''LOGOUT'', ''MYPAGE_UPDATE'', ''MYPAGE_PASSWORD_CHANGE''))
                     )';
             END IF;
         END;
@@ -169,7 +169,7 @@
             EXECUTE IMMEDIATE '
                 ALTER TABLE ADM_LOGIN_HIST
                 ADD CONSTRAINT CK_ADM_LOGIN_HIST_01
-                CHECK (RESULT_CD IN (''SUCCESS'', ''FAIL'', ''LOGOUT''))';
+                CHECK (RESULT_CD IN (''SUCCESS'', ''FAIL'', ''LOGOUT'', ''MYPAGE_UPDATE'', ''MYPAGE_PASSWORD_CHANGE''))';
         END;
         ]]>
     </update>

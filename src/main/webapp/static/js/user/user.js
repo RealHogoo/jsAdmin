@@ -5,8 +5,8 @@
     var Grid = global.Grid;
     var app = global.app;
 
-    if (global.__USER_PAGE_BOUND_V3__) return;
-    global.__USER_PAGE_BOUND_V3__ = true;
+    if (global.__USER_PAGE_BOUND_V5__) return;
+    global.__USER_PAGE_BOUND_V5__ = true;
 
     var listView = null;
     var listLoader = null;
@@ -75,15 +75,6 @@
             rowHeight: 56,
             overscan: 10,
             emptyHtml: "No Data",
-            columns: [
-                { label: "No.", width: "30px" },
-                { label: "로그인 아이디", width: "160px" },
-                { label: "사용자명", width: "160px" },
-                { label: "사용여부", width: "90px" },
-                { label: "실패", width: "90px" },
-                { label: "잠금", width: "120px" },
-                { label: "초기화여부", width: "110px" }
-            ],
             renderRow: function (row, index) {
                 var locked = row.lock_yn === "Y" ? "LOCK" : (row.lock_until_at ? "DELAY" : "-");
                 var selectedClass = Number(row.user_seq) === selectedUserSeq() ? " is-selected" : "";
@@ -92,10 +83,10 @@
                     + "<div class='vgrid-cell'>" + Grid.textCell(index + 1) + "</div>"
                     + "<div class='vgrid-cell'>" + Grid.textCell(row.login_id || "-") + "</div>"
                     + "<div class='vgrid-cell'>" + Grid.textCell(row.user_nm || "-") + "</div>"
-                    + "<div class='vgrid-cell'>" + Grid.textCell((row.use_yn || "Y") === "Y" ? "사용" : "미사용") + "</div>"
+                    + "<div class='vgrid-cell'>" + Grid.textCell((row.use_yn || "Y") === "Y" ? "\uC0AC\uC6A9" : "\uBBF8\uC0AC\uC6A9") + "</div>"
                     + "<div class='vgrid-cell'>" + Grid.textCell(row.login_fail_cnt || "0") + "</div>"
                     + "<div class='vgrid-cell'>" + Grid.textCell(locked) + "</div>"
-                    + "<div class='vgrid-cell'>" + Grid.textCell((row.pwd_reset_yn || "N") === "Y" ? "예" : "아니오") + "</div>"
+                    + "<div class='vgrid-cell'>" + Grid.textCell((row.pwd_reset_yn || "N") === "Y" ? "\uC608" : "\uC544\uB2C8\uC624") + "</div>"
                     + "</div>";
             },
             onRendered: function () {

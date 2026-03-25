@@ -106,4 +106,4 @@
     </section>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/auth/auth.js?v=20260325_01"></script>
+<script src="${pageContext.request.contextPath}/static/js/auth/auth.js?v=20260325_02"></script>

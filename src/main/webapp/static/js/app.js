@@ -6,6 +6,31 @@
     var SPA = global.jsAdminSpa || {};
     var loadingDepth = 0;
 
+    function ensureFavicon() {
+        var head = document.head || document.getElementsByTagName("head")[0];
+        if (!head) return;
+
+        var link = head.querySelector("link[rel='icon']") || document.createElement("link");
+        link.rel = "icon";
+        link.type = "image/svg+xml";
+
+        var svg = ""
+            + "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>"
+            + "<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>"
+            + "<stop offset='0%' stop-color='%232563eb'/>"
+            + "<stop offset='100%' stop-color='%230f766e'/>"
+            + "</linearGradient></defs>"
+            + "<rect width='64' height='64' rx='14' fill='url(%23g)'/>"
+            + "<text x='50%' y='54%' dominant-baseline='middle' text-anchor='middle'"
+            + " font-family='Segoe UI, Arial, sans-serif' font-size='30' font-weight='700' fill='white'>A</text>"
+            + "</svg>";
+
+        link.href = "data:image/svg+xml," + svg;
+        if (!link.parentNode) {
+            head.appendChild(link);
+        }
+    }
+
     function ensureLoadingBar() {
         var bar = document.getElementById("appLoadingBar");
         if (bar) return bar;
@@ -209,8 +234,12 @@
         return result;
     }
 
+    ensureFavicon();
+
     document.addEventListener("click", function (e) {
-        var link = e.target.closest("a[data-spa]");
+        var target = e.target;
+        var base = target && target.nodeType === 1 ? target : (target && target.parentElement ? target.parentElement : null);
+        var link = base && base.closest ? base.closest("a[data-spa]") : null;
         if (!link) return;
         e.preventDefault();
         loadPage(link.getAttribute("data-spa"));

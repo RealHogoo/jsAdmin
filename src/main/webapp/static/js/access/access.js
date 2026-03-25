@@ -165,16 +165,6 @@
             rowHeight: 72,
             overscan: 12,
             emptyHtml: "No Data",
-            columns: [
-                { label: "No.", width: "30px" },
-                { label: "결과", width: "110px" },
-                { label: "로그인 아이디", width: "140px" },
-                { label: "사용자명", width: "140px" },
-                { label: "IP", width: "140px" },
-                { label: "로그인 시각", width: "180px" },
-                { label: "세션 ID", width: "220px" },
-                { label: "상세 사유", width: "420px" }
-            ],
             renderRow: function (row, index) {
                 return ""
                     + "<div class='vgrid-row'>"

@@ -1,4 +1,4 @@
-<%@ page contentType="text/html; charset=UTF-8" %>
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
 <div id="menuPage" class="page-root" data-page-url="/menu/main.do">
     <div class="page-title-row">
@@ -51,7 +51,11 @@
 
                 <div class="form-item">
                     <label>ICON</label>
-                    <input type="text" class="input" id="icon_class" name="icon_class" />
+                    <div class="icon-field">
+                        <input type="text" style="display:none;" class="input" id="icon_class" name="icon_class" placeholder="아이콘 키">
+                        <span class="icon-preview is-empty" id="menuIconPreview">-</span>
+                        <a href="#" class="btn" id="btnSelectIcon" role="button">선택</a>
+                    </div>
                 </div>
 
                 <div class="form-item">
@@ -90,6 +94,22 @@
             </div>
         </div>
     </div>
+
+    <div class="icon-picker" id="menuIconPicker" aria-hidden="true">
+        <div class="icon-picker__backdrop" data-icon-picker-close="1"></div>
+        <div class="icon-picker__dialog" role="dialog" aria-modal="true" aria-labelledby="menuIconPickerTitle">
+            <div class="icon-picker__head">
+                <strong id="menuIconPickerTitle">메뉴 아이콘 선택</strong>
+                <a href="#" class="btn" id="btnCloseIconPicker" data-icon-picker-close="1" role="button">닫기</a>
+            </div>
+            <div class="icon-picker__body">
+                <div class="icon-picker__toolbar">
+                    <input type="text" class="input" id="menuIconFilter" placeholder="아이콘 검색" />
+                </div>
+                <div class="icon-picker__grid" id="menuIconPickerGrid"></div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/menu/menu.js?v=20260325_01"></script>
+<script src="${pageContext.request.contextPath}/static/js/menu/menu.js?v=20260326_01"></script>

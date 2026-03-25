@@ -117,6 +117,41 @@
         head.style.transform = "translateX(" + (-body.scrollLeft) + "px)";
     }
 
+    function normalizeAlign(value) {
+        var align = String(value || "").toLowerCase();
+        if (align === "right") return "right";
+        if (align === "center") return "center";
+        return "left";
+    }
+
+    function inferColumnsFromHead(head) {
+        if (!head) return [];
+        return Array.prototype.map.call(head.children || [], function (cell) {
+            return {
+                label: (cell.textContent || "").trim(),
+                width: cell.getAttribute("data-width") || cell.style.width || "minmax(0, 1fr)",
+                align: normalizeAlign(cell.getAttribute("data-align") || cell.style.textAlign || "left"),
+                className: cell.getAttribute("data-class") || ""
+            };
+        });
+    }
+
+    function applyAlignClass(node, align) {
+        if (!node) return;
+        node.classList.remove("is-align-left", "is-align-center", "is-align-right");
+        node.classList.add("is-align-" + normalizeAlign(align));
+    }
+
+    function decorateGridRows(rowsRoot, columns, startIndex) {
+        if (!rowsRoot) return;
+        Array.prototype.forEach.call(rowsRoot.children || [], function (rowEl, rowOffset) {
+            rowEl.classList.toggle("is-odd", ((startIndex + rowOffset) % 2) === 1);
+            Array.prototype.forEach.call(rowEl.children || [], function (cell, cellIndex) {
+                applyAlignClass(cell, columns[cellIndex] && columns[cellIndex].align);
+            });
+        });
+    }
+
     function textCell(value, options) {
         var text = value == null ? "" : String(value);
         var hasNewLine = /\r?\n/.test(text);
@@ -240,6 +275,9 @@
         }
 
         function renderHead() {
+            if (!columns.length) {
+                columns = inferColumnsFromHead(head);
+            }
             root.style.setProperty("--vgrid-columns", columnTemplate());
             root.style.setProperty("--vgrid-row-height", rowHeight + "px");
             if (!head.children.length) {
@@ -248,6 +286,9 @@
                     return "<div class='vgrid-cell vgrid-head-cell" + extraClass + "'>" + escapeAttr(col.label || "") + "</div>";
                 }).join("");
             }
+            Array.prototype.forEach.call(head.children || [], function (cell, index) {
+                applyAlignClass(cell, columns[index] && columns[index].align);
+            });
         }
 
         function render() {
@@ -288,6 +329,7 @@
             }
             rowsRoot.innerHTML = html;
             global.requestAnimationFrame(function () {
+                decorateGridRows(rowsRoot, columns, start);
                 applyOverflowState(rowsRoot);
                 syncHeadScroll(head, body);
             });
