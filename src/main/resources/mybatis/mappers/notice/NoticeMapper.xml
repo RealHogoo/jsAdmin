@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.notice.mapper.NoticeMapper">
+
+    <select id="selectNoticeList" parameterType="map" resultType="map">
+        SELECT
+            NOTI_SEQ AS noti_seq,
+            NOTI_TYPE_CD AS noti_type_cd,
+            TITLE AS title,
+            TO_CHAR(START_DT, 'YYYY-MM-DD') AS start_dt,
+            TO_CHAR(END_DT, 'YYYY-MM-DD') AS end_dt,
+            NVL(PIN_YN, 'N') AS pin_yn,
+            NVL(POPUP_YN, 'N') AS popup_yn,
+            NVL(VIEW_CNT, 0) AS view_cnt,
+            NVL(USE_YN, 'Y') AS use_yn,
+            TO_CHAR(UPDATED_AT, 'YYYY-MM-DD HH24:MI:SS') AS updated_at,
+            UPDATED_BY AS updated_by,
+            TO_CHAR(CREATED_AT, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+            CREATED_BY AS created_by
+        FROM ADM_NOTI_MST
+        WHERE 1=1
+          <if test="use_yn != null and use_yn != ''">
+          AND NVL(USE_YN, 'Y') = #{use_yn}
+          </if>
+          <if test="use_yn == null or use_yn == ''">
+          AND NVL(USE_YN, 'Y') = 'Y'
+          </if>
+          <if test="noti_type_cd != null and noti_type_cd != ''">
+          AND NOTI_TYPE_CD = #{noti_type_cd}
+          </if>
+          <if test="title != null and title != ''">
+          AND TITLE LIKE '%' || #{title} || '%'
+          </if>
+        ORDER BY NVL(PIN_YN, 'N') DESC, NVL(START_DT, DATE '1900-01-01') DESC, NOTI_SEQ DESC
+    </select>
+
+    <select id="selectNoticeDetail" parameterType="long" resultType="map">
+        SELECT
+            NOTI_SEQ AS noti_seq,
+            NOTI_TYPE_CD AS noti_type_cd,
+            TITLE AS title,
+            CONTENT AS content,
+            TO_CHAR(START_DT, 'YYYY-MM-DD') AS start_dt,
+            TO_CHAR(END_DT, 'YYYY-MM-DD') AS end_dt,
+            NVL(PIN_YN, 'N') AS pin_yn,
+            NVL(POPUP_YN, 'N') AS popup_yn,
+            NVL(VIEW_CNT, 0) AS view_cnt,
+            NVL(USE_YN, 'Y') AS use_yn,
+            TO_CHAR(UPDATED_AT, 'YYYY-MM-DD HH24:MI:SS') AS updated_at,
+            UPDATED_BY AS updated_by,
+            TO_CHAR(CREATED_AT, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+            CREATED_BY AS created_by
+        FROM ADM_NOTI_MST
+        WHERE NOTI_SEQ = #{notiSeq}
+    </select>
+
+    <insert id="insertNotice" parameterType="map">
+        <selectKey keyProperty="noti_seq" resultType="long" order="BEFORE">
+            SELECT ADM_NOTI_MST_SEQ.NEXTVAL FROM DUAL
+        </selectKey>
+        INSERT INTO ADM_NOTI_MST (
+            NOTI_SEQ, NOTI_TYPE_CD, TITLE, CONTENT,
+            START_DT, END_DT,
+            PIN_YN, POPUP_YN, VIEW_CNT, USE_YN,
+            CREATED_AT, CREATED_BY, UPDATED_AT, UPDATED_BY
+        ) VALUES (
+            #{noti_seq}, #{noti_type_cd}, #{title}, #{content},
+            CASE WHEN #{start_dt} IS NULL THEN NULL ELSE TO_DATE(#{start_dt}, 'YYYY-MM-DD') END,
+            CASE WHEN #{end_dt} IS NULL THEN NULL ELSE TO_DATE(#{end_dt}, 'YYYY-MM-DD') END,
+            NVL(#{pin_yn}, 'N'), NVL(#{popup_yn}, 'N'), 0, NVL(#{use_yn}, 'Y'),
+            SYSTIMESTAMP, #{created_by}, NULL, NULL
+        )
+    </insert>
+
+    <update id="updateNotice" parameterType="map">
+        UPDATE ADM_NOTI_MST
+           SET NOTI_TYPE_CD = #{noti_type_cd},
+               TITLE = #{title},
+               CONTENT = #{content},
+               START_DT = CASE WHEN #{start_dt} IS NULL THEN NULL ELSE TO_DATE(#{start_dt}, 'YYYY-MM-DD') END,
+               END_DT = CASE WHEN #{end_dt} IS NULL THEN NULL ELSE TO_DATE(#{end_dt}, 'YYYY-MM-DD') END,
+               PIN_YN = NVL(#{pin_yn}, 'N'),
+               POPUP_YN = NVL(#{popup_yn}, 'N'),
+               USE_YN = NVL(#{use_yn}, 'Y'),
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = #{updated_by}
+         WHERE NOTI_SEQ = #{noti_seq}
+    </update>
+
+    <update id="deleteNotice" parameterType="map">
+        UPDATE ADM_NOTI_MST
+           SET USE_YN = 'N',
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = #{updated_by}
+         WHERE NOTI_SEQ = #{noti_seq}
+    </update>
+
+</mapper>

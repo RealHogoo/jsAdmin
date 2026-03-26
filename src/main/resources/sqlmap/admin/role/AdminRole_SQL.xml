@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="adminRole">
+
+    <!-- ROLE 목록 -->
+    <select id="selectRoleList" resultType="msa.admin.role.vo.AdminRoleVO">
+        SELECT
+            ROLE_ID   AS roleId,
+            ROLE_CD   AS roleCd,
+            ROLE_NM   AS roleNm,
+            USE_YN    AS useYn,
+            REMARK    AS remark
+        FROM ADMIN_ROLE
+        ORDER BY ROLE_CD
+    </select>
+
+    <!-- ROLE 상세 -->
+    <select id="selectRoleDetail" parameterType="long"
+            resultType="msa.admin.role.vo.AdminRoleVO">
+        SELECT
+            ROLE_ID   AS roleId,
+            ROLE_CD   AS roleCd,
+            ROLE_NM   AS roleNm,
+            USE_YN    AS useYn,
+            REMARK    AS remark
+        FROM ADMIN_ROLE
+        WHERE ROLE_ID = #{value}
+    </select>
+
+    <!-- ROLE 등록 -->
+    <insert id="insertRole"
+            parameterType="msa.admin.role.vo.AdminRoleVO">
+        <selectKey keyProperty="roleId" order="BEFORE" resultType="long">
+            SELECT ADMIN_ROLE_SEQ.NEXTVAL FROM DUAL
+        </selectKey>
+        INSERT INTO ADMIN_ROLE (
+            ROLE_ID, ROLE_CD, ROLE_NM, USE_YN, REMARK
+        ) VALUES (
+            #{roleId},
+            #{roleCd},
+            #{roleNm},
+            #{useYn},
+            #{remark}
+        )
+    </insert>
+
+    <!-- ROLE 수정 -->
+    <update id="updateRole"
+            parameterType="msa.admin.role.vo.AdminRoleVO">
+        UPDATE ADMIN_ROLE
+        SET
+            ROLE_CD = #{roleCd},
+            ROLE_NM = #{roleNm},
+            USE_YN  = #{useYn},
+            REMARK  = #{remark}
+        WHERE ROLE_ID = #{roleId}
+    </update>
+
+    <!-- ROLE 논리 삭제 (USE_YN = 'N') -->
+    <update id="deleteRole" parameterType="long">
+        UPDATE ADMIN_ROLE
+        SET USE_YN = 'N'
+        WHERE ROLE_ID = #{value}
+    </update>
+
+    <!-- ROLE에 매핑된 메뉴 ID 목록 -->
+    <select id="selectRoleMenuIds" parameterType="long"
+            resultType="long">
+        SELECT MENU_ID
+        FROM ADMIN_ROLE_MENU
+        WHERE ROLE_ID = #{value}
+          AND USE_YN  = 'Y'
+    </select>
+
+    <!-- ROLE의 기존 메뉴 매핑 전체 삭제 (비활성 처리) -->
+    <update id="deleteRoleMenuAll" parameterType="long">
+        UPDATE ADMIN_ROLE_MENU
+        SET USE_YN = 'N'
+        WHERE ROLE_ID = #{value}
+    </update>
+
+    <!-- ROLE 메뉴 매핑 추가 -->
+    <insert id="insertRoleMenu">
+        INSERT INTO ADMIN_ROLE_MENU (
+            ROLE_ID, MENU_ID, USE_YN
+        ) VALUES (
+            #{roleId},
+            #{menuId},
+            'Y'
+        )
+    </insert>
+
+</mapper>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+         http://www.springframework.org/schema/beans
+         http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!-- EgovAbstractMapper 가 찾는 이름: 'sqlSession'
+         타입은 SqlSessionFactory 이어야 함 -->
+    <bean id="sqlSession" class="org.mybatis.spring.SqlSessionFactoryBean">
+	    <property name="dataSource" ref="dataSource"/>
+	    <!-- MyBatis 설정파일 지정 -->
+	    <property name="configLocation" value="classpath:config/mybatis-config.xml"/>
+	    <property name="mapperLocations" value="classpath*:sqlmap/**/*.xml"/>
+	</bean>
+
+</beans>

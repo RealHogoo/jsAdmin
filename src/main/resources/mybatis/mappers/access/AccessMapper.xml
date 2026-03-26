@@ -1,0 +1,366 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.access.mapper.AccessMapper">
+
+    <update id="ensureLoginSessionTable">
+        <![CDATA[
+        DECLARE
+            v_cnt NUMBER;
+        BEGIN
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_TABLES
+             WHERE TABLE_NAME = 'ADM_LOGIN_SESN';
+
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE '
+                    CREATE TABLE ADM_LOGIN_SESN (
+                        SESN_SEQ         NUMBER(19,0)      NOT NULL,
+                        SESSION_ID       VARCHAR2(64)      NOT NULL,
+                        USER_SEQ         NUMBER(19,0),
+                        LOGIN_ID         VARCHAR2(100)     NOT NULL,
+                        USER_NM          VARCHAR2(100),
+                        STATUS_CD        VARCHAR2(20)      NOT NULL,
+                        CLIENT_IP        VARCHAR2(45),
+                        USER_AGENT       VARCHAR2(500),
+                        LOGIN_AT         TIMESTAMP(6)      NOT NULL,
+                        LAST_ACCESS_AT   TIMESTAMP(6),
+                        EXPIRES_AT       TIMESTAMP(6),
+                        LOGOUT_AT        TIMESTAMP(6),
+                        CREATED_AT       TIMESTAMP(6) DEFAULT SYSTIMESTAMP NOT NULL,
+                        CREATED_BY       VARCHAR2(100)     NOT NULL,
+                        UPDATED_AT       TIMESTAMP(6),
+                        UPDATED_BY       VARCHAR2(100),
+                        CONSTRAINT PK_ADM_LOGIN_SESN PRIMARY KEY (SESN_SEQ),
+                        CONSTRAINT UK_ADM_LOGIN_SESN_01 UNIQUE (SESSION_ID),
+                        CONSTRAINT CK_ADM_LOGIN_SESN_01 CHECK (STATUS_CD IN (''ACTIVE'', ''EXPIRED'', ''REVOKED''))
+                    )';
+            END IF;
+        END;
+        ]]>
+    </update>
+
+    <update id="ensureLoginHistoryTable">
+        <![CDATA[
+        DECLARE
+            v_cnt NUMBER;
+        BEGIN
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_TABLES
+             WHERE TABLE_NAME = 'ADM_LOGIN_HIST';
+
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE '
+                    CREATE TABLE ADM_LOGIN_HIST (
+                        HIST_SEQ         NUMBER(19,0)      NOT NULL,
+                        USER_SEQ         NUMBER(19,0),
+                        LOGIN_ID         VARCHAR2(100),
+                        USER_NM          VARCHAR2(100),
+                        RESULT_CD        VARCHAR2(20)      NOT NULL,
+                        RESULT_MSG       VARCHAR2(400),
+                        SESSION_ID       VARCHAR2(64),
+                        CLIENT_IP        VARCHAR2(45),
+                        USER_AGENT       VARCHAR2(500),
+                        LOGIN_AT         TIMESTAMP(6) DEFAULT SYSTIMESTAMP NOT NULL,
+                        CREATED_AT       TIMESTAMP(6) DEFAULT SYSTIMESTAMP NOT NULL,
+                        CREATED_BY       VARCHAR2(100),
+                        CONSTRAINT PK_ADM_LOGIN_HIST PRIMARY KEY (HIST_SEQ),
+                        CONSTRAINT CK_ADM_LOGIN_HIST_01 CHECK (RESULT_CD IN (''SUCCESS'', ''FAIL'', ''LOGOUT'', ''MYPAGE_UPDATE'', ''MYPAGE_PASSWORD_CHANGE''))
+                    )';
+            END IF;
+        END;
+        ]]>
+    </update>
+
+    <update id="ensureLoginSessionSequence">
+        <![CDATA[
+        DECLARE
+            v_cnt NUMBER;
+        BEGIN
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_SEQUENCES
+             WHERE SEQUENCE_NAME = 'ADM_LOGIN_SESN_SEQ';
+
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE '
+                    CREATE SEQUENCE ADM_LOGIN_SESN_SEQ
+                    START WITH 1
+                    INCREMENT BY 1
+                    NOCACHE
+                    NOCYCLE';
+            END IF;
+        END;
+        ]]>
+    </update>
+
+    <update id="ensureLoginHistorySequence">
+        <![CDATA[
+        DECLARE
+            v_cnt NUMBER;
+        BEGIN
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_SEQUENCES
+             WHERE SEQUENCE_NAME = 'ADM_LOGIN_HIST_SEQ';
+
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE '
+                    CREATE SEQUENCE ADM_LOGIN_HIST_SEQ
+                    START WITH 1
+                    INCREMENT BY 1
+                    NOCACHE
+                    NOCYCLE';
+            END IF;
+        END;
+        ]]>
+    </update>
+
+    <update id="ensureLoginSessionIndex">
+        <![CDATA[
+        DECLARE
+            v_cnt NUMBER;
+        BEGIN
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_INDEXES
+             WHERE INDEX_NAME = 'IDX_ADM_LOGIN_SESN_01';
+
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE '
+                    CREATE INDEX IDX_ADM_LOGIN_SESN_01
+                        ON ADM_LOGIN_SESN (LOGIN_ID, STATUS_CD, LOGIN_AT DESC)';
+            END IF;
+        END;
+        ]]>
+    </update>
+
+    <update id="ensureLoginHistoryIndex">
+        <![CDATA[
+        DECLARE
+            v_cnt NUMBER;
+        BEGIN
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_INDEXES
+             WHERE INDEX_NAME = 'IDX_ADM_LOGIN_HIST_01';
+
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE '
+                    CREATE INDEX IDX_ADM_LOGIN_HIST_01
+                        ON ADM_LOGIN_HIST (LOGIN_ID, LOGIN_AT DESC)';
+            END IF;
+        END;
+        ]]>
+    </update>
+
+    <update id="ensureLoginHistoryConstraint">
+        <![CDATA[
+        DECLARE
+            v_cnt NUMBER;
+        BEGIN
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_CONSTRAINTS
+             WHERE TABLE_NAME = 'ADM_LOGIN_HIST'
+               AND CONSTRAINT_NAME = 'CK_ADM_LOGIN_HIST_01';
+
+            IF v_cnt > 0 THEN
+                EXECUTE IMMEDIATE 'ALTER TABLE ADM_LOGIN_HIST DROP CONSTRAINT CK_ADM_LOGIN_HIST_01';
+            END IF;
+
+            EXECUTE IMMEDIATE '
+                ALTER TABLE ADM_LOGIN_HIST
+                ADD CONSTRAINT CK_ADM_LOGIN_HIST_01
+                CHECK (RESULT_CD IN (''SUCCESS'', ''FAIL'', ''LOGOUT'', ''MYPAGE_UPDATE'', ''MYPAGE_PASSWORD_CHANGE''))';
+        END;
+        ]]>
+    </update>
+
+    <insert id="insertLoginHistory" parameterType="map">
+        <selectKey keyProperty="hist_seq" resultType="long" order="BEFORE">
+            SELECT ADM_LOGIN_HIST_SEQ.NEXTVAL FROM DUAL
+        </selectKey>
+        INSERT INTO ADM_LOGIN_HIST (
+            HIST_SEQ,
+            USER_SEQ,
+            LOGIN_ID,
+            USER_NM,
+            RESULT_CD,
+            RESULT_MSG,
+            SESSION_ID,
+            CLIENT_IP,
+            USER_AGENT,
+            LOGIN_AT,
+            CREATED_AT,
+            CREATED_BY
+        ) VALUES (
+            #{hist_seq,jdbcType=NUMERIC},
+            #{user_seq,jdbcType=NUMERIC},
+            #{login_id,jdbcType=VARCHAR},
+            #{user_nm,jdbcType=VARCHAR},
+            #{result_cd,jdbcType=VARCHAR},
+            #{result_msg,jdbcType=VARCHAR},
+            #{session_id,jdbcType=VARCHAR},
+            #{client_ip,jdbcType=VARCHAR},
+            #{user_agent,jdbcType=VARCHAR},
+            SYSTIMESTAMP,
+            SYSTIMESTAMP,
+            NVL(#{created_by,jdbcType=VARCHAR}, 'SYSTEM')
+        )
+    </insert>
+
+    <insert id="insertLoginSession" parameterType="map">
+        <selectKey keyProperty="sesn_seq" resultType="long" order="BEFORE">
+            SELECT ADM_LOGIN_SESN_SEQ.NEXTVAL FROM DUAL
+        </selectKey>
+        INSERT INTO ADM_LOGIN_SESN (
+            SESN_SEQ,
+            SESSION_ID,
+            USER_SEQ,
+            LOGIN_ID,
+            USER_NM,
+            STATUS_CD,
+            CLIENT_IP,
+            USER_AGENT,
+            LOGIN_AT,
+            LAST_ACCESS_AT,
+            EXPIRES_AT,
+            CREATED_AT,
+            CREATED_BY,
+            UPDATED_AT,
+            UPDATED_BY
+        ) VALUES (
+            #{sesn_seq,jdbcType=NUMERIC},
+            #{session_id,jdbcType=VARCHAR},
+            #{user_seq,jdbcType=NUMERIC},
+            #{login_id,jdbcType=VARCHAR},
+            #{user_nm,jdbcType=VARCHAR},
+            #{status_cd,jdbcType=VARCHAR},
+            #{client_ip,jdbcType=VARCHAR},
+            #{user_agent,jdbcType=VARCHAR},
+            #{login_at,jdbcType=TIMESTAMP},
+            #{last_access_at,jdbcType=TIMESTAMP},
+            #{expires_at,jdbcType=TIMESTAMP},
+            SYSTIMESTAMP,
+            NVL(#{created_by,jdbcType=VARCHAR}, 'SYSTEM'),
+            SYSTIMESTAMP,
+            NVL(#{updated_by,jdbcType=VARCHAR}, 'SYSTEM')
+        )
+    </insert>
+
+    <update id="updateSessionLastAccess">
+        UPDATE ADM_LOGIN_SESN
+           SET LAST_ACCESS_AT = #{accessedAt},
+               UPDATED_AT = SYSTIMESTAMP
+         WHERE SESSION_ID = #{sessionId}
+           AND STATUS_CD = 'ACTIVE'
+    </update>
+
+    <update id="expireSession">
+        UPDATE ADM_LOGIN_SESN
+           SET STATUS_CD = #{statusCd},
+               LOGOUT_AT = SYSTIMESTAMP,
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = NVL(#{actor}, 'SYSTEM')
+         WHERE SESSION_ID = #{sessionId}
+           AND STATUS_CD = 'ACTIVE'
+    </update>
+
+    <update id="expireSessionsByLoginId">
+        UPDATE ADM_LOGIN_SESN
+           SET STATUS_CD = #{statusCd},
+               LOGOUT_AT = SYSTIMESTAMP,
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = NVL(#{actor}, 'SYSTEM')
+         WHERE LOGIN_ID = #{loginId}
+           AND STATUS_CD = 'ACTIVE'
+    </update>
+
+    <select id="selectSessionStatus" resultType="map">
+        SELECT
+            SESSION_ID,
+            STATUS_CD,
+            EXPIRES_AT,
+            USER_SEQ,
+            LOGIN_ID,
+            USER_NM
+        FROM ADM_LOGIN_SESN
+        WHERE SESSION_ID = #{sessionId}
+    </select>
+
+    <select id="selectLoginSessionList" parameterType="map" resultType="map">
+        SELECT
+            SESN_SEQ,
+            SESSION_ID,
+            USER_SEQ,
+            LOGIN_ID,
+            USER_NM,
+            STATUS_CD,
+            CLIENT_IP,
+            USER_AGENT,
+            TO_CHAR(LOGIN_AT, 'YYYY-MM-DD HH24:MI:SS') AS LOGIN_AT,
+            TO_CHAR(LAST_ACCESS_AT, 'YYYY-MM-DD HH24:MI:SS') AS LAST_ACCESS_AT,
+            TO_CHAR(EXPIRES_AT, 'YYYY-MM-DD HH24:MI:SS') AS EXPIRES_AT,
+            TO_CHAR(LOGOUT_AT, 'YYYY-MM-DD HH24:MI:SS') AS LOGOUT_AT,
+            CASE
+                WHEN STATUS_CD = 'ACTIVE' AND EXPIRES_AT IS NOT NULL AND EXPIRES_AT &lt; SYSTIMESTAMP THEN 'EXPIRED'
+                ELSE STATUS_CD
+            END AS VIEW_STATUS_CD
+        FROM ADM_LOGIN_SESN
+        WHERE 1 = 1
+        <if test="keyword != null and keyword != ''">
+            AND (
+                LOGIN_ID LIKE '%' || #{keyword} || '%'
+                OR NVL(USER_NM, '') LIKE '%' || #{keyword} || '%'
+                OR NVL(CLIENT_IP, '') LIKE '%' || #{keyword} || '%'
+            )
+        </if>
+        <if test="status_cd != null and status_cd != ''">
+            <choose>
+                <when test="status_cd == 'EXPIRED'">
+                    AND (
+                        STATUS_CD = 'EXPIRED'
+                        OR (STATUS_CD = 'ACTIVE' AND EXPIRES_AT IS NOT NULL AND EXPIRES_AT &lt; SYSTIMESTAMP)
+                    )
+                </when>
+                <otherwise>
+                    AND STATUS_CD = #{status_cd}
+                </otherwise>
+            </choose>
+        </if>
+        ORDER BY LOGIN_AT DESC, SESN_SEQ DESC
+    </select>
+
+    <select id="selectLoginHistoryList" parameterType="map" resultType="map">
+        SELECT
+            HIST_SEQ,
+            USER_SEQ,
+            LOGIN_ID,
+            USER_NM,
+            RESULT_CD,
+            RESULT_MSG,
+            SESSION_ID,
+            CLIENT_IP,
+            USER_AGENT,
+            TO_CHAR(LOGIN_AT, 'YYYY-MM-DD HH24:MI:SS') AS LOGIN_AT
+        FROM ADM_LOGIN_HIST
+        WHERE 1 = 1
+        <if test="keyword != null and keyword != ''">
+            AND (
+                LOGIN_ID LIKE '%' || #{keyword} || '%'
+                OR NVL(USER_NM, '') LIKE '%' || #{keyword} || '%'
+                OR NVL(CLIENT_IP, '') LIKE '%' || #{keyword} || '%'
+                OR NVL(RESULT_MSG, '') LIKE '%' || #{keyword} || '%'
+            )
+        </if>
+        <if test="result_cd != null and result_cd != ''">
+            AND RESULT_CD = #{result_cd}
+        </if>
+        <if test="from_dt != null and from_dt != ''">
+            AND LOGIN_AT &gt;= TO_TIMESTAMP(#{from_dt} || ' 00:00:00', 'YYYY-MM-DD HH24:MI:SS')
+        </if>
+        <if test="to_dt != null and to_dt != ''">
+            AND LOGIN_AT &lt; TO_TIMESTAMP(#{to_dt} || ' 23:59:59', 'YYYY-MM-DD HH24:MI:SS')
+        </if>
+        ORDER BY LOGIN_AT DESC, HIST_SEQ DESC
+    </select>
+
+</mapper>

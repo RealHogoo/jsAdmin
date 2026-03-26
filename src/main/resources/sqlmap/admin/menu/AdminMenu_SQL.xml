@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="adminMenu">
+
+    <!-- 메뉴 목록: Oracle CONNECT BY, LEVEL 예약어 → LVL alias -->
+    <select id="selectMenuList" resultType="msa.admin.menu.vo.AdminMenuVO">
+        SELECT
+            MENU_ID    AS menuId,
+            UP_MENU_ID AS upMenuId,
+            MENU_NM    AS menuNm,
+            MENU_URL   AS menuUrl,
+            SORT_ORD   AS sortOrd,
+            USE_YN     AS useYn,
+            REMARK     AS remark,
+            LEVEL      AS lvl
+        FROM ADMIN_MENU
+        WHERE USE_YN = 'Y'
+        START WITH UP_MENU_ID IS NULL
+        CONNECT BY PRIOR MENU_ID = UP_MENU_ID
+        ORDER SIBLINGS BY SORT_ORD, MENU_ID
+    </select>
+
+    <select id="selectMenuDetail" parameterType="long" resultType="msa.admin.menu.vo.AdminMenuVO">
+        SELECT
+            MENU_ID    AS menuId,
+            UP_MENU_ID AS upMenuId,
+            MENU_NM    AS menuNm,
+            MENU_URL   AS menuUrl,
+            SORT_ORD   AS sortOrd,
+            USE_YN     AS useYn,
+            REMARK     AS remark
+        FROM ADMIN_MENU
+        WHERE MENU_ID = #{value}
+    </select>
+
+    <insert id="insertMenu"  parameterType="msa.admin.menu.vo.AdminMenuVO">
+        <selectKey keyProperty="menuId" order="BEFORE" resultType="long">
+            SELECT ADMIN_MENU_SEQ.NEXTVAL FROM DUAL
+        </selectKey>
+        INSERT INTO ADMIN_MENU (
+            MENU_ID, UP_MENU_ID, MENU_NM, MENU_URL,
+            SORT_ORD, USE_YN, REMARK
+        ) VALUES (
+            #{menuId},
+            #{upMenuId},
+            #{menuNm},
+            #{menuUrl},
+            #{sortOrd},
+            #{useYn},
+            #{remark}
+        )
+    </insert>
+
+    <update id="updateMenu" parameterType="msa.admin.menu.vo.AdminMenuVO">
+        UPDATE ADMIN_MENU
+        SET
+            UP_MENU_ID = #{upMenuId},
+            MENU_NM    = #{menuNm},
+            MENU_URL   = #{menuUrl},
+            SORT_ORD   = #{sortOrd},
+            USE_YN     = #{useYn},
+            REMARK     = #{remark}
+        WHERE MENU_ID = #{menuId}
+    </update>
+
+    <!-- 논리 삭제 -->
+    <update id="deleteMenu" parameterType="long">
+        UPDATE ADMIN_MENU
+        SET USE_YN = 'N'
+        WHERE MENU_ID = #{value}
+    </update>
+
+</mapper>

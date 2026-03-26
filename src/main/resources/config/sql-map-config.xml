@@ -1,0 +1,7 @@
+<configuration>
+    <settings>
+        <!-- 이 한 줄이 포인트 -->
+        <setting name="logImpl" value="SLF4J"/>
+    </settings>
+
+</configuration>

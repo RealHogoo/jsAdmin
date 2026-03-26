@@ -1,0 +1,51 @@
+package com.realhogoo.jsadmin.auth.mapper;
+
+import com.realhogoo.jsadmin.auth.dto.LoginUser;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import java.util.List;
+import java.util.Map;
+
+@Mapper
+public interface AuthMapper {
+    List<Map<String, Object>> selectAuthGroupList(Map<String, Object> param);
+
+    List<Map<String, Object>> selectGroupMenuPermList(@Param("authGroupSeq") Long authGroupSeq);
+
+    int disableAllGroupMenuPerm(Map<String, Object> param);
+
+    int disableGroupMenuPerm(Map<String, Object> param);
+
+    int upsertGroupMenuPerm(Map<String, Object> param);
+
+    int updateGroupMenuPerm(Map<String, Object> param);
+
+    int insertGroupMenuPerm(Map<String, Object> param);
+
+    List<Map<String, Object>> searchUsers(Map<String, Object> param);
+
+    List<Map<String, Object>> selectUserMenuPermList(@Param("userSeq") Long userSeq);
+
+    int deleteAllUserException(@Param("userSeq") Long userSeq);
+
+    int upsertUserException(Map<String, Object> param);
+
+    int deleteUserException(@Param("userSeq") Long userSeq, @Param("menuSeq") Long menuSeq);
+
+    int ensureUserSecurityColumns();
+
+    int ensureUserSequence();
+
+    int updateLoginFailState(Map<String, Object> param);
+
+    int resetLoginFailState(@Param("userSeq") Long userSeq, @Param("updatedBy") String updatedBy);
+
+    int updateLastLoginAt(@Param("userSeq") Long userSeq, @Param("updatedBy") String updatedBy);
+
+    int clearPwdResetFlag(@Param("userSeq") Long userSeq, @Param("updatedBy") String updatedBy);
+
+    int upgradePasswordHash(@Param("userSeq") Long userSeq, @Param("pwdHash") String pwdHash, @Param("updatedBy") String updatedBy);
+
+    LoginUser selectUserForLogin(@Param("user_id") String userId);
+}

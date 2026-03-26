@@ -1,0 +1,11 @@
+<%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
+
+<div class="app-header">
+    <a href="/main.do" data-spa="/main.do" id="brandHome" class="app-header-brand">jsAdmin</a>
+
+    <div class="header-actions app-header-actions">
+        <span id="authUserLabel" class="muted"></span>
+        <a href="#" id="myPageBtn" class="header-chip header-chip-expired" data-spa="/mypage/main.do" style="display:none; text-decoration:none; color:#92400e; background:#fef3c7; border-radius:999px; padding:5px 14px; font-size:13px; font-weight:700;">&#47560;&#51060;&#54168;&#51060;&#51648;</a>
+        <a href="#" id="authBtn" class="header-chip header-chip-active" data-spa="/login.do" style="text-decoration:none;">&#47196;&#44536;&#51064;</a>
+    </div>
+</div>

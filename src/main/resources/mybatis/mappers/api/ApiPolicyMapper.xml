@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.apipolicy.mapper.ApiPolicyMapper">
+
+    <update id="ensureApiPolicyTable">
+        <![CDATA[
+        DECLARE
+            v_cnt NUMBER;
+        BEGIN
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_TABLES
+             WHERE TABLE_NAME = 'ADM_API_MST';
+
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE '
+                    CREATE TABLE ADM_API_MST (
+                        API_SEQ         NUMBER(19,0)      NOT NULL,
+                        API_TYPE        VARCHAR2(20)      NOT NULL,
+                        API_NM          VARCHAR2(200)     NOT NULL,
+                        CALLER_ID       VARCHAR2(100)     NOT NULL,
+                        TARGET_SERVICE  VARCHAR2(100)     NOT NULL,
+                        HTTP_METHOD     VARCHAR2(10)      NOT NULL,
+                        API_PATTERN     VARCHAR2(500)     NOT NULL,
+                        AUTH_TYPE       VARCHAR2(30)      NOT NULL,
+                        API_DESC        VARCHAR2(1000),
+                        USE_YN          CHAR(1) DEFAULT ''Y'' NOT NULL,
+                        CREATED_AT      TIMESTAMP(6) DEFAULT SYSTIMESTAMP NOT NULL,
+                        CREATED_BY      VARCHAR2(100)     NOT NULL,
+                        UPDATED_AT      TIMESTAMP(6),
+                        UPDATED_BY      VARCHAR2(100),
+                        CONSTRAINT PK_ADM_API_MST PRIMARY KEY (API_SEQ),
+                        CONSTRAINT CK_ADM_API_MST_TYPE CHECK (API_TYPE IN (''EXTERNAL'', ''INTERNAL'')),
+                        CONSTRAINT CK_ADM_API_MST_USE_YN CHECK (USE_YN IN (''Y'', ''N''))
+                    )';
+            END IF;
+        END;
+        ]]>
+    </update>
+
+    <update id="ensureApiPolicySequence">
+        <![CDATA[
+        DECLARE
+            v_cnt NUMBER;
+        BEGIN
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_SEQUENCES
+             WHERE SEQUENCE_NAME = 'ADM_API_MST_SEQ';
+
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE '
+                    CREATE SEQUENCE ADM_API_MST_SEQ
+                    START WITH 1
+                    INCREMENT BY 1
+                    NOCACHE
+                    NOCYCLE';
+            END IF;
+        END;
+        ]]>
+    </update>
+
+    <update id="ensureApiPolicyIndex01">
+        <![CDATA[
+        DECLARE
+            v_cnt NUMBER;
+        BEGIN
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_INDEXES
+             WHERE INDEX_NAME = 'IDX_ADM_API_MST_01';
+
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE '
+                    CREATE INDEX IDX_ADM_API_MST_01
+                        ON ADM_API_MST (API_TYPE, USE_YN, API_SEQ DESC)';
+            END IF;
+        END;
+        ]]>
+    </update>
+
+    <update id="ensureApiPolicyIndex02">
+        <![CDATA[
+        DECLARE
+            v_cnt NUMBER;
+        BEGIN
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_INDEXES
+             WHERE INDEX_NAME = 'IDX_ADM_API_MST_02';
+
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE '
+                    CREATE INDEX IDX_ADM_API_MST_02
+                        ON ADM_API_MST (CALLER_ID, TARGET_SERVICE, HTTP_METHOD)';
+            END IF;
+        END;
+        ]]>
+    </update>
+
+    <select id="selectApiPolicyList" parameterType="map" resultType="map">
+        SELECT
+            API_SEQ AS api_seq,
+            API_TYPE AS api_type,
+            API_NM AS api_nm,
+            CALLER_ID AS caller_id,
+            TARGET_SERVICE AS target_service,
+            HTTP_METHOD AS http_method,
+            API_PATTERN AS api_pattern,
+            AUTH_TYPE AS auth_type,
+            API_DESC AS api_desc,
+            USE_YN AS use_yn,
+            TO_CHAR(UPDATED_AT, 'YYYY-MM-DD HH24:MI:SS') AS updated_at,
+            UPDATED_BY AS updated_by,
+            TO_CHAR(CREATED_AT, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+            CREATED_BY AS created_by
+        FROM ADM_API_MST
+        WHERE API_TYPE = #{api_type}
+        <if test="use_yn != null and use_yn != ''">
+            AND USE_YN = #{use_yn}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                API_NM LIKE '%' || #{keyword} || '%'
+                OR CALLER_ID LIKE '%' || #{keyword} || '%'
+                OR TARGET_SERVICE LIKE '%' || #{keyword} || '%'
+                OR API_PATTERN LIKE '%' || #{keyword} || '%'
+                OR AUTH_TYPE LIKE '%' || #{keyword} || '%'
+            )
+        </if>
+        ORDER BY API_SEQ DESC
+    </select>
+
+    <select id="countApiPolicyAll" resultType="int">
+        SELECT COUNT(1) FROM ADM_API_MST
+    </select>
+
+    <select id="countDupApiPolicy" resultType="int">
+        SELECT COUNT(1)
+          FROM ADM_API_MST
+         WHERE API_TYPE = #{api_type}
+           AND CALLER_ID = #{caller_id}
+           AND TARGET_SERVICE = #{target_service}
+           AND HTTP_METHOD = #{http_method}
+           AND API_PATTERN = #{api_pattern}
+           <if test="api_seq != null">
+           AND API_SEQ != #{api_seq}
+           </if>
+    </select>
+
+    <insert id="insertApiPolicy" parameterType="map">
+        <selectKey keyProperty="api_seq" resultType="long" order="BEFORE">
+            SELECT ADM_API_MST_SEQ.NEXTVAL FROM DUAL
+        </selectKey>
+        INSERT INTO ADM_API_MST (
+            API_SEQ, API_TYPE, API_NM, CALLER_ID, TARGET_SERVICE, HTTP_METHOD,
+            API_PATTERN, AUTH_TYPE, API_DESC, USE_YN, CREATED_AT, CREATED_BY
+        ) VALUES (
+            #{api_seq,jdbcType=NUMERIC},
+            #{api_type,jdbcType=VARCHAR},
+            #{api_nm,jdbcType=VARCHAR},
+            #{caller_id,jdbcType=VARCHAR},
+            #{target_service,jdbcType=VARCHAR},
+            #{http_method,jdbcType=VARCHAR},
+            #{api_pattern,jdbcType=VARCHAR},
+            #{auth_type,jdbcType=VARCHAR},
+            #{api_desc,jdbcType=VARCHAR},
+            NVL(#{use_yn,jdbcType=VARCHAR}, 'Y'),
+            SYSTIMESTAMP,
+            #{created_by,jdbcType=VARCHAR}
+        )
+    </insert>
+
+    <update id="updateApiPolicy" parameterType="map">
+        UPDATE ADM_API_MST
+           SET API_TYPE = #{api_type,jdbcType=VARCHAR},
+               API_NM = #{api_nm,jdbcType=VARCHAR},
+               CALLER_ID = #{caller_id,jdbcType=VARCHAR},
+               TARGET_SERVICE = #{target_service,jdbcType=VARCHAR},
+               HTTP_METHOD = #{http_method,jdbcType=VARCHAR},
+               API_PATTERN = #{api_pattern,jdbcType=VARCHAR},
+               AUTH_TYPE = #{auth_type,jdbcType=VARCHAR},
+               API_DESC = #{api_desc,jdbcType=VARCHAR},
+               USE_YN = NVL(#{use_yn,jdbcType=VARCHAR}, 'Y'),
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = #{updated_by,jdbcType=VARCHAR}
+         WHERE API_SEQ = #{api_seq,jdbcType=NUMERIC}
+    </update>
+
+    <update id="deleteApiPolicy" parameterType="map">
+        UPDATE ADM_API_MST
+           SET USE_YN = 'N',
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = #{updated_by,jdbcType=VARCHAR}
+         WHERE API_SEQ = #{api_seq,jdbcType=NUMERIC}
+    </update>
+
+</mapper>

@@ -1,0 +1,410 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.auth.mapper.AuthMapper">
+
+    <update id="ensureUserSecurityColumns">
+        <![CDATA[
+        DECLARE
+            v_cnt NUMBER;
+        BEGIN
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_TAB_COLS
+             WHERE TABLE_NAME = 'ADM_USER_MST'
+               AND COLUMN_NAME = 'LOGIN_FAIL_CNT';
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE 'ALTER TABLE ADM_USER_MST ADD LOGIN_FAIL_CNT NUMBER(5,0) DEFAULT 0 NOT NULL';
+            END IF;
+
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_TAB_COLS
+             WHERE TABLE_NAME = 'ADM_USER_MST'
+               AND COLUMN_NAME = 'LOCK_UNTIL_AT';
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE 'ALTER TABLE ADM_USER_MST ADD LOCK_UNTIL_AT TIMESTAMP(6)';
+            END IF;
+
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_TAB_COLS
+             WHERE TABLE_NAME = 'ADM_USER_MST'
+               AND COLUMN_NAME = 'LOCK_YN';
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE 'ALTER TABLE ADM_USER_MST ADD LOCK_YN CHAR(1) DEFAULT ''N'' NOT NULL';
+            END IF;
+
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_TAB_COLS
+             WHERE TABLE_NAME = 'ADM_USER_MST'
+               AND COLUMN_NAME = 'LAST_LOGIN_AT';
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE 'ALTER TABLE ADM_USER_MST ADD LAST_LOGIN_AT TIMESTAMP(6)';
+            END IF;
+
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_TAB_COLS
+             WHERE TABLE_NAME = 'ADM_USER_MST'
+               AND COLUMN_NAME = 'PWD_RESET_YN';
+            IF v_cnt = 0 THEN
+                EXECUTE IMMEDIATE 'ALTER TABLE ADM_USER_MST ADD PWD_RESET_YN CHAR(1) DEFAULT ''N'' NOT NULL';
+            END IF;
+        END;
+        ]]>
+    </update>
+
+    <update id="ensureUserSequence">
+        <![CDATA[
+        DECLARE
+            v_cnt NUMBER;
+            v_start NUMBER;
+        BEGIN
+            SELECT COUNT(1) INTO v_cnt
+              FROM USER_SEQUENCES
+             WHERE SEQUENCE_NAME = 'ADM_USER_MST_SEQ';
+
+            IF v_cnt = 0 THEN
+                SELECT NVL(MAX(USER_SEQ), 0) + 1 INTO v_start
+                  FROM ADM_USER_MST;
+
+                EXECUTE IMMEDIATE '
+                    CREATE SEQUENCE ADM_USER_MST_SEQ
+                    START WITH ' || v_start || '
+                    INCREMENT BY 1
+                    NOCACHE
+                    NOCYCLE';
+            END IF;
+        END;
+        ]]>
+    </update>
+
+    <select id="selectAuthGroupList" parameterType="map" resultType="map">
+        SELECT
+            ag.auth_group_seq,
+            ag.auth_group_cd,
+            ag.auth_group_nm,
+            ag.auth_group_desc,
+            ag.use_yn
+        FROM adm_auth_group ag
+        WHERE 1=1
+        <if test="keyword != null and keyword != ''">
+            AND (
+                ag.auth_group_nm LIKE '%' || #{keyword} || '%'
+                OR ag.auth_group_cd LIKE '%' || #{keyword} || '%'
+            )
+        </if>
+        ORDER BY ag.auth_group_seq
+    </select>
+
+    <select id="selectGroupMenuPermList" parameterType="long" resultType="map">
+        SELECT
+            m.menu_seq,
+            m.up_menu_seq,
+            m.menu_nm,
+            m.menu_url,
+            m.menu_type_cd,
+            m.icon_class,
+            m.sort_ord,
+            m.use_yn,
+            LEVEL AS tree_lvl,
+            CASE
+                WHEN NVL(aam.use_yn, 'N') = 'Y' THEN NVL(aam.perm_lvl, 0)
+                ELSE 0
+            END AS perm_lvl,
+            NVL(aam.use_yn, 'N') AS map_use_yn
+        FROM adm_menu_mst m
+        LEFT JOIN adm_auth_menu aam
+            ON aam.auth_group_seq = #{authGroupSeq}
+           AND aam.menu_seq = m.menu_seq
+        WHERE m.use_yn = 'Y'
+        START WITH m.up_menu_seq IS NULL
+        CONNECT BY PRIOR m.menu_seq = m.up_menu_seq
+        ORDER SIBLINGS BY m.sort_ord, m.menu_seq
+    </select>
+
+    <update id="disableAllGroupMenuPerm" parameterType="map">
+        UPDATE adm_auth_menu
+           SET use_yn     = 'N',
+               updated_at = SYSTIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE auth_group_seq = #{auth_group_seq}
+    </update>
+
+    <update id="disableGroupMenuPerm" parameterType="map">
+        UPDATE adm_auth_menu
+           SET perm_lvl   = 0,
+               use_yn     = 'N',
+               updated_at = SYSTIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE auth_group_seq = #{auth_group_seq}
+           AND menu_seq = #{menu_seq}
+    </update>
+
+    <update id="updateGroupMenuPerm" parameterType="map">
+        UPDATE adm_auth_menu
+           SET perm_lvl   = #{perm_lvl},
+               use_yn     = #{use_yn},
+               updated_at = SYSTIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE auth_group_seq = #{auth_group_seq}
+           AND menu_seq = #{menu_seq}
+    </update>
+
+    <insert id="insertGroupMenuPerm" parameterType="map">
+        INSERT INTO adm_auth_menu (
+            auth_group_seq,
+            menu_seq,
+            perm_lvl,
+            use_yn,
+            created_at,
+            created_by,
+            updated_at,
+            updated_by
+        ) VALUES (
+            #{auth_group_seq},
+            #{menu_seq},
+            #{perm_lvl},
+            #{use_yn},
+            SYSTIMESTAMP,
+            #{created_by},
+            SYSTIMESTAMP,
+            #{updated_by}
+        )
+    </insert>
+
+    <update id="upsertGroupMenuPerm" parameterType="map">
+        MERGE INTO adm_auth_menu t
+        USING (
+            SELECT
+                #{auth_group_seq} AS auth_group_seq,
+                #{menu_seq} AS menu_seq,
+                #{perm_lvl} AS perm_lvl,
+                #{use_yn} AS use_yn,
+                #{created_by} AS created_by,
+                #{updated_by} AS updated_by
+            FROM dual
+        ) s
+        ON (
+            t.auth_group_seq = s.auth_group_seq
+            AND t.menu_seq = s.menu_seq
+        )
+        WHEN MATCHED THEN
+            UPDATE SET
+                t.perm_lvl = s.perm_lvl,
+                t.use_yn = s.use_yn,
+                t.updated_at = SYSTIMESTAMP,
+                t.updated_by = s.updated_by
+        WHEN NOT MATCHED THEN
+            INSERT (
+                auth_group_seq,
+                menu_seq,
+                perm_lvl,
+                use_yn,
+                created_at,
+                created_by,
+                updated_at,
+                updated_by
+            )
+            VALUES (
+                s.auth_group_seq,
+                s.menu_seq,
+                s.perm_lvl,
+                s.use_yn,
+                SYSTIMESTAMP,
+                s.created_by,
+                SYSTIMESTAMP,
+                s.updated_by
+            )
+    </update>
+
+    <select id="searchUsers" parameterType="map" resultType="map">
+        SELECT
+            u.user_seq,
+            u.login_id,
+            u.user_nm,
+            u.use_yn
+        FROM adm_user_mst u
+        WHERE u.use_yn = 'Y'
+        <if test="keyword != null and keyword != ''">
+            AND (
+                u.login_id LIKE '%' || #{keyword} || '%'
+                OR u.user_nm LIKE '%' || #{keyword} || '%'
+            )
+        </if>
+        ORDER BY u.user_seq
+    </select>
+
+    <select id="selectUserMenuPermList" parameterType="long" resultType="map">
+        WITH
+        USER_GROUPS AS (
+            SELECT AGU.AUTH_GROUP_SEQ
+              FROM ADM_AUTH_GROUP_USER AGU
+             WHERE AGU.USER_SEQ = #{userSeq}
+               AND AGU.USE_YN = 'Y'
+            UNION
+            SELECT AGD.AUTH_GROUP_SEQ
+              FROM ADM_AUTH_GROUP_DEPT AGD
+              JOIN ADM_USER_MST U
+                ON U.USER_SEQ = #{userSeq}
+               AND U.DEPT_SEQ = AGD.DEPT_SEQ
+             WHERE AGD.USE_YN = 'Y'
+        ),
+        BASE_PERM AS (
+            SELECT AAM.MENU_SEQ,
+                   MAX(NVL(AAM.PERM_LVL, 0)) AS BASE_PERM_LVL
+              FROM ADM_AUTH_MENU AAM
+              JOIN USER_GROUPS UG
+                ON UG.AUTH_GROUP_SEQ = AAM.AUTH_GROUP_SEQ
+             WHERE AAM.USE_YN = 'Y'
+             GROUP BY AAM.MENU_SEQ
+        ),
+        USER_EX AS (
+            SELECT AU.MENU_SEQ,
+                   MAX(AU.ACCESS_YN) KEEP (DENSE_RANK LAST ORDER BY COALESCE(AU.UPDATED_AT, AU.CREATED_AT, SYSTIMESTAMP)) AS EX_ACCESS_YN,
+                   MAX(NVL(AU.PERM_LVL, 0)) KEEP (DENSE_RANK LAST ORDER BY COALESCE(AU.UPDATED_AT, AU.CREATED_AT, SYSTIMESTAMP)) AS EX_PERM_LVL
+              FROM ADM_AUTH_USER AU
+             WHERE AU.USER_SEQ = #{userSeq}
+             GROUP BY AU.MENU_SEQ
+        )
+        SELECT
+            M.MENU_SEQ,
+            M.UP_MENU_SEQ,
+            M.MENU_NM,
+            M.MENU_URL,
+            LEVEL AS TREE_LVL,
+            NVL(BP.BASE_PERM_LVL, 0) AS BASE_PERM_LVL,
+            UE.EX_ACCESS_YN AS EX_ACCESS_YN,
+            NVL(UE.EX_PERM_LVL, 0) AS EX_PERM_LVL
+        FROM ADM_MENU_MST M
+        LEFT JOIN BASE_PERM BP
+          ON BP.MENU_SEQ = M.MENU_SEQ
+        LEFT JOIN USER_EX UE
+          ON UE.MENU_SEQ = M.MENU_SEQ
+        WHERE M.USE_YN = 'Y'
+        START WITH M.UP_MENU_SEQ IS NULL
+        CONNECT BY PRIOR M.MENU_SEQ = M.UP_MENU_SEQ
+        ORDER SIBLINGS BY M.SORT_ORD, M.MENU_SEQ
+    </select>
+
+    <delete id="deleteAllUserException" parameterType="long">
+        DELETE FROM ADM_AUTH_USER
+         WHERE USER_SEQ = #{userSeq}
+    </delete>
+
+    <update id="upsertUserException" parameterType="map">
+        MERGE INTO ADM_AUTH_USER T
+        USING (
+            SELECT
+                #{user_seq} AS USER_SEQ,
+                #{menu_seq} AS MENU_SEQ,
+                #{access_yn} AS ACCESS_YN,
+                #{perm_lvl} AS PERM_LVL,
+                #{created_by} AS CREATED_BY,
+                #{updated_by} AS UPDATED_BY
+            FROM DUAL
+        ) S
+        ON (
+            T.USER_SEQ = S.USER_SEQ
+            AND T.MENU_SEQ = S.MENU_SEQ
+        )
+        WHEN MATCHED THEN
+            UPDATE SET
+                T.ACCESS_YN = S.ACCESS_YN,
+                T.PERM_LVL = S.PERM_LVL,
+                T.UPDATED_AT = SYSTIMESTAMP,
+                T.UPDATED_BY = S.UPDATED_BY
+        WHEN NOT MATCHED THEN
+            INSERT (
+                USER_SEQ,
+                MENU_SEQ,
+                ACCESS_YN,
+                PERM_LVL,
+                CREATED_AT,
+                CREATED_BY,
+                UPDATED_AT,
+                UPDATED_BY
+            ) VALUES (
+                S.USER_SEQ,
+                S.MENU_SEQ,
+                S.ACCESS_YN,
+                S.PERM_LVL,
+                SYSTIMESTAMP,
+                S.CREATED_BY,
+                SYSTIMESTAMP,
+                S.UPDATED_BY
+            )
+    </update>
+
+    <delete id="deleteUserException" parameterType="map">
+        DELETE FROM ADM_AUTH_USER
+         WHERE USER_SEQ = #{userSeq}
+           AND MENU_SEQ = #{menuSeq}
+    </delete>
+
+    <update id="updateLoginFailState" parameterType="map">
+        UPDATE ADM_USER_MST
+           SET LOGIN_FAIL_CNT = #{login_fail_cnt,jdbcType=NUMERIC},
+               LOCK_UNTIL_AT = #{lock_until_at,jdbcType=TIMESTAMP},
+               LOCK_YN = #{lock_yn,jdbcType=CHAR},
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = #{updated_by,jdbcType=VARCHAR}
+         WHERE USER_SEQ = #{user_seq,jdbcType=NUMERIC}
+    </update>
+
+    <update id="resetLoginFailState">
+        UPDATE ADM_USER_MST
+           SET LOGIN_FAIL_CNT = 0,
+               LOCK_UNTIL_AT = NULL,
+               LOCK_YN = 'N',
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = #{updatedBy}
+         WHERE USER_SEQ = #{userSeq}
+    </update>
+
+    <update id="updateLastLoginAt">
+        UPDATE ADM_USER_MST
+           SET LAST_LOGIN_AT = SYSTIMESTAMP,
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = #{updatedBy}
+         WHERE USER_SEQ = #{userSeq}
+    </update>
+
+    <update id="clearPwdResetFlag">
+        UPDATE ADM_USER_MST
+           SET PWD_RESET_YN = 'N',
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = #{updatedBy}
+         WHERE USER_SEQ = #{userSeq}
+    </update>
+
+    <update id="upgradePasswordHash">
+        UPDATE ADM_USER_MST
+           SET PWD_HASH = #{pwdHash},
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = #{updatedBy}
+         WHERE USER_SEQ = #{userSeq}
+    </update>
+
+    <resultMap id="LoginUserMap" type="com.realhogoo.jsadmin.auth.dto.LoginUser">
+        <result property="userSeq" column="USER_SEQ"/>
+        <result property="userId" column="LOGIN_ID"/>
+        <result property="userNm" column="USER_NM"/>
+        <result property="userPw" column="PWD_HASH"/>
+        <result property="loginFailCnt" column="LOGIN_FAIL_CNT"/>
+        <result property="lockYn" column="LOCK_YN"/>
+        <result property="lockUntilAt" column="LOCK_UNTIL_AT"/>
+        <result property="pwdResetYn" column="PWD_RESET_YN"/>
+    </resultMap>
+
+    <select id="selectUserForLogin" resultMap="LoginUserMap">
+        SELECT USER_SEQ, LOGIN_ID, USER_NM, PWD_HASH,
+               NVL(LOGIN_FAIL_CNT, 0) AS LOGIN_FAIL_CNT,
+               NVL(LOCK_YN, 'N') AS LOCK_YN,
+               LOCK_UNTIL_AT,
+               NVL(PWD_RESET_YN, 'N') AS PWD_RESET_YN
+          FROM ADM_USER_MST
+         WHERE LOGIN_ID = #{user_id}
+           AND USE_YN = 'Y'
+    </select>
+
+</mapper>

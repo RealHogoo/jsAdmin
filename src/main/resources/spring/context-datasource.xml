@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xsi:schemaLocation="
+         http://www.springframework.org/schema/beans
+         http://www.springframework.org/schema/beans/spring-beans.xsd
+         http://www.springframework.org/schema/context
+         http://www.springframework.org/schema/context/spring-context.xsd
+         http://www.springframework.org/schema/tx
+         http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+    <!-- DB 설정 프로퍼티 로딩 -->
+    <!-- env 시스템 프로퍼티에 따라 db-dev / db-prod 선택 -->
+    <context:property-placeholder
+            location="
+                classpath:properties/db-${env:dev}.properties,
+                file:/config/db-${env:dev}.properties
+            "
+            ignore-resource-not-found="true"/>
+
+    <!-- DataSource (Tomcat JDBC Pool) -->
+    <!-- ★ driverClassName 은 항상 ${db.driver} 에서 가져오도록 통일 -->
+    <bean id="dataSource" class="org.apache.tomcat.jdbc.pool.DataSource" destroy-method="close">
+        <property name="driverClassName" value="${db.driver}"/>
+        <property name="url" value="${db.url}"/>
+        <property name="username" value="${db.username}"/>
+        <property name="password" value="${db.password}"/>
+
+        <property name="initialSize" value="${db.initialSize}"/>
+        <property name="maxActive" value="${db.maxActive}"/>
+        <property name="maxIdle" value="${db.maxIdle}"/>
+        <property name="minIdle" value="${db.minIdle}"/>
+    </bean>
+
+    <!-- 트랜잭션 매니저 -->
+    <bean id="transactionManager"
+          class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource"/>
+    </bean>
+
+    <!-- @Transactional 활성화 -->
+    <tx:annotation-driven transaction-manager="transactionManager"/>
+
+</beans>
