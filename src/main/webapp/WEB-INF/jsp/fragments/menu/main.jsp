@@ -1,18 +1,10 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
 <div id="menuPage" class="page-root" data-page-url="/menu/main.do">
-    <div class="page-title-row">
-        <div class="page-title-group">
-            <h2 class="page-title">&#xba54;&#xb274; &#xad00;&#xb9ac;</h2>
-        </div>
-    </div>
-
-    <details class="page-help">
-        <summary><span class="page-help-toggle">?</span></summary>
-        <div class="page-help-body">
-            &#xc88c;&#xce21; &#xba54;&#xb274; &#xad6c;&#xc870;, URL, &#xc544;&#xc774;&#xcf58;, &#xc815;&#xb82c; &#xc21c;&#xc11c;&#xb97c; &#xad00;&#xb9ac;&#xd569;&#xb2c8;&#xb2e4;.
-        </div>
-    </details>
+    <jsp:include page="/WEB-INF/jsp/common/page-header.jspf">
+        <jsp:param name="title" value="&#xba54;&#xb274; &#xad00;&#xb9ac;" />
+        <jsp:param name="help" value="&#xc88c;&#xce21; &#xba54;&#xb274; &#xad6c;&#xc870;, URL, &#xc544;&#xc774;&#xcf58;, &#xc815;&#xb82c; &#xc21c;&#xc11c;&#xb97c; &#xad00;&#xb9ac;&#xd569;&#xb2c8;&#xb2e4;." />
+    </jsp:include>
 
     <div class="toolbar btns no-wrap" role="toolbar" aria-label="page actions">
         <label for="search_use_yn">&#xc0ac;&#xc6a9;&#xc5ec;&#xbd80;</label>
@@ -119,4 +111,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/menu/menu.js?v=20260326_01"></script>
+<script src="${pageContext.request.contextPath}/static/js/menu/menu.js?v=20260328_02"></script>

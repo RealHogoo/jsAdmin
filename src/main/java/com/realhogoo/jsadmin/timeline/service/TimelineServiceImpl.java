@@ -11,6 +11,7 @@ import java.util.Map;
 public class TimelineServiceImpl implements TimelineService {
 
     private final TimelineMapper timelineMapper;
+    private volatile boolean schemaEnsured;
 
     public TimelineServiceImpl(TimelineMapper timelineMapper) {
         this.timelineMapper = timelineMapper;
@@ -99,9 +100,18 @@ public class TimelineServiceImpl implements TimelineService {
     }
 
     private void ensureSchema() {
-        timelineMapper.ensureTimelineTable();
-        timelineMapper.ensureTimelineSequence();
-        timelineMapper.ensureTimelineIndex();
+        if (schemaEnsured) {
+            return;
+        }
+        synchronized (this) {
+            if (schemaEnsured) {
+                return;
+            }
+            timelineMapper.ensureTimelineTable();
+            timelineMapper.ensureTimelineSequence();
+            timelineMapper.ensureTimelineIndex();
+            schemaEnsured = true;
+        }
     }
 
     private String toStrOrNull(Object v) {

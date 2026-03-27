@@ -4,29 +4,17 @@
     var UX = global.UX;
     var Grid = global.Grid;
     var app = global.app;
-
-    if (global.__USER_PAGE_BOUND_V6__) return;
-    global.__USER_PAGE_BOUND_V6__ = true;
-
-    var listView = null;
-    var listLoader = null;
+    var listCtrl = null;
 
     function root() {
         return UX.qs("#userPage");
-    }
-
-    function resetViews() {
-        if (listView && typeof listView.destroy === "function") listView.destroy();
-        if (listLoader && typeof listLoader.destroy === "function") listLoader.destroy();
-        listView = null;
-        listLoader = null;
     }
 
     function setSelectedUserSeq(userSeq) {
         var page = root();
         if (!page) return;
         page.dataset.selectedUserSeq = userSeq ? String(userSeq) : "";
-        if (listView) listView.refresh();
+        if (listCtrl) listCtrl.refresh();
     }
 
     function selectedUserSeq() {
@@ -66,11 +54,11 @@
         };
     }
 
-    function ensureListView() {
+    function createListView() {
         var gridRoot = UX.qs("#userMgmtGrid", root());
-        if (!gridRoot || listView) return;
+        if (!gridRoot) return null;
 
-        listView = Grid.createVirtualGrid({
+        return Grid.createVirtualGrid({
             root: gridRoot,
             rowHeight: 56,
             overscan: 10,
@@ -83,10 +71,10 @@
                     + "<div class='vgrid-cell'>" + Grid.textCell(index + 1) + "</div>"
                     + "<div class='vgrid-cell'>" + Grid.textCell(row.login_id || "-") + "</div>"
                     + "<div class='vgrid-cell'>" + Grid.textCell(row.user_nm || "-") + "</div>"
-                    + "<div class='vgrid-cell'>" + Grid.textCell((row.use_yn || "Y") === "Y" ? "\uC0AC\uC6A9" : "\uBBF8\uC0AC\uC6A9") + "</div>"
+                    + "<div class='vgrid-cell'>" + Grid.textCell((row.use_yn || "Y") === "Y" ? "사용" : "미사용") + "</div>"
                     + "<div class='vgrid-cell'>" + Grid.textCell(row.login_fail_cnt || "0") + "</div>"
                     + "<div class='vgrid-cell'>" + Grid.textCell(locked) + "</div>"
-                    + "<div class='vgrid-cell'>" + Grid.textCell((row.pwd_reset_yn || "N") === "Y" ? "\uC608" : "\uC544\uB2C8\uC624") + "</div>"
+                    + "<div class='vgrid-cell'>" + Grid.textCell((row.pwd_reset_yn || "N") === "Y" ? "예" : "아니오") + "</div>"
                     + "</div>";
             },
             onRendered: function () {
@@ -101,46 +89,27 @@
         });
     }
 
-    function ensureListLoader() {
-        if (listLoader || !listView || !Grid.createChunkLoader) return;
-        listLoader = Grid.createChunkLoader({
-            pageSize: 100,
-            threshold: 140,
-            getScrollElement: function () {
-                return listView && listView.getBody ? listView.getBody() : null;
-            },
-            onData: function (result) {
-                renderList(result.items || []);
-            }
-        });
-    }
-
     function renderList(rows) {
-        ensureListView();
+        var listView = listCtrl && listCtrl.ensureView();
         if (!listView) return;
         if (!rows.length) clearForm();
         listView.setItems(rows);
     }
 
     function loadList() {
-        ensureListView();
-        ensureListLoader();
         return app.callJson("/user/list.json", {
             keyword: UX.getValue("#userMgmtKeyword", root()),
             use_yn: UX.getValue("#userMgmtUseYn", root())
         }, function (data) {
-            var rows = Array.isArray(data) ? data : [];
-            if (listLoader) listLoader.replaceItems(rows);
-            else renderList(rows.slice(0, 100));
+            listCtrl.replaceItems(Array.isArray(data) ? data : []);
         });
     }
 
     function loadDetail(userSeq) {
         return app.callJson("/user/detail.json", { user_seq: userSeq }, function (data) {
-            if (data) {
-                setSelectedUserSeq(userSeq);
-                fillForm(data);
-            }
+            if (!data) return;
+            setSelectedUserSeq(userSeq);
+            fillForm(data);
         });
     }
 
@@ -194,32 +163,31 @@
         UX.bindOnce(UX.qs("#btnUserMgmtResetPw", page), "click", resetPassword);
         UX.bindOnce(UX.qs("#btnUserMgmtUnlock", page), "click", unlockUser);
         UX.bindOnce(UX.qs("#btnUserMgmtDelete", page), "click", deactivateUser);
-
-        var keyword = UX.qs("#userMgmtKeyword", page);
-        if (keyword) {
-            keyword.addEventListener("keydown", function (e) {
-                if (e.key === "Enter") {
-                    e.preventDefault();
-                    loadList();
-                }
-            });
-        }
+        app.bindEnterAction(UX.qs("#userMgmtKeyword", page), loadList);
     }
 
     function init() {
         var page = root();
         if (!page) return;
-        resetViews();
+        if (listCtrl) listCtrl.destroy();
+        listCtrl = app.createChunkListController({
+            pageSize: 100,
+            threshold: 140,
+            createView: createListView,
+            getScrollElement: function (view) {
+                return view && view.getBody ? view.getBody() : null;
+            },
+            applyItems: function (_view, items) {
+                renderList(items);
+            }
+        });
+
         bind();
-        ensureListView();
-        ensureListLoader();
+        listCtrl.ensureView();
+        listCtrl.ensureLoader();
         clearForm();
         loadList();
     }
 
-    document.addEventListener("jsadmin:pageLoaded", function (e) {
-        if (e && e.detail && e.detail.url === "/user/main.do") init();
-    });
-
-    try { init(); } catch (e) {}
+    app.bindPage("__USER_PAGE_BOUND_V7__", "/user/main.do", init);
 })(window);

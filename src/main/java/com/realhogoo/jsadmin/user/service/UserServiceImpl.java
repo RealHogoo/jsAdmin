@@ -16,6 +16,7 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final SuperAdminProperties superAdminProperties;
     private final PasswordEncoder passwordEncoder;
+    private volatile boolean schemaEnsured;
 
     public UserServiceImpl(UserMapper userMapper, SuperAdminProperties superAdminProperties, PasswordEncoder passwordEncoder) {
         this.userMapper = userMapper;
@@ -24,8 +25,17 @@ public class UserServiceImpl implements UserService {
     }
 
     private void ensureSchema() {
-        userMapper.ensureUserSecurityColumns();
-        userMapper.ensureUserSequence();
+        if (schemaEnsured) {
+            return;
+        }
+        synchronized (this) {
+            if (schemaEnsured) {
+                return;
+            }
+            userMapper.ensureUserSecurityColumns();
+            userMapper.ensureUserSequence();
+            schemaEnsured = true;
+        }
     }
 
     @Override

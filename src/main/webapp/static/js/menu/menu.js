@@ -6,48 +6,22 @@
     var app = global.app;
     var MenuIconCatalog = global.MenuIconCatalog;
     var MENU_TYPE_GROUP_CD = "MENU_TYPE";
-
-    if (global.__MENU_PAGE_BOUND_V2__) return;
-    global.__MENU_PAGE_BOUND_V2__ = true;
-
-    var listView = null;
-    var listLoader = null;
+    var listCtrl = null;
+    var pickerBound = false;
 
     function pageRoot() { return UX.qs("#menuPage") || document; }
     function formRoot() { return UX.qs("#menuForm") || document; }
-
-    function resetViews() {
-        if (listView && typeof listView.destroy === "function") listView.destroy();
-        if (listLoader && typeof listLoader.destroy === "function") listLoader.destroy();
-        listView = null;
-        listLoader = null;
-    }
 
     function setSelectedMenuSeq(menuSeq) {
         var page = pageRoot();
         if (!page || !page.dataset) return;
         page.dataset.selectedMenuSeq = menuSeq ? String(menuSeq) : "";
-        if (listView) listView.refresh();
+        if (listCtrl) listCtrl.refresh();
     }
 
     function selectedMenuSeq() {
         var page = pageRoot();
-        if (!page || !page.dataset) return null;
-        return UX.numOrNull(page.dataset.selectedMenuSeq);
-    }
-
-    function getPermLvl() {
-        var level = UX.numOrNull(pageRoot().getAttribute("data-perm-lvl"));
-        return !level ? null : level;
-    }
-
-    function applyPerm() {
-        var permLvl = getPermLvl();
-        if (permLvl === null) return;
-        UX.qsa("[data-perm-lvl]", pageRoot()).forEach(function (el) {
-            var need = UX.numOrNull(el.getAttribute("data-perm-lvl"));
-            if (need !== null) UX.setDisabled(el, permLvl < need);
-        });
+        return page && page.dataset ? UX.numOrNull(page.dataset.selectedMenuSeq) : null;
     }
 
     function ensureSelectValue(selectEl, value) {
@@ -74,9 +48,7 @@
     }
 
     function iconMeta(value) {
-        return MenuIconCatalog && typeof MenuIconCatalog.find === "function"
-            ? MenuIconCatalog.find(value)
-            : null;
+        return MenuIconCatalog && typeof MenuIconCatalog.find === "function" ? MenuIconCatalog.find(value) : null;
     }
 
     function updateIconPreview() {
@@ -98,6 +70,7 @@
     function renderIconPicker() {
         var grid = UX.qs("#menuIconPickerGrid", pageRoot());
         if (!grid || !MenuIconCatalog) return;
+
         var selected = UX.getValue("#icon_class", formRoot());
         var keyword = String(UX.getValue("#menuIconFilter", pageRoot()) || "").trim().toLowerCase();
         var items = MenuIconCatalog.list().filter(function (item) {
@@ -107,11 +80,11 @@
         });
 
         if (!items.length) {
-            grid.innerHTML = "<div class='icon-picker__empty'>\uAC80\uC0C9 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.</div>";
+            grid.innerHTML = "<div class='icon-picker__empty'>검색 결과가 없습니다.</div>";
             return;
         }
 
-        var html = items.map(function (item) {
+        grid.innerHTML = items.map(function (item) {
             var isSelected = String(item.value || "") === String(selected || "");
             var glyphHtml = item.value
                 ? MenuIconCatalog.render(item.value, "icon-picker__glyph")
@@ -123,7 +96,6 @@
                 + glyphHtml
                 + "</button>";
         }).join("");
-        grid.innerHTML = html;
     }
 
     function openIconPicker() {
@@ -135,9 +107,7 @@
         picker.setAttribute("aria-hidden", "false");
         var filterInput = UX.qs("#menuIconFilter", pageRoot());
         if (filterInput) {
-            global.requestAnimationFrame(function () {
-                filterInput.focus();
-            });
+            global.requestAnimationFrame(function () { filterInput.focus(); });
         }
     }
 
@@ -146,6 +116,31 @@
         if (!picker) return;
         picker.classList.remove("is-open");
         picker.setAttribute("aria-hidden", "true");
+    }
+
+    function bindIconPicker() {
+        if (pickerBound) return;
+        pickerBound = true;
+
+        document.addEventListener("click", function (e) {
+            var page = pageRoot();
+            if (!page || !page.contains(e.target)) return;
+
+            var closeBtn = e.target.closest("[data-icon-picker-close='1']");
+            if (closeBtn) {
+                e.preventDefault();
+                closeIconPicker();
+                return;
+            }
+
+            var item = e.target.closest(".icon-picker__item");
+            if (item) {
+                e.preventDefault();
+                UX.setValue("#icon_class", item.getAttribute("data-icon-value") || "", formRoot());
+                updateIconPreview();
+                closeIconPicker();
+            }
+        });
     }
 
     function loadMenuTypeOptions() {
@@ -216,17 +211,18 @@
         return { use_yn: UX.strOrNull(UX.getValue("#search_use_yn", pageRoot())) };
     }
 
-    function ensureListView() {
+    function createListView() {
         var tbody = UX.qs("#menuListBody", pageRoot());
-        if (!tbody || listView) return;
-        listView = Grid.createVirtualTable({
+        if (!tbody) return null;
+
+        return Grid.createVirtualTable({
             tbody: tbody,
             colCount: 8,
             emptyHtml: "<tr><td colspan='8'>데이터가 없습니다.</td></tr>",
             renderRow: function (row, index) {
                 var menuSeq = UX.value(row, ["menu_seq", "menuSeq"], "");
                 var selectedClass = String(menuSeq) === String(selectedMenuSeq() || "") ? " class='menu-row selected'" : " class='menu-row'";
-                var useYn = UX.value(row, ["use_yn", "useYn"], "") === "Y" ? "\uC0AC\uC6A9" : "\uBBF8\uC0AC\uC6A9";
+                var useYn = UX.value(row, ["use_yn", "useYn"], "") === "Y" ? "사용" : "미사용";
                 return "<tr" + selectedClass + " data-menu-seq='" + UX.esc(menuSeq) + "'>"
                     + "<td>" + Grid.textCell(index + 1) + "</td>"
                     + "<td>" + Grid.textCell(UX.value(row, ["up_menu_seq", "upMenuSeq"], "")) + "</td>"
@@ -242,7 +238,8 @@
                 UX.qsa("tr.menu-row", tbody).forEach(function (tr) {
                     tr.addEventListener("click", function () {
                         var menuSeq = tr.getAttribute("data-menu-seq");
-                        var found = listView.getItems().find(function (row) {
+                        var rows = listCtrl && listCtrl.getView() ? listCtrl.getView().getItems() : [];
+                        var found = rows.find(function (row) {
                             return String(UX.value(row, ["menu_seq", "menuSeq"], "")) === String(menuSeq);
                         });
                         setSelectedMenuSeq(menuSeq);
@@ -253,127 +250,92 @@
         });
     }
 
-    function ensureListLoader() {
-        if (listLoader || !listView || !Grid.createChunkLoader) return;
-        listLoader = Grid.createChunkLoader({
-            pageSize: 100,
-            threshold: 120,
-            getScrollElement: function () {
-                return UX.qs("#menuListWrap", pageRoot());
-            },
-            onData: function (result) {
-                renderTable(result.items || []);
-            }
-        });
-    }
-
-    function renderTable(list) {
-        ensureListView();
-        if (listView) listView.setItems(list || []);
+    function renderTable(items) {
+        var listView = listCtrl && listCtrl.ensureView();
+        if (listView) listView.setItems(items || []);
     }
 
     function loadList() {
-        ensureListView();
-        ensureListLoader();
         return app.callJson("/menu/list.json", collectSearchParam(), function (list) {
-            var rows = Array.isArray(list) ? list : [];
-            if (listLoader) listLoader.replaceItems(rows);
-            else renderTable(rows.slice(0, 100));
+            listCtrl.replaceItems(Array.isArray(list) ? list : []);
         });
     }
 
     function refreshSidebar() {
         document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
         if (typeof global.SIDEBAR_INIT === "function") {
-            try { global.SIDEBAR_INIT(); } catch (e) {}
+            try { global.SIDEBAR_INIT(); } catch (ignore) {}
         }
     }
 
     function saveMenu() {
         var param = collectFormParam();
-        if (!param.menu_nm) return global.alert("\uBA54\uB274\uBA85\uC740 \uD544\uC218\uC785\uB2C8\uB2E4.");
+        if (!param.menu_nm) return global.alert("메뉴명은 필수입니다.");
         app.callJson("/menu/save.json", param, function () {
             loadList();
             refreshSidebar();
             clearForm();
-            global.alert("\uC800\uC7A5 \uC644\uB8CC");
+            global.alert("저장 완료");
         }).catch(function (e) {
-            global.alert("\uC800\uC7A5 \uC2E4\uD328: " + (e && e.message ? e.message : e));
+            global.alert("저장 실패: " + (e && e.message ? e.message : e));
         });
     }
 
     function deleteMenu() {
         var menuSeq = UX.numOrNull(UX.getValue("#menu_seq", formRoot()));
-        if (!menuSeq) return global.alert("\uC0AD\uC81C\uD560 \uBA54\uB274\uB97C \uC120\uD0DD\uD558\uC138\uC694.");
-        if (!global.confirm("\uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?")) return;
+        if (!menuSeq) return global.alert("삭제할 메뉴를 선택하세요.");
+        if (!global.confirm("삭제하시겠습니까?")) return;
         app.callJson("/menu/delete.json", { menu_seq: menuSeq }, function () {
             loadList();
             refreshSidebar();
             clearForm();
-            global.alert("\uC0AD\uC81C \uC644\uB8CC");
+            global.alert("삭제 완료");
         }).catch(function (e) {
-            global.alert("\uC0AD\uC81C \uC2E4\uD328: " + (e && e.message ? e.message : e));
-        });
-    }
-
-    function bindIconPicker() {
-        var page = pageRoot();
-        UX.bindOnce(UX.qs("#btnSelectIcon", page), "click", function (e) {
-            e.preventDefault();
-            openIconPicker();
-        });
-
-        UX.bindOnce(UX.qs("#icon_class", page), "input", function () {
-            updateIconPreview();
-        });
-
-        UX.bindOnce(UX.qs("#menuIconFilter", page), "input", function () {
-            renderIconPicker();
-        });
-
-        page.addEventListener("click", function (e) {
-            var closeBtn = e.target.closest("[data-icon-picker-close='1']");
-            if (closeBtn) {
-                e.preventDefault();
-                closeIconPicker();
-                return;
-            }
-
-            var item = e.target.closest(".icon-picker__item");
-            if (!item) return;
-            e.preventDefault();
-            UX.setValue("#icon_class", item.getAttribute("data-icon-value") || "", formRoot());
-            updateIconPreview();
-            closeIconPicker();
+            global.alert("삭제 실패: " + (e && e.message ? e.message : e));
         });
     }
 
     function bind() {
-        UX.bindOnce(UX.qs("#btnSearch", pageRoot()), "click", function (e) { e.preventDefault(); loadList(); });
-        UX.bindOnce(UX.qs("#btnSave", pageRoot()), "click", function (e) { e.preventDefault(); saveMenu(); });
-        UX.bindOnce(UX.qs("#btnDelete", pageRoot()), "click", function (e) { e.preventDefault(); deleteMenu(); });
-        UX.bindOnce(UX.qs("#btnNew", pageRoot()), "click", function (e) { e.preventDefault(); clearForm(); });
-        UX.bindOnce(UX.qs("#btnMenuRefresh", pageRoot()), "click", function (e) { e.preventDefault(); loadList(); });
-        UX.bindOnce(UX.qs("#search_use_yn", pageRoot()), "change", function () { loadList(); });
+        var page = pageRoot();
+        UX.bindOnce(UX.qs("#btnSearch", page), "click", function (e) { e.preventDefault(); loadList(); });
+        UX.bindOnce(UX.qs("#btnSave", page), "click", function (e) { e.preventDefault(); saveMenu(); });
+        UX.bindOnce(UX.qs("#btnDelete", page), "click", function (e) { e.preventDefault(); deleteMenu(); });
+        UX.bindOnce(UX.qs("#btnNew", page), "click", function (e) { e.preventDefault(); clearForm(); });
+        UX.bindOnce(UX.qs("#btnMenuRefresh", page), "click", function (e) { e.preventDefault(); loadList(); });
+        UX.bindOnce(UX.qs("#search_use_yn", page), "change", function () { loadList(); });
+        UX.bindOnce(UX.qs("#btnSelectIcon", page), "click", function (e) {
+            e.preventDefault();
+            openIconPicker();
+        });
+        UX.bindOnce(UX.qs("#icon_class", page), "input", updateIconPreview);
+        UX.bindOnce(UX.qs("#menuIconFilter", page), "input", renderIconPicker);
         bindIconPicker();
     }
 
     function init() {
         if (!UX.qs("#menuListBody", pageRoot())) return;
-        resetViews();
+        if (listCtrl) listCtrl.destroy();
+        listCtrl = app.createChunkListController({
+            pageSize: 100,
+            threshold: 120,
+            createView: createListView,
+            getScrollElement: function () {
+                return UX.qs("#menuListWrap", pageRoot());
+            },
+            applyItems: function (_view, items) {
+                renderTable(items);
+            }
+        });
+
         bind();
-        applyPerm();
-        ensureListView();
-        ensureListLoader();
+        app.applyPermission(pageRoot());
+        listCtrl.ensureView();
+        listCtrl.ensureLoader();
         loadMenuTypeOptions().then(function () {
             clearForm();
             loadList();
         });
     }
 
-    document.addEventListener("jsadmin:pageLoaded", function (e) {
-        if (e && e.detail && e.detail.url === "/menu/main.do") init();
-    });
-
-    try { init(); } catch (e) {}
+    app.bindPage("__MENU_PAGE_BOUND_V3__", "/menu/main.do", init);
 })(window);

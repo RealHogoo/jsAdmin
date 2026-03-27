@@ -1,18 +1,10 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
 <div id="userPage" class="page-root" data-page-url="/user/main.do">
-    <div class="page-title-row">
-        <div class="page-title-group">
-            <h2 class="page-title">&#xc0ac;&#xc6a9;&#xc790; &#xad00;&#xb9ac;</h2>
-        </div>
-    </div>
-
-    <details class="page-help">
-        <summary><span class="page-help-toggle">?</span></summary>
-        <div class="page-help-body">
-            &#xacc4;&#xc815; &#xb4f1;&#xb85d;, &#xc218;&#xc815;, &#xbe44;&#xd65c;&#xc131;&#xd654;, &#xc7a0;&#xae08; &#xd574;&#xc81c;&#xc640; &#xbe44;&#xbc00;&#xbc88;&#xd638; &#xcd08;&#xae30;&#xd654;&#xb97c; &#xcc98;&#xb9ac;&#xd569;&#xb2c8;&#xb2e4;.
-        </div>
-    </details>
+    <jsp:include page="/WEB-INF/jsp/common/page-header.jspf">
+        <jsp:param name="title" value="&#xc0ac;&#xc6a9;&#xc790; &#xad00;&#xb9ac;" />
+        <jsp:param name="help" value="&#xacc4;&#xc815; &#xb4f1;&#xb85d;, &#xc218;&#xc815;, &#xbe44;&#xd65c;&#xc131;&#xd654;, &#xc7a0;&#xae08; &#xd574;&#xc81c;&#xc640; &#xbe44;&#xbc00;&#xbc88;&#xd638; &#xcd08;&#xae30;&#xd654;&#xb97c; &#xcc98;&#xb9ac;&#xd569;&#xb2c8;&#xb2e4;." />
+    </jsp:include>
 
     <div class="toolbar btns">
         <input type="text" class="input" id="userMgmtKeyword" placeholder="&#xb85c;&#xadf8;&#xc778; &#xc544;&#xc774;&#xb514; &#xb610;&#xb294; &#xc0ac;&#xc6a9;&#xc790;&#xba85;" style="max-width:220px;">
@@ -101,4 +93,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/user/user.js?v=20260326_01"></script>
+<script src="${pageContext.request.contextPath}/static/js/user/user.js?v=20260328_01"></script>

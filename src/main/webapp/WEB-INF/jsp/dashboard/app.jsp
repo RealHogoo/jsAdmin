@@ -45,8 +45,8 @@
     <script src="${pageContext.request.contextPath}/static/js/ux.js"></script>
     <script src="${pageContext.request.contextPath}/static/js/grid.js?v=20260326_01"></script>
     <script src="${pageContext.request.contextPath}/static/js/menu-icons.js?v=20260325_05"></script>
-    <script src="${pageContext.request.contextPath}/static/js/app.js?v=20260326_02"></script>
-    <script src="${pageContext.request.contextPath}/static/js/header/header.js"></script>
+    <script src="${pageContext.request.contextPath}/static/js/app.js?v=20260328_02"></script>
+    <script src="${pageContext.request.contextPath}/static/js/header/header.js?v=20260328_01"></script>
     <script src="${pageContext.request.contextPath}/static/js/footer/footer.js"></script>
     <script src="${pageContext.request.contextPath}/static/js/sidebar/sidebar.js?v=20260327_02"></script>
 

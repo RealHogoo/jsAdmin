@@ -1,18 +1,10 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
 <div class="page-root" id="timelinePage" data-page-url="/timeline/main.do">
-    <div class="page-title-row">
-        <div class="page-title-group">
-            <h2 class="page-title">&#xd0c0;&#xc784;&#xb77c;&#xc778; &#xad00;&#xb9ac;</h2>
-        </div>
-    </div>
-
-    <details class="page-help">
-        <summary><span class="page-help-toggle">?</span></summary>
-        <div class="page-help-body">
-            &#xd0c0;&#xc784;&#xb77c;&#xc778; &#xc774;&#xbca4;&#xd2b8;&#xb97c; &#xb4f1;&#xb85d;&#xd558;&#xace0; &#xae30;&#xac04;&#xacfc; &#xc0ac;&#xc6a9; &#xc5ec;&#xbd80;&#xb97c; &#xad00;&#xb9ac;&#xd569;&#xb2c8;&#xb2e4;.
-        </div>
-    </details>
+    <jsp:include page="/WEB-INF/jsp/common/page-header.jspf">
+        <jsp:param name="title" value="&#xd0c0;&#xc784;&#xb77c;&#xc778; &#xad00;&#xb9ac;" />
+        <jsp:param name="help" value="&#xd0c0;&#xc784;&#xb77c;&#xc778; &#xc774;&#xbca4;&#xd2b8;&#xb97c; &#xb4f1;&#xb85d;&#xd558;&#xace0; &#xae30;&#xac04;&#xacfc; &#xc0ac;&#xc6a9; &#xc5ec;&#xbd80;&#xb97c; &#xad00;&#xb9ac;&#xd569;&#xb2c8;&#xb2e4;." />
+    </jsp:include>
 
     <div class="toolbar btns" role="toolbar" aria-label="timeline actions">
         <a href="#" class="btn" data-perm-lvl="1" id="btnTimelineSearch" role="button">&#xc870;&#xd68c;</a>
@@ -93,4 +85,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/timeline/timeline-main.js?v=20260324_02"></script>
+<script src="${pageContext.request.contextPath}/static/js/timeline/timeline-main.js?v=20260328_01"></script>

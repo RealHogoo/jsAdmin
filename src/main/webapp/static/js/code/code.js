@@ -4,8 +4,7 @@
     var UX = global.UX;
     var Grid = global.Grid;
     var app = global.app;
-    var listView = null;
-    var listLoader = null;
+    var listCtrl = null;
 
     function pageRoot() {
         return UX.qs("#codePage") || document;
@@ -15,40 +14,16 @@
         return UX.qs("#codeForm") || document;
     }
 
-    function resetViews() {
-        if (listView && typeof listView.destroy === "function") listView.destroy();
-        if (listLoader && typeof listLoader.destroy === "function") listLoader.destroy();
-        listView = null;
-        listLoader = null;
-    }
-
     function setSelectedCodeSeq(codeSeq) {
         var page = pageRoot();
         if (!page || !page.dataset) return;
         page.dataset.selectedCodeSeq = codeSeq ? String(codeSeq) : "";
-        if (listView) listView.refresh();
+        if (listCtrl) listCtrl.refresh();
     }
 
     function selectedCodeSeq() {
         var page = pageRoot();
-        if (!page || !page.dataset) return null;
-        return UX.numOrNull(page.dataset.selectedCodeSeq);
-    }
-
-    function getPermLvl() {
-        var lvl = pageRoot().getAttribute("data-perm-lvl");
-        var num = UX.numOrNull(lvl);
-        return num === null || num === 0 ? null : num;
-    }
-
-    function applyPerm() {
-        var permLvl = getPermLvl();
-        if (permLvl === null) return;
-
-        UX.qsa("[data-perm-lvl]", pageRoot()).forEach(function (el) {
-            var need = UX.numOrNull(el.getAttribute("data-perm-lvl"));
-            if (need !== null) UX.setDisabled(el, permLvl < need);
-        });
+        return page && page.dataset ? UX.numOrNull(page.dataset.selectedCodeSeq) : null;
     }
 
     function fillForm(row) {
@@ -87,15 +62,13 @@
         return param;
     }
 
-    function ensureListView() {
+    function createListView() {
         var tbody = UX.qs("#codeListBody");
-        if (!tbody || listView) return;
+        if (!tbody) return null;
 
-        listView = Grid.createVirtualTable({
+        return Grid.createVirtualTable({
             tbody: tbody,
-            scroller: UX.qs("#codeListWrap"),
             colCount: 7,
-            rowHeight: 42,
             emptyHtml: "<tr><td colspan='7'>데이터가 없습니다.</td></tr>",
             renderRow: function (row, index) {
                 var codeSeq = UX.value(row, ["code_seq", "codeSeq"], "");
@@ -115,7 +88,7 @@
                 UX.qsa("tr.code-row", tbody).forEach(function (tr) {
                     tr.addEventListener("click", function () {
                         var codeSeq = tr.getAttribute("data-code-seq");
-                        var rows = listView.getItems();
+                        var rows = listCtrl && listCtrl.getView() ? listCtrl.getView().getItems() : [];
                         var found = rows.find(function (row) {
                             return String(UX.value(row, ["code_seq", "codeSeq"], "")) === String(codeSeq);
                         });
@@ -127,33 +100,14 @@
         });
     }
 
-    function ensureListLoader() {
-        if (listLoader || !listView || !Grid.createChunkLoader) return;
-        listLoader = Grid.createChunkLoader({
-            pageSize: 100,
-            threshold: 120,
-            getScrollElement: function () {
-                return UX.qs("#codeListWrap");
-            },
-            onData: function (result) {
-                renderTable(result.items || []);
-            }
-        });
-    }
-
     function renderTable(list) {
-        ensureListView();
-        if (!listView) return;
-        listView.setItems(list || []);
+        var listView = listCtrl && listCtrl.ensureView();
+        if (listView) listView.setItems(list || []);
     }
 
     function loadList() {
-        ensureListView();
-        ensureListLoader();
         return app.callJson("/code/list.json", {}, function (rows) {
-            var list = Array.isArray(rows) ? rows : [];
-            if (listLoader) listLoader.replaceItems(list);
-            else renderTable(list.slice(0, 100));
+            listCtrl.replaceItems(Array.isArray(rows) ? rows : []);
         });
     }
 
@@ -198,21 +152,26 @@
 
     function init() {
         if (!UX.qs("#codeListBody")) return;
-        resetViews();
+        if (listCtrl) listCtrl.destroy();
+        listCtrl = app.createChunkListController({
+            pageSize: 100,
+            threshold: 120,
+            createView: createListView,
+            getScrollElement: function () {
+                return UX.qs("#codeListWrap");
+            },
+            applyItems: function (_view, items) {
+                renderTable(items);
+            }
+        });
+
         bind();
-        applyPerm();
-        ensureListView();
-        ensureListLoader();
+        app.applyPermission(pageRoot());
+        listCtrl.ensureView();
+        listCtrl.ensureLoader();
         clearForm();
         loadList();
     }
 
-    if (!global.__CODE_PAGELOADED_BOUND__) {
-        global.__CODE_PAGELOADED_BOUND__ = true;
-        document.addEventListener("jsadmin:pageLoaded", function (e) {
-            if (e && e.detail && e.detail.url === "/code/main.do") init();
-        });
-    }
-
-    try { init(); } catch (e) {}
+    app.bindPage("__CODE_PAGE_BOUND_V2__", "/code/main.do", init);
 })(window);

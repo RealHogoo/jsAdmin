@@ -20,19 +20,29 @@ public class AccessServiceImpl implements AccessService {
     private static final String STATUS_REVOKED = "REVOKED";
 
     private final AccessMapper accessMapper;
+    private volatile boolean schemaEnsured;
 
     public AccessServiceImpl(AccessMapper accessMapper) {
         this.accessMapper = accessMapper;
     }
 
     private void ensureSchema() {
-        accessMapper.ensureLoginSessionTable();
-        accessMapper.ensureLoginHistoryTable();
-        accessMapper.ensureLoginSessionSequence();
-        accessMapper.ensureLoginHistorySequence();
-        accessMapper.ensureLoginSessionIndex();
-        accessMapper.ensureLoginHistoryIndex();
-        accessMapper.ensureLoginHistoryConstraint();
+        if (schemaEnsured) {
+            return;
+        }
+        synchronized (this) {
+            if (schemaEnsured) {
+                return;
+            }
+            accessMapper.ensureLoginSessionTable();
+            accessMapper.ensureLoginHistoryTable();
+            accessMapper.ensureLoginSessionSequence();
+            accessMapper.ensureLoginHistorySequence();
+            accessMapper.ensureLoginSessionIndex();
+            accessMapper.ensureLoginHistoryIndex();
+            accessMapper.ensureLoginHistoryConstraint();
+            schemaEnsured = true;
+        }
     }
 
     @Override

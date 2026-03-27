@@ -4,43 +4,21 @@
     var UX = global.UX;
     var Grid = global.Grid;
     var app = global.app;
-
-    if (global.__NOTICE_PAGE_BOUND__) return;
-    global.__NOTICE_PAGE_BOUND__ = true;
-
-    var listView = null;
-    var listLoader = null;
+    var listCtrl = null;
 
     function pageRoot() { return UX.qs("#noticePage") || document; }
     function formRoot() { return UX.qs("#noticeForm") || document; }
-
-    function resetViews() {
-        if (listView && typeof listView.destroy === "function") listView.destroy();
-        if (listLoader && typeof listLoader.destroy === "function") listLoader.destroy();
-        listView = null;
-        listLoader = null;
-    }
 
     function setSelectedNoticeSeq(seq) {
         var page = pageRoot();
         if (!page || !page.dataset) return;
         page.dataset.selectedNoticeSeq = seq ? String(seq) : "";
-        if (listView) listView.refresh();
+        if (listCtrl) listCtrl.refresh();
     }
 
     function selectedNoticeSeq() {
         var page = pageRoot();
-        if (!page || !page.dataset) return null;
-        return UX.numOrNull(page.dataset.selectedNoticeSeq);
-    }
-
-    function applyPerm() {
-        var permLvl = UX.numOrNull(pageRoot().getAttribute("data-perm-lvl"));
-        if (!permLvl) return;
-        UX.qsa("[data-perm-lvl]", pageRoot()).forEach(function (el) {
-            var need = UX.numOrNull(el.getAttribute("data-perm-lvl"));
-            if (need !== null) UX.setDisabled(el, permLvl < need);
-        });
+        return page && page.dataset ? UX.numOrNull(page.dataset.selectedNoticeSeq) : null;
     }
 
     function clearForm() {
@@ -86,21 +64,20 @@
         return param;
     }
 
-    function ensureListView() {
+    function createListView() {
         var tbody = UX.qs("#noticeListBody");
-        if (!tbody || listView) return;
-        listView = Grid.createVirtualTable({
+        if (!tbody) return null;
+
+        return Grid.createVirtualTable({
             tbody: tbody,
-            scroller: UX.qs("#noticeListWrap"),
             colCount: 8,
-            rowHeight: 42,
             emptyHtml: "<tr><td colspan='8'>데이터가 없습니다.</td></tr>",
-            renderRow: function (row) {
+            renderRow: function (row, index) {
                 var seq = UX.value(row, ["noti_seq", "notiSeq"], "");
                 var period = (UX.value(row, ["start_dt", "startDt"], "") || "") + (UX.value(row, ["end_dt", "endDt"], "") ? " ~ " + UX.value(row, ["end_dt", "endDt"], "") : "");
                 var selectedClass = String(seq) === String(selectedNoticeSeq() || "") ? " class='notice-row selected'" : " class='notice-row'";
                 return "<tr" + selectedClass + " data-noti-seq='" + UX.esc(seq) + "'>"
-                    + "<td>" + Grid.textCell(seq) + "</td>"
+                    + "<td>" + Grid.textCell(index + 1) + "</td>"
                     + "<td>" + Grid.textCell(UX.value(row, ["noti_type_cd", "notiTypeCd"], "")) + "</td>"
                     + "<td>" + Grid.textCell(UX.value(row, ["title"], "")) + "</td>"
                     + "<td>" + Grid.textCell(period) + "</td>"
@@ -118,36 +95,23 @@
                         setSelectedNoticeSeq(seq);
                         app.callJson("/notice/detail.json", { noti_seq: seq }, function (data) {
                             if (data) fillForm(data);
-                        }).catch(function (e) { alert("상세 조회 실패: " + (e && e.message ? e.message : e)); });
+                        }).catch(function (e) {
+                            alert("상세 조회 실패: " + (e && e.message ? e.message : e));
+                        });
                     });
                 });
             }
         });
     }
 
-    function ensureListLoader() {
-        if (listLoader || !listView || !Grid.createChunkLoader) return;
-        listLoader = Grid.createChunkLoader({
-            pageSize: 100,
-            threshold: 120,
-            getScrollElement: function () {
-                return UX.qs("#noticeListWrap");
-            },
-            onData: function (result) {
-                renderTable(result.items || []);
-            }
-        });
+    function renderTable(list) {
+        var listView = listCtrl && listCtrl.ensureView();
+        if (listView) listView.setItems(list || []);
     }
 
-    function renderTable(list) { ensureListView(); if (listView) listView.setItems(list || []); }
-
     function loadList() {
-        ensureListView();
-        ensureListLoader();
         return app.callJson("/notice/list.json", {}, function (rows) {
-            var list = Array.isArray(rows) ? rows : [];
-            if (listLoader) listLoader.replaceItems(list);
-            else renderTable(list.slice(0, 100));
+            listCtrl.replaceItems(Array.isArray(rows) ? rows : []);
         });
     }
 
@@ -155,22 +119,28 @@
         var param = collectFormParam();
         if (!param.title) return alert("제목은 필수입니다.");
         if (param.start_dt && param.end_dt && param.start_dt > param.end_dt) return alert("시작일은 종료일보다 늦을 수 없습니다.");
+
         app.callJson("/notice/save.json", param, function () {
             loadList();
             clearForm();
             alert("저장 완료");
-        }).catch(function (e) { alert("저장 실패: " + (e && e.message ? e.message : e)); });
+        }).catch(function (e) {
+            alert("저장 실패: " + (e && e.message ? e.message : e));
+        });
     }
 
     function deleteNotice() {
         var seq = UX.numOrNull(UX.getValue("#noti_seq", formRoot()));
         if (!seq) return alert("삭제할 공지를 선택하세요.");
         if (!confirm("삭제하시겠습니까?")) return;
+
         app.callJson("/notice/delete.json", { noti_seq: seq }, function () {
             loadList();
             clearForm();
             alert("삭제 완료");
-        }).catch(function (e) { alert("삭제 실패: " + (e && e.message ? e.message : e)); });
+        }).catch(function (e) {
+            alert("삭제 실패: " + (e && e.message ? e.message : e));
+        });
     }
 
     function bind() {
@@ -183,18 +153,26 @@
 
     function init() {
         if (!UX.qs("#noticeListBody")) return;
-        resetViews();
+        if (listCtrl) listCtrl.destroy();
+        listCtrl = app.createChunkListController({
+            pageSize: 100,
+            threshold: 120,
+            createView: createListView,
+            getScrollElement: function () {
+                return UX.qs("#noticeListWrap");
+            },
+            applyItems: function (_view, items) {
+                renderTable(items);
+            }
+        });
+
         bind();
-        applyPerm();
-        ensureListView();
-        ensureListLoader();
+        app.applyPermission(pageRoot());
+        listCtrl.ensureView();
+        listCtrl.ensureLoader();
         clearForm();
         loadList();
     }
 
-    document.addEventListener("jsadmin:pageLoaded", function (e) {
-        if (e && e.detail && e.detail.url === "/notice/main.do") init();
-    });
-
-    try { init(); } catch (e) {}
+    app.bindPage("__NOTICE_PAGE_BOUND_V2__", "/notice/main.do", init);
 })(window);

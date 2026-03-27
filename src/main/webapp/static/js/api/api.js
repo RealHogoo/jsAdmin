@@ -4,20 +4,11 @@
     var UX = global.UX;
     var Grid = global.Grid;
     var app = global.app;
-
-    var listView = null;
-    var listLoader = null;
-    var eventsBound = false;
+    var listCtrl = null;
+    var tabEventsBound = false;
 
     function pageRoot() { return UX.qs("#apiPage") || document; }
     function formRoot() { return UX.qs("#apiForm") || document; }
-
-    function resetViews() {
-        if (listView && typeof listView.destroy === "function") listView.destroy();
-        if (listLoader && typeof listLoader.destroy === "function") listLoader.destroy();
-        listView = null;
-        listLoader = null;
-    }
 
     function currentApiType() {
         return UX.getValue("#api_type", formRoot()) || "EXTERNAL";
@@ -47,26 +38,11 @@
 
     function setSelectedApiSeq(apiSeq) {
         pageRoot().dataset.selectedApiSeq = apiSeq ? String(apiSeq) : "";
-        if (listView) listView.refresh();
+        if (listCtrl) listCtrl.refresh();
     }
 
     function selectedApiSeq() {
         return UX.numOrNull(pageRoot().dataset.selectedApiSeq);
-    }
-
-    function getPermLvl() {
-        var lvl = pageRoot().getAttribute("data-perm-lvl");
-        var num = UX.numOrNull(lvl);
-        return num === null || num === 0 ? null : num;
-    }
-
-    function applyPerm() {
-        var permLvl = getPermLvl();
-        if (permLvl === null) return;
-        UX.qsa("[data-perm-lvl]", pageRoot()).forEach(function (el) {
-            var need = UX.numOrNull(el.getAttribute("data-perm-lvl"));
-            if (need !== null) UX.setDisabled(el, permLvl < need);
-        });
     }
 
     function fillForm(row) {
@@ -85,14 +61,7 @@
     }
 
     function clearForm() {
-        UX.clearValues([
-            "api_seq",
-            "api_nm",
-            "caller_id",
-            "target_service",
-            "api_pattern",
-            "api_desc"
-        ], formRoot());
+        UX.clearValues(["api_seq", "api_nm", "caller_id", "target_service", "api_pattern", "api_desc"], formRoot());
         UX.setValue("#use_yn", "Y", formRoot());
         UX.setValue("#http_method", "GET", formRoot());
         UX.setValue("#api_type", currentApiType(), formRoot());
@@ -127,20 +96,18 @@
         return param;
     }
 
-    function ensureListView() {
+    function createListView() {
         var tbody = UX.qs("#apiListBody", pageRoot());
-        if (!tbody || listView) return;
+        if (!tbody) return null;
 
-        listView = Grid.createVirtualTable({
+        return Grid.createVirtualTable({
             tbody: tbody,
-            scroller: UX.qs("#apiListWrap", pageRoot()),
             colCount: 8,
-            rowHeight: 42,
             emptyHtml: "<tr><td colspan='8'>데이터가 없습니다.</td></tr>",
             renderRow: function (row, index) {
                 var apiSeq = UX.value(row, ["api_seq", "apiSeq"], "");
                 var selectedClass = String(apiSeq) === String(selectedApiSeq() || "") ? " class='api-row selected'" : " class='api-row'";
-                var useYn = UX.value(row, ["use_yn", "useYn"], "") === "Y" ? "\uC0AC\uC6A9" : "\uBBF8\uC0AC\uC6A9";
+                var useYn = UX.value(row, ["use_yn", "useYn"], "") === "Y" ? "사용" : "미사용";
                 return ""
                     + "<tr" + selectedClass + " data-api-seq='" + UX.esc(apiSeq) + "'>"
                     + "<td>" + Grid.textCell(index + 1) + "</td>"
@@ -157,7 +124,8 @@
                 UX.qsa("tr.api-row", tbody).forEach(function (tr) {
                     tr.addEventListener("click", function () {
                         var apiSeq = tr.getAttribute("data-api-seq");
-                        var found = listView.getItems().find(function (row) {
+                        var rows = listCtrl && listCtrl.getView() ? listCtrl.getView().getItems() : [];
+                        var found = rows.find(function (row) {
                             return String(UX.value(row, ["api_seq", "apiSeq"], "")) === String(apiSeq);
                         });
                         setSelectedApiSeq(apiSeq);
@@ -168,74 +136,55 @@
         });
     }
 
-    function ensureListLoader() {
-        if (listLoader || !listView || !Grid.createChunkLoader) return;
-        listLoader = Grid.createChunkLoader({
-            pageSize: 100,
-            threshold: 120,
-            getScrollElement: function () {
-                return UX.qs("#apiListWrap", pageRoot());
-            },
-            onData: function (result) {
-                renderTable(result.items || []);
-            }
-        });
-    }
-
     function renderTable(rows) {
-        ensureListView();
-        if (!listView) return;
-        listView.setItems(rows || []);
+        var listView = listCtrl && listCtrl.ensureView();
+        if (listView) listView.setItems(rows || []);
     }
 
     function loadList() {
-        ensureListView();
-        ensureListLoader();
         return app.callJson("/api/list.json", collectSearchParam(), function (rows) {
-            var list = Array.isArray(rows) ? rows : [];
-            if (listLoader) listLoader.replaceItems(list);
-            else renderTable(list.slice(0, 100));
+            listCtrl.replaceItems(Array.isArray(rows) ? rows : []);
         });
     }
 
     function saveApiPolicy() {
         var param = collectFormParam();
         if (!param.api_nm || !param.caller_id || !param.target_service || !param.api_pattern) {
-            global.alert("\uD544\uC218 \uD56D\uBAA9\uC744 \uC785\uB825\uD558\uC138\uC694.");
+            global.alert("필수 항목을 입력하세요.");
             return;
         }
 
         app.callJson("/api/save.json", param, function () {
             loadList().then(function () {
                 clearForm();
-                global.alert("\uC800\uC7A5 \uC644\uB8CC");
+                global.alert("저장 완료");
             });
         }).catch(function (e) {
             try { console.error("[api] save.error", e); } catch (ignore) {}
-            global.alert("\uC800\uC7A5 \uC2E4\uD328: " + (e && e.message ? e.message : e));
+            global.alert("저장 실패: " + (e && e.message ? e.message : e));
         });
     }
 
     function deleteApiPolicy() {
         var apiSeq = UX.numOrNull(UX.getValue("#api_seq", formRoot()));
         if (!apiSeq) {
-            global.alert("\uB300\uC0C1 \uC815\uCC45\uC744 \uC120\uD0DD\uD558\uC138\uC694.");
+            global.alert("대상 정책을 선택하세요.");
             return;
         }
-        if (!global.confirm("\uBBF8\uC0AC\uC6A9 \uCC98\uB9AC\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?")) return;
+        if (!global.confirm("미사용 처리하시겠습니까?")) return;
 
         app.callJson("/api/delete.json", { api_seq: apiSeq }, function () {
             loadList().then(function () {
                 clearForm();
-                global.alert("\uCC98\uB9AC \uC644\uB8CC");
+                global.alert("처리 완료");
             });
         }).catch(function (e) {
-            global.alert("\uCC98\uB9AC \uC2E4\uD328: " + (e && e.message ? e.message : e));
+            global.alert("처리 실패: " + (e && e.message ? e.message : e));
         });
     }
 
     function bind() {
-        if (!eventsBound) {
+        if (!tabEventsBound) {
             document.addEventListener("click", function (e) {
                 var target = e.target && e.target.nodeType === 1 ? e.target : (e.target && e.target.parentElement ? e.target.parentElement : null);
                 var tab = target && target.closest ? target.closest("#apiPage .tab[data-api-type]") : null;
@@ -245,33 +194,40 @@
                 clearForm();
                 loadList();
             });
-            eventsBound = true;
+            tabEventsBound = true;
         }
+
         UX.bindOnce(UX.qs("#btnApiSearch", pageRoot()), "click", function (e) { e.preventDefault(); loadList(); });
         UX.bindOnce(UX.qs("#btnApiSave", pageRoot()), "click", function (e) { e.preventDefault(); saveApiPolicy(); });
         UX.bindOnce(UX.qs("#btnApiDelete", pageRoot()), "click", function (e) { e.preventDefault(); deleteApiPolicy(); });
         UX.bindOnce(UX.qs("#btnApiNew", pageRoot()), "click", function (e) { e.preventDefault(); clearForm(); });
         UX.bindOnce(UX.qs("#btnApiRefresh", pageRoot()), "click", function (e) { e.preventDefault(); loadList(); });
+        app.bindEnterAction(UX.qs("#api_search_keyword", pageRoot()), loadList);
     }
 
     function init() {
         if (!UX.qs("#apiListBody", pageRoot())) return;
-        resetViews();
+        if (listCtrl) listCtrl.destroy();
+        listCtrl = app.createChunkListController({
+            pageSize: 100,
+            threshold: 120,
+            createView: createListView,
+            getScrollElement: function () {
+                return UX.qs("#apiListWrap", pageRoot());
+            },
+            applyItems: function (_view, items) {
+                renderTable(items);
+            }
+        });
+
         bind();
-        applyPerm();
+        app.applyPermission(pageRoot());
         setCurrentApiType(pageRoot().dataset.activeApiType || "EXTERNAL");
-        ensureListView();
-        ensureListLoader();
+        listCtrl.ensureView();
+        listCtrl.ensureLoader();
         clearForm();
         loadList();
     }
 
-    if (!global.__API_POLICY_PAGE_BOUND__) {
-        global.__API_POLICY_PAGE_BOUND__ = true;
-        document.addEventListener("jsadmin:pageLoaded", function (e) {
-            if (e && e.detail && e.detail.url === "/api/main.do") init();
-        });
-    }
-
-    try { init(); } catch (e) {}
+    app.bindPage("__API_POLICY_PAGE_BOUND_V2__", "/api/main.do", init);
 })(window);

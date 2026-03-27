@@ -4,9 +4,6 @@
     var UX = global.UX;
     var app = global.app;
 
-    if (global.__jsadminAuthBoundV2__ === true) return;
-    global.__jsadminAuthBoundV2__ = true;
-
     var userTabLoaded = false;
 
     function root() {
@@ -25,17 +22,6 @@
 
     function isFolderRow(row) {
         return !UX.normalizeText(row && row.menu_url);
-    }
-
-    function applyPerm() {
-        var page = root();
-        if (!page) return;
-        var permLvl = toNum(page.getAttribute("data-perm-lvl"), 0);
-        if (!permLvl) return;
-        UX.qsa("[data-perm-lvl]", page).forEach(function (el) {
-            var need = toNum(el.getAttribute("data-perm-lvl"), 0);
-            if (need) UX.setDisabled(el, permLvl < need);
-        });
     }
 
     function setSelected(targetType, seq, label) {
@@ -373,14 +359,7 @@
         UX.bindOnce(UX.qs("#btnUserExceptionSave", page), "click", saveUserExceptions);
 
         var kwInput = UX.qs("#userKeyword", page);
-        if (kwInput) {
-            kwInput.addEventListener("keydown", function (e) {
-                if (e.key === "Enter") {
-                    e.preventDefault();
-                    searchUsers();
-                }
-            });
-        }
+        app.bindEnterAction(kwInput, searchUsers);
     }
 
     function init() {
@@ -389,13 +368,8 @@
         userTabLoaded = false;
         bindTabs(page);
         bind(page);
-        applyPerm();
+        app.applyPermission(page);
         loadGroups();
     }
-
-    document.addEventListener("jsadmin:pageLoaded", function (e) {
-        if (e && e.detail && e.detail.url === "/auth/main.do") init();
-    });
-
-    try { init(); } catch (ignore) {}
+    app.bindPage("__AUTH_PAGE_BOUND_V3__", "/auth/main.do", init);
 })(window);

@@ -1,18 +1,10 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
 <div id="myPage" class="page-root" data-page-url="/mypage/main.do">
-    <div class="page-title-row">
-        <div class="page-title-group">
-            <h2 class="page-title">&#xb9c8;&#xc774;&#xd398;&#xc774;&#xc9c0;</h2>
-        </div>
-    </div>
-
-    <details class="page-help">
-        <summary><span class="page-help-toggle">?</span></summary>
-        <div class="page-help-body">
-            &#xb0b4; &#xacc4;&#xc815; &#xae30;&#xbcf8; &#xc815;&#xbcf4;&#xc640; &#xbe44;&#xbc00;&#xbc88;&#xd638;&#xb97c; &#xad00;&#xb9ac;&#xd569;&#xb2c8;&#xb2e4;.
-        </div>
-    </details>
+    <jsp:include page="/WEB-INF/jsp/common/page-header.jspf">
+        <jsp:param name="title" value="&#xb9c8;&#xc774;&#xd398;&#xc774;&#xc9c0;" />
+        <jsp:param name="help" value="&#xb0b4; &#xacc4;&#xc815; &#xae30;&#xbcf8; &#xc815;&#xbcf4;&#xc640; &#xbe44;&#xbc00;&#xbc88;&#xd638;&#xb97c; &#xad00;&#xb9ac;&#xd569;&#xb2c8;&#xb2e4;." />
+    </jsp:include>
 
     <div class="grid-2col">
         <section class="panel">

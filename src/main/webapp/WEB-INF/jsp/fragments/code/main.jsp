@@ -1,18 +1,10 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
 <div class="page-root" id="codePage" data-page-url="/code/main.do">
-    <div class="page-title-row">
-        <div class="page-title-group">
-            <h2 class="page-title">&#xcf54;&#xb4dc; &#xad00;&#xb9ac;</h2>
-        </div>
-    </div>
-
-    <details class="page-help">
-        <summary><span class="page-help-toggle">?</span></summary>
-        <div class="page-help-body">
-            &#xacf5;&#xd1b5; &#xcf54;&#xb4dc; &#xadf8;&#xb8f9;, &#xcf54;&#xb4dc;, &#xc815;&#xb82c; &#xc21c;&#xc11c;, &#xc0ac;&#xc6a9; &#xc5ec;&#xbd80;&#xb97c; &#xad00;&#xb9ac;&#xd569;&#xb2c8;&#xb2e4;.
-        </div>
-    </details>
+    <jsp:include page="/WEB-INF/jsp/common/page-header.jspf">
+        <jsp:param name="title" value="&#xcf54;&#xb4dc; &#xad00;&#xb9ac;" />
+        <jsp:param name="help" value="&#xacf5;&#xd1b5; &#xcf54;&#xb4dc; &#xadf8;&#xb8f9;, &#xcf54;&#xb4dc;, &#xc815;&#xb82c; &#xc21c;&#xc11c;, &#xc0ac;&#xc6a9; &#xc5ec;&#xbd80;&#xb97c; &#xad00;&#xb9ac;&#xd569;&#xb2c8;&#xb2e4;." />
+    </jsp:include>
 
     <div class="toolbar btns" role="toolbar" aria-label="page actions">
         <a href="#" class="btn" data-perm-lvl="1" id="btnCodeSearch" role="button">&#xc870;&#xd68c;</a>
@@ -85,4 +77,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/code/code.js?v=20260324_02"></script>
+<script src="${pageContext.request.contextPath}/static/js/code/code.js?v=20260328_01"></script>

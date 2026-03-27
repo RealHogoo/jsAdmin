@@ -11,6 +11,7 @@ import java.util.Map;
 public class ApiPolicyServiceImpl implements ApiPolicyService {
 
     private final ApiPolicyMapper apiPolicyMapper;
+    private volatile boolean schemaEnsured;
 
     public ApiPolicyServiceImpl(ApiPolicyMapper apiPolicyMapper) {
         this.apiPolicyMapper = apiPolicyMapper;
@@ -91,11 +92,20 @@ public class ApiPolicyServiceImpl implements ApiPolicyService {
     }
 
     private void ensureSchema() {
-        apiPolicyMapper.ensureApiPolicyTable();
-        apiPolicyMapper.ensureApiPolicySequence();
-        apiPolicyMapper.ensureApiPolicyIndex01();
-        apiPolicyMapper.ensureApiPolicyIndex02();
-        ensureSampleData();
+        if (schemaEnsured) {
+            return;
+        }
+        synchronized (this) {
+            if (schemaEnsured) {
+                return;
+            }
+            apiPolicyMapper.ensureApiPolicyTable();
+            apiPolicyMapper.ensureApiPolicySequence();
+            apiPolicyMapper.ensureApiPolicyIndex01();
+            apiPolicyMapper.ensureApiPolicyIndex02();
+            ensureSampleData();
+            schemaEnsured = true;
+        }
     }
 
     private void ensureSampleData() {

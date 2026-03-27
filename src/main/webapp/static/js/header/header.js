@@ -25,6 +25,11 @@
         return !!getToken().trim();
     }
 
+    function hasLoginState() {
+        var user = getLoginUser();
+        return hasToken() && !!(user && user.user_id);
+    }
+
     function updateAuthButton() {
         var btn = document.getElementById("authBtn");
         var myPageBtn = document.getElementById("myPageBtn");
@@ -33,7 +38,7 @@
 
         if (!btn) return;
 
-        if (hasToken()) {
+        if (hasLoginState()) {
             btn.textContent = LABEL_LOGOUT;
             btn.setAttribute("data-action", "logout");
             btn.removeAttribute("data-spa");
@@ -62,6 +67,31 @@
             if (myPageBtn) myPageBtn.style.display = "none";
             if (userLabel) userLabel.textContent = "";
         }
+    }
+
+    async function syncAuthState(url) {
+        var targetUrl = String(url || "").trim();
+        var onHome = targetUrl === "/home.do" || targetUrl === "/main.do" || !targetUrl;
+
+        if (!hasToken()) {
+            updateAuthButton();
+            return;
+        }
+
+        if (!onHome) {
+            updateAuthButton();
+            return;
+        }
+
+        if (window.app && typeof window.app.verifyAuth === "function") {
+            var valid = await window.app.verifyAuth();
+            if (!valid) {
+                updateAuthButton();
+                return;
+            }
+        }
+
+        updateAuthButton();
     }
 
     async function doLogout() {
@@ -110,8 +140,8 @@
         doLogout();
     });
 
-    document.addEventListener("jsadmin:pageLoaded", function () {
-        updateAuthButton();
+    document.addEventListener("jsadmin:pageLoaded", function (e) {
+        syncAuthState(e && e.detail ? e.detail.url : "");
         bindBrandClick();
     });
 
@@ -121,7 +151,7 @@
     });
 
     try {
-        updateAuthButton();
+        syncAuthState("");
         bindBrandClick();
     } catch (e) {}
 })(window);

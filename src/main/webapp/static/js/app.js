@@ -31,6 +31,12 @@
         }
     }
 
+    function destroyComponent(component) {
+        if (component && typeof component.destroy === "function") {
+            component.destroy();
+        }
+    }
+
     function ensureLoadingBar() {
         var bar = document.getElementById("appLoadingBar");
         if (bar) return bar;
@@ -79,6 +85,13 @@
             headers.Authorization = "Bearer " + token;
         }
         return headers;
+    }
+
+    function clearAuthState() {
+        if (UX.localRemove) {
+            UX.localRemove(["JWT", "LOGIN_USER", "LOGIN_SESSION_ID"]);
+        }
+        document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
     }
 
     async function executeScripts(rootEl) {
@@ -179,6 +192,36 @@
         return body.data;
     }
 
+    async function verifyAuth() {
+        var token = UX.localGet ? UX.localGet("JWT", "") : "";
+        if (!token) {
+            return false;
+        }
+
+        try {
+            var response = await fetch("/auth/ping.json", {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({}),
+                credentials: "same-origin"
+            });
+
+            if (response.status === 401) {
+                clearAuthState();
+                return false;
+            }
+            if (!response.ok) {
+                return false;
+            }
+
+            var text = await response.text();
+            var body = text && text.trim() ? JSON.parse(text) : null;
+            return !!(body && body.ok && body.data && body.data.user_id);
+        } catch (e) {
+            return false;
+        }
+    }
+
     async function loadPage(url, data, callback) {
         if (url === "/main.do" || url === "main.do") {
             url = "/home.do";
@@ -234,6 +277,137 @@
         return result;
     }
 
+    function bindPage(flagKey, url, init) {
+        if (flagKey && global[flagKey]) {
+            return;
+        }
+        if (flagKey) {
+            global[flagKey] = true;
+        }
+
+        document.addEventListener("jsadmin:pageLoaded", function (e) {
+            if (e && e.detail && e.detail.url === url) {
+                init();
+            }
+        });
+
+        try {
+            init();
+        } catch (ignore) {}
+    }
+
+    function createChunkListController(options) {
+        var createView = options && options.createView;
+        var getScrollElement = options && options.getScrollElement;
+        var applyItems = options && options.applyItems;
+        var pageSize = Number((options && options.pageSize) || 100);
+        var threshold = Number((options && options.threshold) || 120);
+        var view = null;
+        var loader = null;
+
+        if (typeof createView !== "function") {
+            throw new Error("createView is required");
+        }
+        if (typeof applyItems !== "function") {
+            throw new Error("applyItems is required");
+        }
+
+        function ensureView() {
+            if (!view) {
+                view = createView();
+            }
+            return view;
+        }
+
+        function ensureLoader() {
+            ensureView();
+            if (loader || !global.Grid || !global.Grid.createChunkLoader) {
+                return loader;
+            }
+            loader = global.Grid.createChunkLoader({
+                pageSize: pageSize,
+                threshold: threshold,
+                getScrollElement: function () {
+                    return typeof getScrollElement === "function"
+                        ? getScrollElement(ensureView())
+                        : null;
+                },
+                onData: function (result) {
+                    applyItems(ensureView(), result.items || []);
+                }
+            });
+            return loader;
+        }
+
+        function replaceItems(items) {
+            var safeItems = Array.isArray(items) ? items : [];
+            ensureView();
+            ensureLoader();
+            if (loader) {
+                loader.replaceItems(safeItems);
+            } else {
+                applyItems(view, safeItems.slice(0, pageSize));
+            }
+        }
+
+        function refresh() {
+            if (view && typeof view.refresh === "function") {
+                view.refresh();
+            }
+        }
+
+        function destroy() {
+            destroyComponent(loader);
+            destroyComponent(view);
+            loader = null;
+            view = null;
+        }
+
+        return {
+            ensureView: ensureView,
+            ensureLoader: ensureLoader,
+            replaceItems: replaceItems,
+            refresh: refresh,
+            destroy: destroy,
+            getView: function () { return view; },
+            getLoader: function () { return loader; }
+        };
+    }
+
+    function getPermLevel(root) {
+        var page = root || document;
+        var value = page && page.getAttribute ? page.getAttribute("data-perm-lvl") : null;
+        var num = UX && typeof UX.numOrNull === "function" ? UX.numOrNull(value) : null;
+        return num === null || num === 0 ? null : num;
+    }
+
+    function applyPermission(root) {
+        var page = root || document;
+        var permLvl = getPermLevel(page);
+        if (permLvl === null || !UX || typeof UX.qsa !== "function") {
+            return;
+        }
+        UX.qsa("[data-perm-lvl]", page).forEach(function (el) {
+            var need = UX.numOrNull(el.getAttribute("data-perm-lvl"));
+            if (need !== null && typeof UX.setDisabled === "function") {
+                UX.setDisabled(el, permLvl < need);
+            }
+        });
+    }
+
+    function bindEnterAction(input, handler) {
+        if (!input || input.dataset.enterBound === "1") {
+            return;
+        }
+        input.dataset.enterBound = "1";
+        input.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                handler();
+            }
+        });
+    }
+
     ensureFavicon();
 
     document.addEventListener("click", function (e) {
@@ -267,6 +441,14 @@
     app.callJson = callJson;
     app.requestJson = requestJson;
     app.requestHtml = requestHtml;
+    app.verifyAuth = verifyAuth;
+    app.clearAuthState = clearAuthState;
+    app.bindPage = bindPage;
+    app.createChunkListController = createChunkListController;
+    app.destroyComponent = destroyComponent;
+    app.getPermLevel = getPermLevel;
+    app.applyPermission = applyPermission;
+    app.bindEnterAction = bindEnterAction;
 
     SPA.load = loadPage;
     SPA.call = callJson;

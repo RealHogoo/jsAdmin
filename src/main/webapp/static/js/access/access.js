@@ -5,9 +5,6 @@
     var Grid = global.Grid;
     var app = global.app;
 
-    if (global.__ACCESS_PAGE_BOUND_V12__) return;
-    global.__ACCESS_PAGE_BOUND_V12__ = true;
-
     var sessionListView = null;
     var historyListView = null;
     var sessionLoader = null;
@@ -289,17 +286,8 @@
         UX.bindOnce(UX.qs("#btnSessionExpire", page), "click", function () { expireSelectedSession(); });
         UX.bindOnce(UX.qs("#btnSessionExpireUser", page), "click", function () { expireUserSessions(); });
         UX.bindOnce(UX.qs("#btnHistorySearch", page), "click", function () { loadHistoryList(); });
-
-        ["#sessionKeyword", "#historyKeyword"].forEach(function (sel) {
-            var input = UX.qs(sel, page);
-            if (!input) return;
-            input.addEventListener("keydown", function (e) {
-                if (e.key !== "Enter") return;
-                e.preventDefault();
-                if (sel === "#sessionKeyword") loadSessionList();
-                else loadHistoryList();
-            });
-        });
+        app.bindEnterAction(UX.qs("#sessionKeyword", page), loadSessionList);
+        app.bindEnterAction(UX.qs("#historyKeyword", page), loadHistoryList);
     }
 
     function init() {
@@ -314,9 +302,5 @@
         loadSessionList();
     }
 
-    document.addEventListener("jsadmin:pageLoaded", function (e) {
-        if (e && e.detail && e.detail.url === "/access/main.do") init();
-    });
-
-    try { init(); } catch (ignore) {}
+    app.bindPage("__ACCESS_PAGE_BOUND_V13__", "/access/main.do", init);
 })(window);
