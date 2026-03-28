@@ -20,35 +20,14 @@ public class AccessServiceImpl implements AccessService {
     private static final String STATUS_REVOKED = "REVOKED";
 
     private final AccessMapper accessMapper;
-    private volatile boolean schemaEnsured;
 
     public AccessServiceImpl(AccessMapper accessMapper) {
         this.accessMapper = accessMapper;
     }
 
-    private void ensureSchema() {
-        if (schemaEnsured) {
-            return;
-        }
-        synchronized (this) {
-            if (schemaEnsured) {
-                return;
-            }
-            accessMapper.ensureLoginSessionTable();
-            accessMapper.ensureLoginHistoryTable();
-            accessMapper.ensureLoginSessionSequence();
-            accessMapper.ensureLoginHistorySequence();
-            accessMapper.ensureLoginSessionIndex();
-            accessMapper.ensureLoginHistoryIndex();
-            accessMapper.ensureLoginHistoryConstraint();
-            schemaEnsured = true;
-        }
-    }
-
     @Override
     @Transactional
     public String openLoginSession(LoginUser user, HttpServletRequest request, Instant expiresAt) {
-        ensureSchema();
         if (user == null || user.getUserId() == null) {
             throw new IllegalArgumentException("login user is required");
         }
@@ -75,7 +54,6 @@ public class AccessServiceImpl implements AccessService {
 
     @Override
     public void recordLoginHistory(LoginUser user, String loginId, boolean success, String resultMessage, String sessionId, HttpServletRequest request) {
-        ensureSchema();
         String resultCd = "LOGOUT".equalsIgnoreCase(resultMessage)
             ? "LOGOUT"
             : (success ? "SUCCESS" : "FAIL");
@@ -132,7 +110,6 @@ public class AccessServiceImpl implements AccessService {
     @Override
     @Transactional
     public int expireSession(String sessionId, String actor) {
-        ensureSchema();
         if (sessionId == null || sessionId.trim().isEmpty()) {
             throw new IllegalArgumentException("session_id is required");
         }
@@ -142,7 +119,6 @@ public class AccessServiceImpl implements AccessService {
     @Override
     @Transactional
     public int expireSessionsByLoginId(String loginId, String actor) {
-        ensureSchema();
         if (loginId == null || loginId.trim().isEmpty()) {
             throw new IllegalArgumentException("login_id is required");
         }
@@ -152,7 +128,6 @@ public class AccessServiceImpl implements AccessService {
     @Override
     @Transactional
     public int logout(String sessionId, String actor, HttpServletRequest request) {
-        ensureSchema();
         if (sessionId == null || sessionId.trim().isEmpty()) {
             throw new IllegalArgumentException("session_id is required");
         }

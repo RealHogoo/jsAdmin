@@ -1,6 +1,7 @@
 package com.realhogoo.jsadmin.access.web;
 
 import com.realhogoo.jsadmin.access.service.AccessService;
+import com.realhogoo.jsadmin.auth.service.AuthService;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -15,9 +16,11 @@ import java.util.Map;
 public class AccessController {
 
     private final AccessService accessService;
+    private final AuthService authService;
 
-    public AccessController(AccessService accessService) {
+    public AccessController(AccessService accessService, AuthService authService) {
         this.accessService = accessService;
+        this.authService = authService;
     }
 
     @PostMapping("/access/main.do")
@@ -61,6 +64,7 @@ public class AccessController {
         String sessionId = stringValue(request.getAttribute("session_id"));
         String actor = stringValue(request.getAttribute("user_id"));
         int expired = accessService.logout(sessionId, actor, request);
+        authService.revokeRefreshTokensBySessionId(sessionId, actor);
         return ok(Collections.singletonMap("logout", expired));
     }
 

@@ -13,7 +13,7 @@
     var MSG_SERVER_ERROR = "\uC11C\uBC84 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4. \uC7A0\uC2DC \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.";
 
     function clearAuthStorage() {
-        UX.localRemove(["JWT", "LOGIN_USER", "LOGIN_SESSION_ID"]);
+        UX.localRemove(["JWT", "REFRESH_TOKEN", "LOGIN_USER", "LOGIN_SESSION_ID"]);
     }
 
     function setMsg(text, type) {
@@ -134,9 +134,14 @@
                 }
 
                 stopCountdown();
-                UX.localSet("JWT", res.data && res.data.token ? res.data.token : "");
-                UX.localSet("LOGIN_USER", JSON.stringify((res.data && res.data.user) ? res.data.user : {}));
-                UX.localSet("LOGIN_SESSION_ID", res.data && res.data.session_id ? res.data.session_id : "");
+                if (global.app && typeof global.app.storeAuthState === "function") {
+                    global.app.storeAuthState(res.data || {});
+                } else {
+                    UX.localSet("JWT", res.data && res.data.token ? res.data.token : "");
+                    UX.localSet("REFRESH_TOKEN", res.data && res.data.refresh_token ? res.data.refresh_token : "");
+                    UX.localSet("LOGIN_USER", JSON.stringify((res.data && res.data.user) ? res.data.user : {}));
+                    UX.localSet("LOGIN_SESSION_ID", res.data && res.data.session_id ? res.data.session_id : "");
+                }
 
                 setMsg(MSG_SUCCESS, "success");
                 document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));

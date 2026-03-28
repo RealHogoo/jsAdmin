@@ -5,17 +5,22 @@ import com.realhogoo.jsadmin.auth.config.SuperAdminProperties;
 import com.realhogoo.jsadmin.auth.dto.LoginUser;
 import com.realhogoo.jsadmin.auth.jwt.JwtProvider;
 import com.realhogoo.jsadmin.auth.mapper.AuthMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service("authService")
 public class AuthServiceImpl implements AuthService {
@@ -27,19 +32,22 @@ public class AuthServiceImpl implements AuthService {
     private final AccessService accessService;
     private final SuperAdminProperties superAdminProperties;
     private final PasswordEncoder passwordEncoder;
+    private final long refreshExpSeconds;
 
     public AuthServiceImpl(
         AuthMapper authMapper,
         JwtProvider jwtProvider,
         AccessService accessService,
         SuperAdminProperties superAdminProperties,
-        PasswordEncoder passwordEncoder
+        PasswordEncoder passwordEncoder,
+        @Value("${jwt.refresh-exp-seconds:1209600}") long refreshExpSeconds
     ) {
         this.authMapper = authMapper;
         this.jwtProvider = jwtProvider;
         this.accessService = accessService;
         this.superAdminProperties = superAdminProperties;
         this.passwordEncoder = passwordEncoder;
+        this.refreshExpSeconds = refreshExpSeconds;
     }
 
     @Override
@@ -151,8 +159,6 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional
     public Map<String, Object> login(String userId, String userPw, HttpServletRequest request) {
-        authMapper.ensureUserSecurityColumns();
-        authMapper.ensureUserSequence();
         String normalizedUserId = normalizeLoginId(userId);
 
         LoginUser user = authMapper.selectUserForLogin(normalizedUserId);
@@ -196,21 +202,76 @@ public class AuthServiceImpl implements AuthService {
             roles = Arrays.asList("ROLE_SUPER_ADMIN", "ROLE_ADMIN");
         }
 
-        String sessionId = accessService.openLoginSession(user, request, jwtProvider.getExpiresAt());
-        String token = jwtProvider.createToken(user.getUserId(), sessionId, roles);
-        accessService.recordLoginHistory(user, normalizedUserId, true, "LOGIN_SUCCESS", sessionId, request);
+        TokenBundle tokenBundle = issueTokens(user, roles, request, null);
+        accessService.recordLoginHistory(user, normalizedUserId, true, "LOGIN_SUCCESS", tokenBundle.sessionId, request);
 
-        Map<String, Object> userMap = new HashMap<String, Object>();
-        userMap.put("user_id", user.getUserId());
-        userMap.put("user_nm", user.getUserNm());
-        userMap.put("roles", roles);
-        userMap.put("super_admin", superAdminProperties.isSuperLoginId(user.getUserId()));
+        return ok(tokenResponse(user, roles, tokenBundle));
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> refresh(String refreshToken, HttpServletRequest request) {
+        if (refreshToken == null || refreshToken.trim().isEmpty()) {
+            return fail("UNAUTHORIZED", "refresh token is required");
+        }
+
+        String tokenHash = hashToken(refreshToken);
+        Map<String, Object> refreshRow = authMapper.selectActiveRefreshToken(tokenHash);
+        if (refreshRow == null || refreshRow.isEmpty()) {
+            return fail("UNAUTHORIZED", "invalid refresh token");
+        }
+
+        String sessionId = toNullableStr(refreshRow.get("session_id"));
+        String loginId = toNullableStr(refreshRow.get("login_id"));
+        String actor = loginId == null ? "SYSTEM" : loginId;
+        if (!accessService.touchSession(sessionId, new Date().toInstant())) {
+            authMapper.revokeRefreshToken(tokenHash, actor);
+            return fail("UNAUTHORIZED", "session expired");
+        }
+
+        LoginUser user = authMapper.selectUserForLogin(loginId);
+        if (user == null) {
+            authMapper.revokeRefreshToken(tokenHash, actor);
+            return fail("UNAUTHORIZED", "user not found");
+        }
+
+        List<String> roles = Arrays.asList("ROLE_ADMIN");
+        if (superAdminProperties.isSuperLoginId(user.getUserId())) {
+            roles = Arrays.asList("ROLE_SUPER_ADMIN", "ROLE_ADMIN");
+        }
+
+        authMapper.revokeRefreshToken(tokenHash, actor);
+        TokenBundle tokenBundle = issueTokens(user, roles, request, sessionId);
+        return ok(tokenResponse(user, roles, tokenBundle));
+    }
+
+    @Override
+    public Map<String, Object> me(String userId, List<String> roles, String sessionId) {
+        if (userId == null || userId.trim().isEmpty()) {
+            throw new IllegalArgumentException("login required");
+        }
+
+        LoginUser user = authMapper.selectUserForLogin(userId);
+        if (user == null) {
+            throw new IllegalArgumentException("user not found");
+        }
 
         Map<String, Object> data = new HashMap<String, Object>();
-        data.put("token", token);
+        data.put("user_id", user.getUserId());
+        data.put("user_nm", user.getUserNm());
+        data.put("roles", roles == null ? Collections.emptyList() : roles);
         data.put("session_id", sessionId);
-        data.put("user", userMap);
-        return ok(data);
+        data.put("super_admin", superAdminProperties.isSuperLoginId(user.getUserId()));
+        return data;
+    }
+
+    @Override
+    @Transactional
+    public int revokeRefreshTokensBySessionId(String sessionId, String actor) {
+        if (sessionId == null || sessionId.trim().isEmpty()) {
+            return 0;
+        }
+        return authMapper.revokeRefreshTokensBySessionId(sessionId.trim(), actor == null || actor.trim().isEmpty() ? "SYSTEM" : actor.trim());
     }
 
     private String normalizeLoginId(String userId) {
@@ -220,6 +281,60 @@ public class AuthServiceImpl implements AuthService {
             return trimmed;
         }
         return trimmed.toLowerCase();
+    }
+
+    private TokenBundle issueTokens(LoginUser user, List<String> roles, HttpServletRequest request, String existingSessionId) {
+        String sessionId = existingSessionId;
+        if (sessionId == null || sessionId.trim().isEmpty()) {
+            sessionId = accessService.openLoginSession(user, request, jwtProvider.getExpiresAt());
+        }
+
+        String accessToken = jwtProvider.createToken(user.getUserId(), sessionId, roles);
+        String refreshToken = UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", "");
+        Date refreshExpiresAt = new Date(System.currentTimeMillis() + (refreshExpSeconds * 1000L));
+
+        Map<String, Object> refreshParam = new HashMap<String, Object>();
+        refreshParam.put("user_seq", user.getUserSeq());
+        refreshParam.put("login_id", user.getUserId());
+        refreshParam.put("session_id", sessionId);
+        refreshParam.put("token_hash", hashToken(refreshToken));
+        refreshParam.put("expires_at", refreshExpiresAt);
+        refreshParam.put("created_by", user.getUserId());
+        authMapper.insertRefreshToken(refreshParam);
+
+        return new TokenBundle(accessToken, refreshToken, sessionId, refreshExpiresAt.getTime());
+    }
+
+    private Map<String, Object> tokenResponse(LoginUser user, List<String> roles, TokenBundle tokenBundle) {
+        Map<String, Object> userMap = new HashMap<String, Object>();
+        userMap.put("user_id", user.getUserId());
+        userMap.put("user_nm", user.getUserNm());
+        userMap.put("roles", roles);
+        userMap.put("super_admin", superAdminProperties.isSuperLoginId(user.getUserId()));
+
+        Map<String, Object> data = new HashMap<String, Object>();
+        data.put("token", tokenBundle.accessToken);
+        data.put("refresh_token", tokenBundle.refreshToken);
+        data.put("session_id", tokenBundle.sessionId);
+        data.put("refresh_expires_at", tokenBundle.refreshExpiresAt);
+        data.put("user", userMap);
+        return data;
+    }
+
+    private String hashToken(String token) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashed = digest.digest(String.valueOf(token).getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hashed);
+        } catch (Exception e) {
+            throw new IllegalStateException("failed to hash token", e);
+        }
+    }
+
+    private String toNullableStr(Object value) {
+        if (value == null) return null;
+        String s = String.valueOf(value).trim();
+        return s.isEmpty() ? null : s;
     }
 
     private PasswordCheckResult verifyPassword(String savedPassword, String rawPassword) {
@@ -359,6 +474,20 @@ public class AuthServiceImpl implements AuthService {
 
         private static PasswordCheckResult notMatched() {
             return new PasswordCheckResult(false, false);
+        }
+    }
+
+    private static final class TokenBundle {
+        private final String accessToken;
+        private final String refreshToken;
+        private final String sessionId;
+        private final long refreshExpiresAt;
+
+        private TokenBundle(String accessToken, String refreshToken, String sessionId, long refreshExpiresAt) {
+            this.accessToken = accessToken;
+            this.refreshToken = refreshToken;
+            this.sessionId = sessionId;
+            this.refreshExpiresAt = refreshExpiresAt;
         }
     }
 }

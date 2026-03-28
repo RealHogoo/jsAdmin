@@ -5,6 +5,7 @@
     var app = global.app || {};
     var SPA = global.jsAdminSpa || {};
     var loadingDepth = 0;
+    var refreshPromise = null;
 
     function ensureFavicon() {
         var head = document.head || document.getElementsByTagName("head")[0];
@@ -87,9 +88,19 @@
         return headers;
     }
 
+    function storeAuthState(data) {
+        var payload = data || {};
+        if (!UX.localSet) return;
+
+        UX.localSet("JWT", payload.token || "");
+        UX.localSet("REFRESH_TOKEN", payload.refresh_token || "");
+        UX.localSet("LOGIN_SESSION_ID", payload.session_id || "");
+        UX.localSet("LOGIN_USER", JSON.stringify(payload.user || {}));
+    }
+
     function clearAuthState() {
         if (UX.localRemove) {
-            UX.localRemove(["JWT", "LOGIN_USER", "LOGIN_SESSION_ID"]);
+            UX.localRemove(["JWT", "REFRESH_TOKEN", "LOGIN_USER", "LOGIN_SESSION_ID"]);
         }
         document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
     }
@@ -127,12 +138,16 @@
         return typeof url === "string" && url.toLowerCase().endsWith(".json");
     }
 
-    async function handleUnauthorized() {
-        if (UX.localRemove) {
-            UX.localRemove(["JWT", "LOGIN_USER", "LOGIN_SESSION_ID"]);
-        }
+    function isRefreshUrl(url) {
+        return String(url || "").toLowerCase().indexOf("/auth/refresh.json") >= 0;
+    }
 
-        document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+    function isLoginUrl(url) {
+        return String(url || "").toLowerCase().indexOf("/login.json") >= 0;
+    }
+
+    async function handleUnauthorized() {
+        clearAuthState();
 
         if (global.__JSADMIN_AUTH_REDIRECTING) return null;
 
@@ -147,6 +162,46 @@
             }
         }
         return null;
+    }
+
+    async function refreshAuth() {
+        var refreshToken = UX.localGet ? UX.localGet("REFRESH_TOKEN", "") : "";
+        if (!refreshToken) {
+            return false;
+        }
+
+        if (refreshPromise) {
+            return refreshPromise;
+        }
+
+        refreshPromise = fetch("/auth/refresh.json", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json; charset=UTF-8",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+            credentials: "same-origin"
+        }).then(async function (response) {
+            var text = await response.text();
+            var body = text && text.trim() ? JSON.parse(text) : null;
+
+            if (!response.ok || !body || body.ok !== true || !body.data || !body.data.token) {
+                clearAuthState();
+                return false;
+            }
+
+            storeAuthState(body.data);
+            document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+            return true;
+        }).catch(function () {
+            clearAuthState();
+            return false;
+        }).finally(function () {
+            refreshPromise = null;
+        });
+
+        return refreshPromise;
     }
 
     async function requestHtml(url, data) {
@@ -166,7 +221,8 @@
         return text;
     }
 
-    async function requestJson(url, data) {
+    async function requestJson(url, data, options) {
+        var opts = options || {};
         var response = await fetch(url, {
             method: "POST",
             headers: authHeaders(),
@@ -178,6 +234,14 @@
         var body = text && text.trim() ? JSON.parse(text) : null;
 
         if (response.status === 401) {
+            if (!opts.skipRefresh && !isRefreshUrl(url) && !isLoginUrl(url)) {
+                var refreshed = await refreshAuth();
+                if (refreshed) {
+                    return requestJson(url, data, {
+                        skipRefresh: true
+                    });
+                }
+            }
             return handleUnauthorized();
         }
         if (!response.ok) {
@@ -443,6 +507,8 @@
     app.requestHtml = requestHtml;
     app.verifyAuth = verifyAuth;
     app.clearAuthState = clearAuthState;
+    app.storeAuthState = storeAuthState;
+    app.refreshAuth = refreshAuth;
     app.bindPage = bindPage;
     app.createChunkListController = createChunkListController;
     app.destroyComponent = destroyComponent;

@@ -8,10 +8,6 @@ import java.util.Map;
 
 @Mapper("userMapper")
 public interface UserMapper {
-    int ensureUserSecurityColumns();
-
-    int ensureUserSequence();
-
     List<Map<String, Object>> selectUserList(Map<String, Object> param);
 
     Map<String, Object> selectUserDetail(@Param("userSeq") Long userSeq);

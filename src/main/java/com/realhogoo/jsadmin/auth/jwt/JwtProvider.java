@@ -37,6 +37,7 @@ public class JwtProvider {
         return JWT.create()
             .withIssuer(issuer)
             .withSubject(userId)
+            .withJWTId(UUID.randomUUID().toString())
             .withClaim("session_id", safeSessionId)
             .withIssuedAt(Date.from(now))
             .withExpiresAt(Date.from(exp))

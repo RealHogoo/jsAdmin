@@ -33,10 +33,6 @@ public interface AuthMapper {
 
     int deleteUserException(@Param("userSeq") Long userSeq, @Param("menuSeq") Long menuSeq);
 
-    int ensureUserSecurityColumns();
-
-    int ensureUserSequence();
-
     int updateLoginFailState(Map<String, Object> param);
 
     int resetLoginFailState(@Param("userSeq") Long userSeq, @Param("updatedBy") String updatedBy);
@@ -48,4 +44,12 @@ public interface AuthMapper {
     int upgradePasswordHash(@Param("userSeq") Long userSeq, @Param("pwdHash") String pwdHash, @Param("updatedBy") String updatedBy);
 
     LoginUser selectUserForLogin(@Param("user_id") String userId);
+
+    int insertRefreshToken(Map<String, Object> param);
+
+    Map<String, Object> selectActiveRefreshToken(@Param("tokenHash") String tokenHash);
+
+    int revokeRefreshToken(@Param("tokenHash") String tokenHash, @Param("updatedBy") String updatedBy);
+
+    int revokeRefreshTokensBySessionId(@Param("sessionId") String sessionId, @Param("updatedBy") String updatedBy);
 }

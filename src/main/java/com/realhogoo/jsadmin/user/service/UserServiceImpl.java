@@ -16,7 +16,6 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final SuperAdminProperties superAdminProperties;
     private final PasswordEncoder passwordEncoder;
-    private volatile boolean schemaEnsured;
 
     public UserServiceImpl(UserMapper userMapper, SuperAdminProperties superAdminProperties, PasswordEncoder passwordEncoder) {
         this.userMapper = userMapper;
@@ -24,29 +23,13 @@ public class UserServiceImpl implements UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    private void ensureSchema() {
-        if (schemaEnsured) {
-            return;
-        }
-        synchronized (this) {
-            if (schemaEnsured) {
-                return;
-            }
-            userMapper.ensureUserSecurityColumns();
-            userMapper.ensureUserSequence();
-            schemaEnsured = true;
-        }
-    }
-
     @Override
     public List<Map<String, Object>> getUserList(Map<String, Object> param) {
-        ensureSchema();
         return userMapper.selectUserList(param == null ? new HashMap<String, Object>() : param);
     }
 
     @Override
     public Map<String, Object> getUserDetail(Long userSeq) {
-        ensureSchema();
         if (userSeq == null) {
             throw new IllegalArgumentException("user_seq is required");
         }
@@ -56,7 +39,6 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public Long saveUser(Map<String, Object> param, String actor) {
-        ensureSchema();
         if (param == null) {
             throw new IllegalArgumentException("param is required");
         }
@@ -126,7 +108,6 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public int deactivateUser(Long userSeq, String actor) {
-        ensureSchema();
         if (userSeq == null) {
             throw new IllegalArgumentException("user_seq is required");
         }
@@ -139,7 +120,6 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public int unlockUser(Long userSeq, String actor) {
-        ensureSchema();
         if (userSeq == null) {
             throw new IllegalArgumentException("user_seq is required");
         }
@@ -152,7 +132,6 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public int resetPassword(Long userSeq, String actor) {
-        ensureSchema();
         if (userSeq == null) {
             throw new IllegalArgumentException("user_seq is required");
         }
@@ -170,7 +149,6 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Map<String, Object> getMyProfile(String loginId) {
-        ensureSchema();
         String safeLoginId = toNullableStr(loginId);
         if (safeLoginId == null) {
             throw new IllegalArgumentException("login_id is required");
@@ -185,7 +163,6 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public int updateMyProfile(String loginId, Map<String, Object> param, String actor) {
-        ensureSchema();
         String safeLoginId = toNullableStr(loginId);
         String userNm = toNullableStr(param == null ? null : param.get("user_nm"));
         if (safeLoginId == null) {
@@ -205,7 +182,6 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public int changeMyPassword(String loginId, String currentPassword, String newPassword, String actor) {
-        ensureSchema();
         String safeLoginId = toNullableStr(loginId);
         String safeCurrentPassword = toNullableStr(currentPassword);
         String safeNewPassword = toNullableStr(newPassword);

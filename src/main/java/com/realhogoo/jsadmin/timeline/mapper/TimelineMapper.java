@@ -7,9 +7,6 @@ import java.util.Map;
 
 @Mapper("timelineMapper")
 public interface TimelineMapper {
-    int ensureTimelineTable();
-    int ensureTimelineSequence();
-    int ensureTimelineIndex();
     List<Map<String, Object>> selectTimelineList(Map<String, Object> param);
     Map<String, Object> selectTimelineDetail(Long timelineSeq);
     int insertTimeline(Map<String, Object> param);

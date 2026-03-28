@@ -11,7 +11,6 @@ import java.util.Map;
 public class ApiPolicyServiceImpl implements ApiPolicyService {
 
     private final ApiPolicyMapper apiPolicyMapper;
-    private volatile boolean schemaEnsured;
 
     public ApiPolicyServiceImpl(ApiPolicyMapper apiPolicyMapper) {
         this.apiPolicyMapper = apiPolicyMapper;
@@ -19,7 +18,6 @@ public class ApiPolicyServiceImpl implements ApiPolicyService {
 
     @Override
     public List<Map<String, Object>> selectApiPolicyList(Map<String, Object> param) {
-        ensureSchema();
         Map<String, Object> p = param == null ? new HashMap<String, Object>() : new HashMap<String, Object>(param);
         p.put("api_type", normalizeApiType(p.get("api_type")));
         p.put("use_yn", normalizeUseYn(p.get("use_yn"), ""));
@@ -29,7 +27,6 @@ public class ApiPolicyServiceImpl implements ApiPolicyService {
 
     @Override
     public Long saveApiPolicy(Map<String, Object> param, String userId) {
-        ensureSchema();
         if (param == null) {
             throw new IllegalArgumentException("param is required");
         }
@@ -78,7 +75,6 @@ public class ApiPolicyServiceImpl implements ApiPolicyService {
 
     @Override
     public int deleteApiPolicy(Long apiSeq, String userId) {
-        ensureSchema();
         if (apiSeq == null) {
             throw new IllegalArgumentException("api_seq is required");
         }
@@ -89,23 +85,6 @@ public class ApiPolicyServiceImpl implements ApiPolicyService {
         p.put("api_seq", apiSeq);
         p.put("updated_by", actor);
         return apiPolicyMapper.deleteApiPolicy(p);
-    }
-
-    private void ensureSchema() {
-        if (schemaEnsured) {
-            return;
-        }
-        synchronized (this) {
-            if (schemaEnsured) {
-                return;
-            }
-            apiPolicyMapper.ensureApiPolicyTable();
-            apiPolicyMapper.ensureApiPolicySequence();
-            apiPolicyMapper.ensureApiPolicyIndex01();
-            apiPolicyMapper.ensureApiPolicyIndex02();
-            ensureSampleData();
-            schemaEnsured = true;
-        }
     }
 
     private void ensureSampleData() {

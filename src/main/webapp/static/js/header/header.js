@@ -101,11 +101,15 @@
             }
         } catch (e) {}
 
-        try { localStorage.removeItem("JWT"); } catch (e) {}
-        try { localStorage.removeItem("LOGIN_USER"); } catch (e) {}
-        try { localStorage.removeItem("LOGIN_SESSION_ID"); } catch (e) {}
-
-        document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+        if (window.app && typeof window.app.clearAuthState === "function") {
+            window.app.clearAuthState();
+        } else {
+            try { localStorage.removeItem("JWT"); } catch (e) {}
+            try { localStorage.removeItem("REFRESH_TOKEN"); } catch (e) {}
+            try { localStorage.removeItem("LOGIN_USER"); } catch (e) {}
+            try { localStorage.removeItem("LOGIN_SESSION_ID"); } catch (e) {}
+            document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+        }
 
         if (window.jsAdminSpa && typeof window.jsAdminSpa.load === "function") {
             await window.jsAdminSpa.load("/login.do");

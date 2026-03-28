@@ -21,4 +21,10 @@ public interface AuthService {
     void deleteUserException(Long userSeq, Long menuSeq);
 
     Map<String, Object> login(String userId, String userPw, HttpServletRequest request);
+
+    Map<String, Object> refresh(String refreshToken, HttpServletRequest request);
+
+    Map<String, Object> me(String userId, List<String> roles, String sessionId);
+
+    int revokeRefreshTokensBySessionId(String sessionId, String actor);
 }

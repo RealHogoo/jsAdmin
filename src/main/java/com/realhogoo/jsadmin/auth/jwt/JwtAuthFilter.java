@@ -34,6 +34,7 @@ public class JwtAuthFilter implements Filter {
 
     private static final Set<String> PERMIT = new HashSet<String>(Arrays.asList(
         "/login.json",
+        "/auth/refresh.json",
         "/health/status.json",
         "/menu/tree.json",
         "/home/intro.json",

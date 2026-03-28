@@ -8,11 +8,6 @@ import java.util.Map;
 
 @Mapper("apiPolicyMapper")
 public interface ApiPolicyMapper {
-    int ensureApiPolicyTable();
-    int ensureApiPolicySequence();
-    int ensureApiPolicyIndex01();
-    int ensureApiPolicyIndex02();
-
     int countApiPolicyAll();
     List<Map<String, Object>> selectApiPolicyList(Map<String, Object> param);
     int countDupApiPolicy(@Param("api_type") String apiType,

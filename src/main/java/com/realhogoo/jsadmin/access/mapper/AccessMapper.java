@@ -9,20 +9,6 @@ import java.util.Map;
 
 @Mapper("accessMapper")
 public interface AccessMapper {
-    int ensureLoginSessionTable();
-
-    int ensureLoginHistoryTable();
-
-    int ensureLoginSessionSequence();
-
-    int ensureLoginHistorySequence();
-
-    int ensureLoginSessionIndex();
-
-    int ensureLoginHistoryIndex();
-
-    int ensureLoginHistoryConstraint();
-
     int insertLoginHistory(Map<String, Object> param);
 
     int insertLoginSession(Map<String, Object> param);

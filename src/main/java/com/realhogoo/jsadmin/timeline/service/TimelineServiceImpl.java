@@ -11,7 +11,6 @@ import java.util.Map;
 public class TimelineServiceImpl implements TimelineService {
 
     private final TimelineMapper timelineMapper;
-    private volatile boolean schemaEnsured;
 
     public TimelineServiceImpl(TimelineMapper timelineMapper) {
         this.timelineMapper = timelineMapper;
@@ -19,7 +18,6 @@ public class TimelineServiceImpl implements TimelineService {
 
     @Override
     public List<Map<String, Object>> selectTimelineList(Map<String, Object> param) {
-        ensureSchema();
         Map<String, Object> p = param == null ? new HashMap<String, Object>() : new HashMap<String, Object>(param);
         Integer reqPage = toIntOrNull(p.get("page"));
         Integer reqSize = toIntOrNull(p.get("size"));
@@ -37,7 +35,6 @@ public class TimelineServiceImpl implements TimelineService {
 
     @Override
     public Map<String, Object> selectTimelineDetail(Long timelineSeq) {
-        ensureSchema();
         if (timelineSeq == null) {
             throw new IllegalArgumentException("timeline_seq is required");
         }
@@ -46,7 +43,6 @@ public class TimelineServiceImpl implements TimelineService {
 
     @Override
     public Long saveTimeline(Map<String, Object> param, String userId) {
-        ensureSchema();
         if (param == null) {
             throw new IllegalArgumentException("param is required");
         }
@@ -85,7 +81,6 @@ public class TimelineServiceImpl implements TimelineService {
 
     @Override
     public int deleteTimeline(Long timelineSeq, String userId) {
-        ensureSchema();
         if (timelineSeq == null) {
             throw new IllegalArgumentException("timeline_seq is required");
         }
@@ -97,21 +92,6 @@ public class TimelineServiceImpl implements TimelineService {
         p.put("timeline_seq", timelineSeq);
         p.put("updated_by", actor);
         return timelineMapper.deleteTimeline(p);
-    }
-
-    private void ensureSchema() {
-        if (schemaEnsured) {
-            return;
-        }
-        synchronized (this) {
-            if (schemaEnsured) {
-                return;
-            }
-            timelineMapper.ensureTimelineTable();
-            timelineMapper.ensureTimelineSequence();
-            timelineMapper.ensureTimelineIndex();
-            schemaEnsured = true;
-        }
     }
 
     private String toStrOrNull(Object v) {

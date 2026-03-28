@@ -93,6 +93,23 @@ public class AuthController {
         return ok(Collections.singletonMap("deleted", 1));
     }
 
+    @PostMapping("/refresh.json")
+    @ResponseBody
+    public Map<String, Object> refresh(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
+        String refreshToken = body == null ? null : toStringValue(firstNonNull(body, "refresh_token", "refreshToken"));
+        return authService.refresh(refreshToken, request);
+    }
+
+    @PostMapping("/me.json")
+    @ResponseBody
+    public Map<String, Object> me(HttpServletRequest request) {
+        String userId = toStringValue(request.getAttribute("user_id"));
+        String sessionId = toStringValue(request.getAttribute("session_id"));
+        @SuppressWarnings("unchecked")
+        List<String> roles = (List<String>) request.getAttribute("roles");
+        return ok(authService.me(userId, roles, sessionId));
+    }
+
     private Map<String, Object> ok(Object data) {
         Map<String, Object> res = new HashMap<>();
         res.put("ok", true);
@@ -114,5 +131,11 @@ public class AuthController {
             if (v != null) return v;
         }
         return null;
+    }
+
+    private String toStringValue(Object v) {
+        if (v == null) return null;
+        String s = String.valueOf(v).trim();
+        return s.isEmpty() ? null : s;
     }
 }
