@@ -1,6 +1,6 @@
 # admin-service
 
-관리자 포털, 공통 로그인 게이트웨이, 운영 화면을 제공하는 `Spring Boot + JSP + MyBatis + Oracle` 기반 서비스입니다.
+관리자 포털, 공통 코드, 메뉴, 권한, 공지, 타임라인, 접속 이력 등을 제공하는 `Spring Boot + JSP + MyBatis` 기반 서비스입니다.
 
 ## 현재 범위
 
@@ -12,53 +12,66 @@
 - 공지사항 관리
 - 타임라인 관리
 - 접속 관리
-  - 현재 세션
-  - 로그인 이력
 - API 정책 관리
 - 마이페이지
-- 서비스 상태 확인
+- 서비스 상태 점검
 
-## 핵심 기술
+## 기술 스택
 
 - Java 17
 - Spring Boot 2.7
 - JSP
 - MyBatis
-- Oracle
+- Oracle / PostgreSQL 전환 가능 구조
 - JWT (`java-jwt`)
 - BCrypt
 
-## 인증 구조
+## 주요 엔드포인트
 
 - 로그인: `/login.json`
 - 토큰 상태 확인: `/auth/ping.json`
 - 내 정보: `/auth/me.json`
-- refresh: `/auth/refresh.json`
+- 토큰 갱신: `/auth/refresh.json`
 - 로그아웃: `/logout.json`
 
-JWT access token은 각 요청에서 직접 검증하고, refresh token은 서버 테이블에서 회전 관리합니다.
+Access token은 요청마다 직접 검증하고, refresh token은 서버 테이블에 저장해 회전 관리합니다.
 
-## 실행 설정
+## 설정
 
-`src/main/resources/app.properties`
+핵심 설정은 `src/main/resources/app.properties` 에 있습니다.
 
 ```properties
+asset.version=${ASSET_VERSION:20260329}
+app.db.vendor=${APP_DB_VENDOR:oracle}
 jwt.secret=${JWT_SECRET:jsadmin-local-dev-secret-20260327-change-before-prod}
 jwt.issuer=jsAdmin
 jwt.exp_seconds=${JWT_EXP_SECONDS:3600}
 auth.super.login-id=ADMIN
 ```
 
-개발 중 access token 만료를 짧게 보고 싶으면:
+DB 연결 정보는 벤더별 파일로 분리돼 있습니다.
+
+- `src/main/resources/db/oracle.properties`
+- `src/main/resources/db/postgres.properties`
+
+## 실행 예시
+
+```powershell
+$env:SERVER_PORT="8082"
+$env:APP_DB_VENDOR="oracle"
+.\gradlew.bat bootRun
+```
+
+토큰 만료를 짧게 보고 싶으면:
 
 ```powershell
 $env:JWT_EXP_SECONDS="10"
 .\gradlew.bat bootRun
 ```
 
-운영에서는 반드시 `JWT_SECRET`를 환경변수로 주입해야 합니다.
+운영에서는 `JWT_SECRET`, DB 접속 정보, `APP_DB_VENDOR`를 환경변수로 주입하는 것을 권장합니다.
 
-## 주요 문서
+## 문서
 
 - `docs/admin-service.md`
 - `docs/auth/auth.md`
@@ -66,7 +79,7 @@ $env:JWT_EXP_SECONDS="10"
 - `docs/menu/menu.md`
 - `docs/role/role.md`
 
-## 비고
+## 참고
 
-- `target/` 아래 문서는 빌드 산출물 복사본입니다.
-- 실제 수정 대상은 `docs/` 아래 문서입니다.
+- `docs/sqls/oracle`, `docs/sqls/postgres` 에 DB별 SQL이 분리돼 있습니다.
+- 정적 리소스 버전은 `asset.version` 또는 `ASSET_VERSION`으로 관리합니다.

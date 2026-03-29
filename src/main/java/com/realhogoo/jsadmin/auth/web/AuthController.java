@@ -16,6 +16,9 @@ import java.util.Map;
 @Controller
 @RequestMapping("/auth")
 public class AuthController {
+    private static final int MAX_KEYWORD_LENGTH = 100;
+    private static final int MAX_LOGIN_ID_LENGTH = 100;
+    private static final int MAX_REFRESH_TOKEN_LENGTH = 128;
 
     private final AuthService authService;
 
@@ -32,6 +35,7 @@ public class AuthController {
     @ResponseBody
     public Map<String, Object> groupList(@RequestBody(required = false) Map<String, Object> body) {
         if (body == null) body = new HashMap<>();
+        validateLength("keyword", toStringValue(body.get("keyword")), MAX_KEYWORD_LENGTH);
         return ok(authService.getAuthGroupList(body));
     }
 
@@ -62,6 +66,7 @@ public class AuthController {
     @PostMapping("/user/search.json")
     @ResponseBody
     public Map<String, Object> searchUsers(@RequestBody Map<String, Object> body) {
+        validateLength("keyword", toStringValue(body == null ? null : body.get("keyword")), MAX_KEYWORD_LENGTH);
         return ok(authService.searchUsers(body));
     }
 
@@ -97,6 +102,7 @@ public class AuthController {
     @ResponseBody
     public Map<String, Object> refresh(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
         String refreshToken = body == null ? null : toStringValue(firstNonNull(body, "refresh_token", "refreshToken"));
+        validateLength("refresh_token", refreshToken, MAX_REFRESH_TOKEN_LENGTH);
         return authService.refresh(refreshToken, request);
     }
 
@@ -137,5 +143,11 @@ public class AuthController {
         if (v == null) return null;
         String s = String.valueOf(v).trim();
         return s.isEmpty() ? null : s;
+    }
+
+    private void validateLength(String field, String value, int maxLength) {
+        if (value != null && value.length() > maxLength) {
+            throw new IllegalArgumentException(field + " length must be " + maxLength + " or less");
+        }
     }
 }

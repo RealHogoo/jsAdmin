@@ -32,6 +32,17 @@
         });
     }
 
+    function value(obj, keys) {
+        var source = obj || {};
+        for (var i = 0; i < keys.length; i++) {
+            var key = keys[i];
+            if (source[key] !== undefined && source[key] !== null) {
+                return source[key];
+            }
+        }
+        return null;
+    }
+
     function toSpaUrl(url) {
         if (!url) return "";
         var s = String(url).trim();
@@ -65,11 +76,11 @@
     }
 
     function renderNode(node) {
-        var name = esc(node.menuNm);
-        var url = toSpaUrl(node.menuUrl);
-        var children = Array.isArray(node.children) ? node.children : [];
+        var name = esc(value(node, ["menuNm", "menu_nm"]));
+        var url = toSpaUrl(value(node, ["menuUrl", "menu_url"]));
+        var children = Array.isArray(value(node, ["children"])) ? value(node, ["children"]) : [];
         var iconHtml = MenuIconCatalog && typeof MenuIconCatalog.render === "function"
-            ? MenuIconCatalog.render(node.iconClass)
+            ? MenuIconCatalog.render(value(node, ["iconClass", "icon_class"]))
             : "";
 
         // app.js 규칙에 맞춰 a[data-spa] 링크 생성
@@ -82,7 +93,7 @@
             childrenHtml = '<ul class="menu-children">' + children.map(renderNode).join("") + "</ul>";
         }
 
-        return '<li class="menu-item" data-menu-seq="' + esc(node.menuSeq) + '">' + label + childrenHtml + "</li>";
+        return '<li class="menu-item" data-menu-seq="' + esc(value(node, ["menuSeq", "menu_seq"])) + '">' + label + childrenHtml + "</li>";
     }
 
     function normalizePageUrl(url) {
@@ -98,8 +109,8 @@
         var prefix = Array.isArray(trail) ? trail : [];
         for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            var nextTrail = prefix.concat([node.menuNm]);
-            var spaUrl = normalizePageUrl(toSpaUrl(node.menuUrl));
+            var nextTrail = prefix.concat([value(node, ["menuNm", "menu_nm"])]);
+            var spaUrl = normalizePageUrl(toSpaUrl(value(node, ["menuUrl", "menu_url"])));
             if (spaUrl && spaUrl === targetUrl) {
                 return nextTrail;
             }

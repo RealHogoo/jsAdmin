@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.auth.mapper.AuthMapper">
+
+    <select id="selectAuthGroupList" parameterType="map" resultType="map">
+        SELECT ag.auth_group_seq, ag.auth_group_cd, ag.auth_group_nm, ag.auth_group_desc, ag.use_yn
+        FROM adm_auth_group ag
+        WHERE 1=1
+        <if test="keyword != null and keyword != ''">
+            AND (ag.auth_group_nm LIKE '%' || #{keyword} || '%' OR ag.auth_group_cd LIKE '%' || #{keyword} || '%')
+        </if>
+        ORDER BY ag.auth_group_seq
+    </select>
+
+    <select id="selectGroupMenuPermList" parameterType="long" resultType="map">
+        WITH RECURSIVE menu_tree AS (
+            SELECT
+                m.menu_seq, m.up_menu_seq, m.menu_nm, m.menu_url, m.menu_type_cd, m.icon_class, m.sort_ord, m.use_yn,
+                1 AS tree_lvl,
+                LPAD(COALESCE(m.sort_ord, 0)::text, 10, '0') || ':' || LPAD(m.menu_seq::text, 20, '0') AS sort_path
+            FROM adm_menu_mst m
+            WHERE m.use_yn = 'Y' AND m.up_menu_seq IS NULL
+            UNION ALL
+            SELECT
+                c.menu_seq, c.up_menu_seq, c.menu_nm, c.menu_url, c.menu_type_cd, c.icon_class, c.sort_ord, c.use_yn,
+                p.tree_lvl + 1,
+                p.sort_path || '/' || LPAD(COALESCE(c.sort_ord, 0)::text, 10, '0') || ':' || LPAD(c.menu_seq::text, 20, '0')
+            FROM adm_menu_mst c
+            JOIN menu_tree p ON p.menu_seq = c.up_menu_seq
+            WHERE c.use_yn = 'Y'
+        )
+        SELECT
+            mt.menu_seq, mt.up_menu_seq, mt.menu_nm, mt.menu_url, mt.menu_type_cd, mt.icon_class, mt.sort_ord, mt.use_yn, mt.tree_lvl,
+            CASE WHEN COALESCE(aam.use_yn, 'N') = 'Y' THEN COALESCE(aam.perm_lvl, 0) ELSE 0 END AS perm_lvl,
+            COALESCE(aam.use_yn, 'N') AS map_use_yn
+        FROM menu_tree mt
+        LEFT JOIN adm_auth_menu aam
+          ON aam.auth_group_seq = #{authGroupSeq}
+         AND aam.menu_seq = mt.menu_seq
+        ORDER BY mt.sort_path
+    </select>
+
+    <update id="disableAllGroupMenuPerm" parameterType="map">
+        UPDATE adm_auth_menu
+           SET use_yn = 'N',
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE auth_group_seq = #{auth_group_seq}
+    </update>
+
+    <update id="disableGroupMenuPerm" parameterType="map">
+        UPDATE adm_auth_menu
+           SET perm_lvl = 0,
+               use_yn = 'N',
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE auth_group_seq = #{auth_group_seq}
+           AND menu_seq = #{menu_seq}
+    </update>
+
+    <update id="updateGroupMenuPerm" parameterType="map">
+        UPDATE adm_auth_menu
+           SET perm_lvl = #{perm_lvl},
+               use_yn = #{use_yn},
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE auth_group_seq = #{auth_group_seq}
+           AND menu_seq = #{menu_seq}
+    </update>
+
+    <insert id="insertGroupMenuPerm" parameterType="map">
+        INSERT INTO adm_auth_menu (
+            auth_group_seq, menu_seq, perm_lvl, use_yn, created_at, created_by, updated_at, updated_by
+        ) VALUES (
+            #{auth_group_seq}, #{menu_seq}, #{perm_lvl}, #{use_yn},
+            CURRENT_TIMESTAMP, #{created_by}, CURRENT_TIMESTAMP, #{updated_by}
+        )
+    </insert>
+
+    <update id="upsertGroupMenuPerm" parameterType="map">
+        INSERT INTO adm_auth_menu (
+            auth_group_seq, menu_seq, perm_lvl, use_yn, created_at, created_by, updated_at, updated_by
+        ) VALUES (
+            #{auth_group_seq}, #{menu_seq}, #{perm_lvl}, #{use_yn},
+            CURRENT_TIMESTAMP, #{created_by}, CURRENT_TIMESTAMP, #{updated_by}
+        )
+        ON CONFLICT (auth_group_seq, menu_seq) DO UPDATE
+           SET perm_lvl = EXCLUDED.perm_lvl,
+               use_yn = EXCLUDED.use_yn,
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = EXCLUDED.updated_by
+    </update>
+
+    <select id="searchUsers" parameterType="map" resultType="map">
+        SELECT u.user_seq, u.login_id, u.user_nm, u.use_yn
+        FROM adm_user_mst u
+        WHERE u.use_yn = 'Y'
+        <if test="keyword != null and keyword != ''">
+            AND (u.login_id LIKE '%' || #{keyword} || '%' OR u.user_nm LIKE '%' || #{keyword} || '%')
+        </if>
+        ORDER BY u.user_seq
+    </select>
+
+    <select id="selectUserMenuPermList" parameterType="long" resultType="map">
+        WITH RECURSIVE menu_tree AS (
+            SELECT
+                m.menu_seq, m.up_menu_seq, m.menu_nm, m.menu_url,
+                1 AS tree_lvl,
+                LPAD(COALESCE(m.sort_ord, 0)::text, 10, '0') || ':' || LPAD(m.menu_seq::text, 20, '0') AS sort_path
+            FROM adm_menu_mst m
+            WHERE m.use_yn = 'Y' AND m.up_menu_seq IS NULL
+            UNION ALL
+            SELECT
+                c.menu_seq, c.up_menu_seq, c.menu_nm, c.menu_url,
+                p.tree_lvl + 1,
+                p.sort_path || '/' || LPAD(COALESCE(c.sort_ord, 0)::text, 10, '0') || ':' || LPAD(c.menu_seq::text, 20, '0')
+            FROM adm_menu_mst c
+            JOIN menu_tree p ON p.menu_seq = c.up_menu_seq
+            WHERE c.use_yn = 'Y'
+        ),
+        user_groups AS (
+            SELECT agu.auth_group_seq
+              FROM adm_auth_group_user agu
+             WHERE agu.user_seq = #{userSeq}
+               AND agu.use_yn = 'Y'
+            UNION
+            SELECT agd.auth_group_seq
+              FROM adm_auth_group_dept agd
+              JOIN adm_user_mst u
+                ON u.user_seq = #{userSeq}
+               AND u.dept_seq = agd.dept_seq
+             WHERE agd.use_yn = 'Y'
+        ),
+        base_perm AS (
+            SELECT aam.menu_seq, MAX(COALESCE(aam.perm_lvl, 0)) AS base_perm_lvl
+              FROM adm_auth_menu aam
+              JOIN user_groups ug ON ug.auth_group_seq = aam.auth_group_seq
+             WHERE aam.use_yn = 'Y'
+             GROUP BY aam.menu_seq
+        ),
+        user_ex_ranked AS (
+            SELECT
+                au.menu_seq,
+                au.access_yn AS ex_access_yn,
+                COALESCE(au.perm_lvl, 0) AS ex_perm_lvl,
+                ROW_NUMBER() OVER (
+                    PARTITION BY au.menu_seq
+                    ORDER BY COALESCE(au.updated_at, au.created_at, CURRENT_TIMESTAMP) DESC
+                ) AS rn
+            FROM adm_auth_user au
+            WHERE au.user_seq = #{userSeq}
+        ),
+        user_ex AS (
+            SELECT menu_seq, ex_access_yn, ex_perm_lvl
+            FROM user_ex_ranked
+            WHERE rn = 1
+        )
+        SELECT
+            mt.menu_seq, mt.up_menu_seq, mt.menu_nm, mt.menu_url, mt.tree_lvl,
+            COALESCE(bp.base_perm_lvl, 0) AS base_perm_lvl,
+            ue.ex_access_yn AS ex_access_yn,
+            COALESCE(ue.ex_perm_lvl, 0) AS ex_perm_lvl
+        FROM menu_tree mt
+        LEFT JOIN base_perm bp ON bp.menu_seq = mt.menu_seq
+        LEFT JOIN user_ex ue ON ue.menu_seq = mt.menu_seq
+        ORDER BY mt.sort_path
+    </select>
+
+    <delete id="deleteAllUserException" parameterType="long">
+        DELETE FROM adm_auth_user
+         WHERE user_seq = #{userSeq}
+    </delete>
+
+    <update id="upsertUserException" parameterType="map">
+        INSERT INTO adm_auth_user (
+            user_seq, menu_seq, access_yn, perm_lvl, created_at, created_by, updated_at, updated_by
+        ) VALUES (
+            #{user_seq}, #{menu_seq}, #{access_yn}, #{perm_lvl},
+            CURRENT_TIMESTAMP, #{created_by}, CURRENT_TIMESTAMP, #{updated_by}
+        )
+        ON CONFLICT (user_seq, menu_seq) DO UPDATE
+           SET access_yn = EXCLUDED.access_yn,
+               perm_lvl = EXCLUDED.perm_lvl,
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = EXCLUDED.updated_by
+    </update>
+
+    <delete id="deleteUserException" parameterType="map">
+        DELETE FROM adm_auth_user
+         WHERE user_seq = #{userSeq}
+           AND menu_seq = #{menuSeq}
+    </delete>
+
+    <update id="updateLoginFailState" parameterType="map">
+        UPDATE adm_user_mst
+           SET login_fail_cnt = #{login_fail_cnt,jdbcType=NUMERIC},
+               lock_until_at = #{lock_until_at,jdbcType=TIMESTAMP},
+               lock_yn = #{lock_yn,jdbcType=CHAR},
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by,jdbcType=VARCHAR}
+         WHERE user_seq = #{user_seq,jdbcType=NUMERIC}
+    </update>
+
+    <update id="resetLoginFailState">
+        UPDATE adm_user_mst
+           SET login_fail_cnt = 0, lock_until_at = NULL, lock_yn = 'N',
+               updated_at = CURRENT_TIMESTAMP, updated_by = #{updatedBy}
+         WHERE user_seq = #{userSeq}
+    </update>
+
+    <update id="updateLastLoginAt">
+        UPDATE adm_user_mst
+           SET last_login_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP, updated_by = #{updatedBy}
+         WHERE user_seq = #{userSeq}
+    </update>
+
+    <update id="clearPwdResetFlag">
+        UPDATE adm_user_mst
+           SET pwd_reset_yn = 'N', updated_at = CURRENT_TIMESTAMP, updated_by = #{updatedBy}
+         WHERE user_seq = #{userSeq}
+    </update>
+
+    <update id="upgradePasswordHash">
+        UPDATE adm_user_mst
+           SET pwd_hash = #{pwdHash}, updated_at = CURRENT_TIMESTAMP, updated_by = #{updatedBy}
+         WHERE user_seq = #{userSeq}
+    </update>
+
+    <insert id="insertRefreshToken" parameterType="map">
+        <selectKey keyProperty="refresh_seq" resultType="long" order="BEFORE">
+            SELECT nextval('adm_refresh_token_seq')
+        </selectKey>
+        INSERT INTO adm_refresh_token (
+            refresh_seq, user_seq, login_id, session_id, token_hash, expires_at,
+            revoked_yn, created_at, created_by, updated_at, updated_by
+        ) VALUES (
+            #{refresh_seq}, #{user_seq}, #{login_id}, #{session_id}, #{token_hash}, #{expires_at,jdbcType=TIMESTAMP},
+            'N', CURRENT_TIMESTAMP, #{created_by}, CURRENT_TIMESTAMP, #{created_by}
+        )
+    </insert>
+
+    <select id="selectActiveRefreshToken" resultType="map">
+        SELECT refresh_seq, user_seq, login_id, session_id, token_hash, expires_at, revoked_yn
+          FROM adm_refresh_token
+         WHERE token_hash = #{tokenHash}
+           AND revoked_yn = 'N'
+           AND expires_at > CURRENT_TIMESTAMP
+    </select>
+
+    <update id="revokeRefreshToken">
+        UPDATE adm_refresh_token
+           SET revoked_yn = 'Y', updated_at = CURRENT_TIMESTAMP, updated_by = #{updatedBy}
+         WHERE token_hash = #{tokenHash}
+           AND revoked_yn = 'N'
+    </update>
+
+    <update id="revokeRefreshTokensBySessionId">
+        UPDATE adm_refresh_token
+           SET revoked_yn = 'Y', updated_at = CURRENT_TIMESTAMP, updated_by = #{updatedBy}
+         WHERE session_id = #{sessionId}
+           AND revoked_yn = 'N'
+    </update>
+
+    <resultMap id="LoginUserMap" type="com.realhogoo.jsadmin.auth.dto.LoginUser">
+        <result property="userSeq" column="USER_SEQ"/>
+        <result property="userId" column="LOGIN_ID"/>
+        <result property="userNm" column="USER_NM"/>
+        <result property="userPw" column="PWD_HASH"/>
+        <result property="loginFailCnt" column="LOGIN_FAIL_CNT"/>
+        <result property="lockYn" column="LOCK_YN"/>
+        <result property="lockUntilAt" column="LOCK_UNTIL_AT"/>
+        <result property="pwdResetYn" column="PWD_RESET_YN"/>
+    </resultMap>
+
+    <select id="selectUserForLogin" resultMap="LoginUserMap">
+        SELECT user_seq, login_id, user_nm, pwd_hash,
+               COALESCE(login_fail_cnt, 0) AS login_fail_cnt,
+               COALESCE(lock_yn, 'N') AS lock_yn,
+               lock_until_at,
+               COALESCE(pwd_reset_yn, 'N') AS pwd_reset_yn
+          FROM adm_user_mst
+         WHERE login_id = #{user_id}
+           AND use_yn = 'Y'
+    </select>
+
+</mapper>

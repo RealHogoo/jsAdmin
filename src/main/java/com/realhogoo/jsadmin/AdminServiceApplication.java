@@ -1,14 +1,16 @@
 package com.realhogoo.jsadmin;
 
 import com.realhogoo.jsadmin.api.TraceIdFilter;
+import com.realhogoo.jsadmin.api.SecurityHeadersFilter;
 import com.realhogoo.jsadmin.auth.jwt.JwtAuthFilter;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
+import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.boot.web.servlet.support.SpringBootServletInitializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ImportResource;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.servlet.view.InternalResourceViewResolver;
@@ -16,11 +18,15 @@ import org.springframework.web.servlet.view.InternalResourceViewResolver;
 import java.io.File;
 
 @SpringBootApplication(scanBasePackages = "com.realhogoo.jsadmin")
-@ImportResource(locations = {"classpath:spring/root-context.xml"})
-public class AdminServiceApplication {
+public class AdminServiceApplication extends SpringBootServletInitializer {
 
     public static void main(String[] args) {
         SpringApplication.run(AdminServiceApplication.class, args);
+    }
+
+    @Override
+    protected SpringApplicationBuilder configure(SpringApplicationBuilder application) {
+        return application.sources(AdminServiceApplication.class);
     }
 
     @Bean
@@ -49,7 +55,7 @@ public class AdminServiceApplication {
         registration.setFilter(new TraceIdFilter());
         registration.setName("traceIdFilter");
         registration.addUrlPatterns("*.json");
-        registration.setOrder(1);
+        registration.setOrder(2);
         return registration;
     }
 
@@ -59,7 +65,17 @@ public class AdminServiceApplication {
         registration.setFilter(new JwtAuthFilter());
         registration.setName("jwtAuthFilter");
         registration.addUrlPatterns("*.json");
-        registration.setOrder(2);
+        registration.setOrder(3);
+        return registration;
+    }
+
+    @Bean
+    public FilterRegistrationBean<SecurityHeadersFilter> securityHeadersFilterRegistration() {
+        FilterRegistrationBean<SecurityHeadersFilter> registration = new FilterRegistrationBean<>();
+        registration.setFilter(new SecurityHeadersFilter());
+        registration.setName("securityHeadersFilter");
+        registration.addUrlPatterns("/*");
+        registration.setOrder(1);
         return registration;
     }
 

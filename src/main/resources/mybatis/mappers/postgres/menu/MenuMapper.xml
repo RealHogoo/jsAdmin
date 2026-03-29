@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.menu.mapper.MenuMapper">
+
+  <select id="selectMenuListByUserId" parameterType="string" resultType="map">
+    WITH RECURSIVE
+    u AS (
+        SELECT user_seq, dept_seq
+          FROM adm_user_mst
+         WHERE login_id = #{user_id}
+           AND use_yn = 'Y'
+    ),
+    user_groups AS (
+        SELECT agu.auth_group_seq
+          FROM adm_auth_group_user agu
+          JOIN u ON u.user_seq = agu.user_seq
+         WHERE agu.use_yn = 'Y'
+        UNION
+        SELECT agd.auth_group_seq
+          FROM adm_auth_group_dept agd
+          JOIN u ON u.dept_seq = agd.dept_seq
+         WHERE agd.use_yn = 'Y'
+    ),
+    base_perm AS (
+        SELECT aam.menu_seq, MAX(COALESCE(aam.perm_lvl, 0)) AS base_perm_lvl
+          FROM adm_auth_menu aam
+          JOIN user_groups ug ON ug.auth_group_seq = aam.auth_group_seq
+         WHERE aam.use_yn = 'Y'
+         GROUP BY aam.menu_seq
+    ),
+    user_deny AS (
+        SELECT au.menu_seq
+          FROM adm_auth_user au
+          JOIN u ON u.user_seq = au.user_seq
+         WHERE au.access_yn = 'X'
+    ),
+    user_allow AS (
+        SELECT au.menu_seq, MAX(COALESCE(au.perm_lvl, 0)) AS allow_perm_lvl
+          FROM adm_auth_user au
+          JOIN u ON u.user_seq = au.user_seq
+         WHERE au.access_yn = 'Y'
+         GROUP BY au.menu_seq
+    ),
+    final_self AS (
+        SELECT m.menu_seq,
+               CASE
+                   WHEN d.menu_seq IS NOT NULL THEN 0
+                   ELSE GREATEST(COALESCE(b.base_perm_lvl, 0), COALESCE(a.allow_perm_lvl, 0))
+               END AS final_perm_lvl
+          FROM adm_menu_mst m
+          LEFT JOIN base_perm b ON b.menu_seq = m.menu_seq
+          LEFT JOIN user_allow a ON a.menu_seq = m.menu_seq
+          LEFT JOIN user_deny d ON d.menu_seq = m.menu_seq
+         WHERE m.use_yn = 'Y'
+    ),
+    deny_tree AS (
+        SELECT DISTINCT menu_seq
+          FROM user_deny
+        UNION
+        SELECT c.menu_seq
+          FROM adm_menu_mst c
+          JOIN deny_tree d ON d.menu_seq = c.up_menu_seq
+         WHERE c.use_yn = 'Y'
+    ),
+    allowed_leaf AS (
+        SELECT fs.menu_seq
+          FROM final_self fs
+         WHERE fs.final_perm_lvl > 0
+           AND NOT EXISTS (SELECT 1 FROM deny_tree d WHERE d.menu_seq = fs.menu_seq)
+    ),
+    allowed_with_parents AS (
+        SELECT m.menu_seq, m.up_menu_seq
+          FROM adm_menu_mst m
+          JOIN allowed_leaf al ON al.menu_seq = m.menu_seq
+         WHERE m.use_yn = 'Y'
+        UNION
+        SELECT p.menu_seq, p.up_menu_seq
+          FROM adm_menu_mst p
+          JOIN allowed_with_parents awp ON awp.up_menu_seq = p.menu_seq
+         WHERE p.use_yn = 'Y'
+    ),
+    included_menu AS (
+        SELECT DISTINCT awp.menu_seq
+          FROM allowed_with_parents awp
+         WHERE NOT EXISTS (SELECT 1 FROM deny_tree d WHERE d.menu_seq = awp.menu_seq)
+    ),
+    ordered_menu AS (
+        SELECT
+            m.menu_seq, m.menu_nm, m.menu_url, m.icon_class, m.up_menu_seq, m.sort_ord,
+            CASE WHEN COALESCE(fs.final_perm_lvl, 0) > 0 THEN fs.final_perm_lvl ELSE 1 END AS perm_lvl,
+            LPAD(COALESCE(m.sort_ord, 0)::text, 10, '0') || ':' || LPAD(m.menu_seq::text, 20, '0') AS sort_path
+        FROM adm_menu_mst m
+        JOIN included_menu im ON im.menu_seq = m.menu_seq
+        LEFT JOIN final_self fs ON fs.menu_seq = m.menu_seq
+        WHERE m.up_menu_seq IS NULL
+        UNION ALL
+        SELECT
+            c.menu_seq, c.menu_nm, c.menu_url, c.icon_class, c.up_menu_seq, c.sort_ord,
+            CASE WHEN COALESCE(fs.final_perm_lvl, 0) > 0 THEN fs.final_perm_lvl ELSE 1 END AS perm_lvl,
+            om.sort_path || '/' || LPAD(COALESCE(c.sort_ord, 0)::text, 10, '0') || ':' || LPAD(c.menu_seq::text, 20, '0')
+        FROM adm_menu_mst c
+        JOIN ordered_menu om ON om.menu_seq = c.up_menu_seq
+        JOIN included_menu im ON im.menu_seq = c.menu_seq
+        LEFT JOIN final_self fs ON fs.menu_seq = c.menu_seq
+    )
+    SELECT
+        menu_seq AS menu_seq,
+        menu_nm AS menu_nm,
+        menu_url AS menu_url,
+        icon_class AS icon_class,
+        up_menu_seq AS up_menu_seq,
+        sort_ord AS sort_no,
+        perm_lvl AS perm_lvl
+    FROM ordered_menu
+    ORDER BY sort_path
+  </select>
+
+  <select id="selectMenuListByAuthGroupSeq" parameterType="long" resultType="map">
+    WITH RECURSIVE
+    base_perm AS (
+        SELECT aam.menu_seq, MAX(COALESCE(aam.perm_lvl, 0)) AS base_perm_lvl
+          FROM adm_auth_menu aam
+         WHERE aam.auth_group_seq = #{auth_group_seq}
+           AND aam.use_yn = 'Y'
+         GROUP BY aam.menu_seq
+    ),
+    allowed_leaf AS (
+        SELECT bp.menu_seq
+          FROM base_perm bp
+         WHERE bp.base_perm_lvl > 0
+    ),
+    allowed_with_parents AS (
+        SELECT m.menu_seq, m.up_menu_seq
+          FROM adm_menu_mst m
+          JOIN allowed_leaf al ON al.menu_seq = m.menu_seq
+         WHERE m.use_yn = 'Y'
+        UNION
+        SELECT p.menu_seq, p.up_menu_seq
+          FROM adm_menu_mst p
+          JOIN allowed_with_parents awp ON awp.up_menu_seq = p.menu_seq
+         WHERE p.use_yn = 'Y'
+    ),
+    ordered_menu AS (
+        SELECT
+            m.menu_seq, m.menu_nm, m.menu_url, m.icon_class, m.up_menu_seq, m.sort_ord,
+            CASE WHEN COALESCE(bp.base_perm_lvl, 0) > 0 THEN bp.base_perm_lvl ELSE 1 END AS perm_lvl,
+            LPAD(COALESCE(m.sort_ord, 0)::text, 10, '0') || ':' || LPAD(m.menu_seq::text, 20, '0') AS sort_path
+        FROM adm_menu_mst m
+        JOIN allowed_with_parents awp ON awp.menu_seq = m.menu_seq
+        LEFT JOIN base_perm bp ON bp.menu_seq = m.menu_seq
+        WHERE m.use_yn = 'Y'
+          AND m.up_menu_seq IS NULL
+        UNION ALL
+        SELECT
+            c.menu_seq, c.menu_nm, c.menu_url, c.icon_class, c.up_menu_seq, c.sort_ord,
+            CASE WHEN COALESCE(bp.base_perm_lvl, 0) > 0 THEN bp.base_perm_lvl ELSE 1 END AS perm_lvl,
+            om.sort_path || '/' || LPAD(COALESCE(c.sort_ord, 0)::text, 10, '0') || ':' || LPAD(c.menu_seq::text, 20, '0')
+        FROM adm_menu_mst c
+        JOIN ordered_menu om ON om.menu_seq = c.up_menu_seq
+        JOIN allowed_with_parents awp ON awp.menu_seq = c.menu_seq
+        LEFT JOIN base_perm bp ON bp.menu_seq = c.menu_seq
+        WHERE c.use_yn = 'Y'
+    )
+    SELECT
+        menu_seq AS menu_seq,
+        menu_nm AS menu_nm,
+        menu_url AS menu_url,
+        icon_class AS icon_class,
+        up_menu_seq AS up_menu_seq,
+        sort_ord AS sort_no,
+        perm_lvl AS perm_lvl
+    FROM ordered_menu
+    ORDER BY sort_path
+  </select>
+
+  <select id="selectMenuListAll" parameterType="map" resultType="map">
+    WITH RECURSIVE menu_tree AS (
+        SELECT
+            m.menu_seq, m.up_menu_seq, m.menu_nm, m.menu_url, m.menu_type_cd, m.icon_class, m.sort_ord, m.use_yn,
+            1 AS tree_lvl,
+            LPAD(COALESCE(m.sort_ord, 0)::text, 10, '0') || ':' || LPAD(m.menu_seq::text, 20, '0') AS sort_path
+        FROM adm_menu_mst m
+        WHERE (
+            m.up_menu_seq IS NULL
+            OR NOT EXISTS (
+                SELECT 1
+                  FROM adm_menu_mst p
+                 WHERE p.menu_seq = m.up_menu_seq
+                <if test="use_yn != null and use_yn != ''">
+                   AND p.use_yn = #{use_yn}
+                </if>
+            )
+        )
+        <if test="use_yn != null and use_yn != ''">
+          AND m.use_yn = #{use_yn}
+        </if>
+        UNION ALL
+        SELECT
+            c.menu_seq, c.up_menu_seq, c.menu_nm, c.menu_url, c.menu_type_cd, c.icon_class, c.sort_ord, c.use_yn,
+            p.tree_lvl + 1,
+            p.sort_path || '/' || LPAD(COALESCE(c.sort_ord, 0)::text, 10, '0') || ':' || LPAD(c.menu_seq::text, 20, '0')
+        FROM adm_menu_mst c
+        JOIN menu_tree p ON p.menu_seq = c.up_menu_seq
+        <if test="use_yn != null and use_yn != ''">
+        WHERE c.use_yn = #{use_yn}
+        </if>
+    )
+    SELECT menu_seq, up_menu_seq, menu_nm, menu_url, menu_type_cd, icon_class, sort_ord, use_yn, tree_lvl
+    FROM menu_tree
+    ORDER BY sort_path
+  </select>
+
+  <select id="selectMenuDetail" parameterType="long" resultType="map">
+    SELECT
+        menu_seq AS menu_seq,
+        up_menu_seq AS up_menu_seq,
+        menu_nm AS menu_nm,
+        menu_url AS menu_url,
+        menu_type_cd AS menu_type_cd,
+        icon_class AS icon_class,
+        sort_ord AS sort_no,
+        use_yn AS use_yn
+    FROM adm_menu_mst
+    WHERE menu_seq = #{menuSeq}
+  </select>
+
+  <insert id="insertMenu" parameterType="map">
+    <selectKey keyProperty="menu_seq" resultType="long" order="BEFORE">
+        SELECT nextval('adm_menu_mst_seq')
+    </selectKey>
+    INSERT INTO adm_menu_mst (
+        menu_seq, up_menu_seq, menu_nm, menu_url, menu_type_cd, icon_class,
+        sort_ord, use_yn, created_at, created_by, updated_at, updated_by
+    ) VALUES (
+        #{menu_seq,jdbcType=NUMERIC}, #{up_menu_seq,jdbcType=NUMERIC}, #{menu_nm,jdbcType=VARCHAR},
+        #{menu_url,jdbcType=VARCHAR}, #{menu_type_cd,jdbcType=VARCHAR}, #{icon_class,jdbcType=VARCHAR},
+        COALESCE(#{sort_ord,jdbcType=NUMERIC}, 0), COALESCE(#{use_yn,jdbcType=VARCHAR}, 'Y'),
+        CURRENT_TIMESTAMP, #{created_by,jdbcType=VARCHAR}, NULL, NULL
+    )
+  </insert>
+
+  <update id="updateMenu" parameterType="map">
+    UPDATE adm_menu_mst
+       SET up_menu_seq = #{up_menu_seq,jdbcType=NUMERIC},
+           menu_nm = #{menu_nm,jdbcType=VARCHAR},
+           menu_url = #{menu_url,jdbcType=VARCHAR},
+           menu_type_cd = #{menu_type_cd,jdbcType=VARCHAR},
+           icon_class = #{icon_class,jdbcType=VARCHAR},
+           sort_ord = COALESCE(#{sort_ord,jdbcType=NUMERIC}, 0),
+           use_yn = COALESCE(#{use_yn,jdbcType=VARCHAR}, 'Y'),
+           updated_at = CURRENT_TIMESTAMP,
+           updated_by = #{updated_by,jdbcType=VARCHAR}
+     WHERE menu_seq = #{menu_seq,jdbcType=NUMERIC}
+  </update>
+
+  <select id="countChildMenu" parameterType="long" resultType="int">
+    SELECT COUNT(1)
+      FROM adm_menu_mst
+     WHERE up_menu_seq = #{menuSeq}
+       AND use_yn = 'Y'
+  </select>
+
+  <delete id="deleteAuthMenuByRootMenuSeq" parameterType="long">
+    DELETE FROM adm_auth_menu
+     WHERE menu_seq IN (
+        WITH RECURSIVE menu_tree AS (
+            SELECT menu_seq
+              FROM adm_menu_mst
+             WHERE menu_seq = #{menuSeq}
+            UNION ALL
+            SELECT c.menu_seq
+              FROM adm_menu_mst c
+              JOIN menu_tree p ON p.menu_seq = c.up_menu_seq
+        )
+        SELECT menu_seq FROM menu_tree
+     )
+  </delete>
+
+  <delete id="deleteAuthUserByRootMenuSeq" parameterType="long">
+    DELETE FROM adm_auth_user
+     WHERE menu_seq IN (
+        WITH RECURSIVE menu_tree AS (
+            SELECT menu_seq
+              FROM adm_menu_mst
+             WHERE menu_seq = #{menuSeq}
+            UNION ALL
+            SELECT c.menu_seq
+              FROM adm_menu_mst c
+              JOIN menu_tree p ON p.menu_seq = c.up_menu_seq
+        )
+        SELECT menu_seq FROM menu_tree
+     )
+  </delete>
+
+  <delete id="deleteMenuTree" parameterType="long">
+    DELETE FROM adm_menu_mst
+     WHERE menu_seq IN (
+        WITH RECURSIVE menu_tree AS (
+            SELECT menu_seq
+              FROM adm_menu_mst
+             WHERE menu_seq = #{menuSeq}
+            UNION ALL
+            SELECT c.menu_seq
+              FROM adm_menu_mst c
+              JOIN menu_tree p ON p.menu_seq = c.up_menu_seq
+        )
+        SELECT menu_seq FROM menu_tree
+     )
+  </delete>
+
+</mapper>

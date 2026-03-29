@@ -86,4 +86,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/health/health.js?v=20260322_1"></script>
+<script src="${pageContext.request.contextPath}/static/js/health/health.js?v=${assetVersion}"></script>

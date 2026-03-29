@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.code.mapper.CodeMapper">
+
+    <select id="selectCodeListAll" resultType="map">
+        SELECT
+            code_seq AS code_seq,
+            code_grp_cd AS code_grp_cd,
+            code_cd AS code_cd,
+            code_nm AS code_nm,
+            code_desc AS code_desc,
+            COALESCE(sort_ord, 0) AS sort_ord,
+            COALESCE(use_yn, 'Y') AS use_yn
+        FROM adm_code_mst
+        WHERE COALESCE(use_yn, 'Y') = 'Y'
+        ORDER BY code_grp_cd, COALESCE(sort_ord, 0), code_seq
+    </select>
+
+    <select id="countDupCode" resultType="int">
+        SELECT COUNT(1)
+          FROM adm_code_mst
+         WHERE code_grp_cd = #{code_grp_cd}
+           AND code_cd = #{code_cd}
+           AND COALESCE(use_yn, 'Y') = 'Y'
+        <if test="code_seq != null">
+           AND code_seq <![CDATA[<>]]> #{code_seq}
+        </if>
+    </select>
+
+    <insert id="insertCode" parameterType="map">
+        <selectKey keyProperty="code_seq" resultType="long" order="BEFORE">
+            SELECT nextval('adm_code_mst_seq')
+        </selectKey>
+        INSERT INTO adm_code_mst (
+            code_seq, code_grp_cd, code_cd, code_nm, code_desc,
+            sort_ord, use_yn, created_at, created_by, updated_at, updated_by
+        ) VALUES (
+            #{code_seq}, #{code_grp_cd}, #{code_cd}, #{code_nm}, #{code_desc},
+            COALESCE(#{sort_ord}, 0), COALESCE(#{use_yn}, 'Y'), CURRENT_TIMESTAMP, #{created_by}, NULL, NULL
+        )
+    </insert>
+
+    <update id="updateCode" parameterType="map">
+        UPDATE adm_code_mst
+           SET code_grp_cd = #{code_grp_cd},
+               code_cd = #{code_cd},
+               code_nm = #{code_nm},
+               code_desc = #{code_desc},
+               sort_ord = COALESCE(#{sort_ord}, 0),
+               use_yn = COALESCE(#{use_yn}, 'Y'),
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE code_seq = #{code_seq}
+    </update>
+
+    <update id="deleteCode" parameterType="map">
+        UPDATE adm_code_mst
+           SET use_yn = 'N',
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE code_seq = #{code_seq}
+    </update>
+
+</mapper>

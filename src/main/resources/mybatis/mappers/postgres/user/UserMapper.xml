@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.user.mapper.UserMapper">
+
+    <select id="selectUserList" parameterType="map" resultType="map">
+        SELECT
+            user_seq, login_id, user_nm,
+            COALESCE(use_yn, 'Y') AS use_yn,
+            COALESCE(login_fail_cnt, 0) AS login_fail_cnt,
+            COALESCE(lock_yn, 'N') AS lock_yn,
+            COALESCE(pwd_reset_yn, 'N') AS pwd_reset_yn,
+            TO_CHAR(lock_until_at, 'YYYY-MM-DD HH24:MI:SS') AS lock_until_at,
+            TO_CHAR(last_login_at, 'YYYY-MM-DD HH24:MI:SS') AS last_login_at
+        FROM adm_user_mst
+        WHERE 1 = 1
+        <if test="keyword != null and keyword != ''">
+            AND (login_id LIKE '%' || #{keyword} || '%' OR user_nm LIKE '%' || #{keyword} || '%')
+        </if>
+        <if test="use_yn != null and use_yn != ''">
+            AND COALESCE(use_yn, 'Y') = #{use_yn}
+        </if>
+        ORDER BY user_seq DESC
+    </select>
+
+    <select id="selectUserDetail" parameterType="long" resultType="map">
+        SELECT
+            user_seq, login_id, user_nm,
+            COALESCE(use_yn, 'Y') AS use_yn,
+            COALESCE(login_fail_cnt, 0) AS login_fail_cnt,
+            COALESCE(lock_yn, 'N') AS lock_yn,
+            COALESCE(pwd_reset_yn, 'N') AS pwd_reset_yn,
+            TO_CHAR(lock_until_at, 'YYYY-MM-DD HH24:MI:SS') AS lock_until_at,
+            TO_CHAR(last_login_at, 'YYYY-MM-DD HH24:MI:SS') AS last_login_at
+        FROM adm_user_mst
+        WHERE user_seq = #{userSeq}
+    </select>
+
+    <select id="selectUserDetailByLoginId" parameterType="string" resultType="map">
+        SELECT
+            user_seq, login_id, user_nm,
+            COALESCE(use_yn, 'Y') AS use_yn,
+            COALESCE(login_fail_cnt, 0) AS login_fail_cnt,
+            COALESCE(lock_yn, 'N') AS lock_yn,
+            COALESCE(pwd_reset_yn, 'N') AS pwd_reset_yn,
+            TO_CHAR(lock_until_at, 'YYYY-MM-DD HH24:MI:SS') AS lock_until_at,
+            TO_CHAR(last_login_at, 'YYYY-MM-DD HH24:MI:SS') AS last_login_at
+        FROM adm_user_mst
+        WHERE login_id = #{loginId}
+    </select>
+
+    <select id="selectPasswordByLoginId" parameterType="string" resultType="string">
+        SELECT pwd_hash
+        FROM adm_user_mst
+        WHERE login_id = #{loginId}
+          AND COALESCE(use_yn, 'Y') = 'Y'
+    </select>
+
+    <select id="countByLoginId" resultType="int">
+        SELECT COUNT(1)
+        FROM adm_user_mst
+        WHERE login_id = #{loginId}
+        <if test="excludeUserSeq != null">
+            AND user_seq != #{excludeUserSeq}
+        </if>
+    </select>
+
+    <insert id="insertUser" parameterType="map">
+        <selectKey keyProperty="user_seq" resultType="long" order="BEFORE">
+            SELECT nextval('adm_user_mst_seq')
+        </selectKey>
+        INSERT INTO adm_user_mst (
+            user_seq, login_id, user_nm, pwd_hash, use_yn, login_fail_cnt,
+            lock_yn, pwd_reset_yn, lock_until_at, created_at, created_by, updated_at, updated_by
+        ) VALUES (
+            #{user_seq}, #{login_id}, #{user_nm}, #{user_pw}, COALESCE(#{use_yn}, 'Y'),
+            COALESCE(#{login_fail_cnt}, 0), COALESCE(#{lock_yn}, 'N'), COALESCE(#{pwd_reset_yn}, 'N'),
+            NULL, CURRENT_TIMESTAMP, #{created_by}, CURRENT_TIMESTAMP, #{updated_by}
+        )
+    </insert>
+
+    <update id="updateUser" parameterType="map">
+        UPDATE adm_user_mst
+           SET login_id = #{login_id},
+               user_nm = #{user_nm},
+               pwd_hash = #{user_pw},
+               pwd_reset_yn = 'N',
+               use_yn = COALESCE(#{use_yn}, 'Y'),
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE user_seq = #{user_seq}
+    </update>
+
+    <update id="updateUserWithoutPassword" parameterType="map">
+        UPDATE adm_user_mst
+           SET login_id = #{login_id},
+               user_nm = #{user_nm},
+               use_yn = COALESCE(#{use_yn}, 'Y'),
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE user_seq = #{user_seq}
+    </update>
+
+    <update id="deactivateUser" parameterType="map">
+        UPDATE adm_user_mst
+           SET use_yn = 'N',
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE user_seq = #{user_seq}
+    </update>
+
+    <update id="unlockUser" parameterType="map">
+        UPDATE adm_user_mst
+           SET login_fail_cnt = 0,
+               lock_yn = 'N',
+               lock_until_at = NULL,
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE user_seq = #{user_seq}
+    </update>
+
+    <update id="resetPassword" parameterType="map">
+        UPDATE adm_user_mst
+           SET pwd_hash = #{reset_pw},
+               pwd_reset_yn = 'Y',
+               login_fail_cnt = 0,
+               lock_yn = 'N',
+               lock_until_at = NULL,
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE user_seq = #{user_seq}
+    </update>
+
+    <update id="updateMyProfile" parameterType="map">
+        UPDATE adm_user_mst
+           SET user_nm = #{user_nm},
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE login_id = #{login_id}
+           AND COALESCE(use_yn, 'Y') = 'Y'
+    </update>
+
+    <update id="updatePasswordByLoginId" parameterType="map">
+        UPDATE adm_user_mst
+           SET pwd_hash = #{user_pw},
+               pwd_reset_yn = 'N',
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE login_id = #{login_id}
+           AND COALESCE(use_yn, 'Y') = 'Y'
+    </update>
+
+</mapper>

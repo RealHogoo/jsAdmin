@@ -14,6 +14,9 @@ import java.util.Map;
 
 @Controller
 public class NoticeController {
+    private static final int MAX_NOTICE_TYPE_CODE_LENGTH = 30;
+    private static final int MAX_NOTICE_TITLE_LENGTH = 300;
+    private static final int MAX_NOTICE_CONTENT_LENGTH = 4000;
 
     private final NoticeService noticeService;
 
@@ -51,6 +54,10 @@ public class NoticeController {
     public Map<String, Object> save(@RequestBody Map<String, Object> param, HttpServletRequest req) {
         String userId = req.getAttribute("user_id") == null ? null : String.valueOf(req.getAttribute("user_id"));
         try {
+            validateRequired(param, "title");
+            validateLength("noti_type_cd", stringValue(param, "noti_type_cd"), MAX_NOTICE_TYPE_CODE_LENGTH);
+            validateLength("title", stringValue(param, "title"), MAX_NOTICE_TITLE_LENGTH);
+            validateLength("content", stringValue(param, "content"), MAX_NOTICE_CONTENT_LENGTH);
             Long notiSeq = noticeService.saveNotice(param, userId);
             return ok(Collections.singletonMap("noti_seq", notiSeq));
         } catch (Exception e) {
@@ -95,5 +102,32 @@ public class NoticeController {
         String s = String.valueOf(v).trim();
         if (s.isEmpty() || "null".equalsIgnoreCase(s)) return null;
         return Long.valueOf(s);
+    }
+
+    private void validateRequired(Map<String, Object> param, String field) {
+        if (stringValue(param, field) == null) {
+            throw new IllegalArgumentException(field + " is required");
+        }
+    }
+
+    private void validateLength(String field, String value, int maxLength) {
+        if (value != null && value.length() > maxLength) {
+            throw new IllegalArgumentException(field + " length must be " + maxLength + " or less");
+        }
+    }
+
+    private String stringValue(Map<String, Object> param, String field) {
+        if (param == null) {
+            return null;
+        }
+        Object value = param.get(field);
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.isEmpty() || "null".equalsIgnoreCase(text)) {
+            return null;
+        }
+        return text;
     }
 }

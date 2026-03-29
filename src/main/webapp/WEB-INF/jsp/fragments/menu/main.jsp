@@ -111,4 +111,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/menu/menu.js?v=20260328_02"></script>
+<script src="${pageContext.request.contextPath}/static/js/menu/menu.js?v=${assetVersion}"></script>

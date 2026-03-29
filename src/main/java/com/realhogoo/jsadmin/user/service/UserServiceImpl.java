@@ -12,6 +12,9 @@ import java.util.Map;
 
 @Service
 public class UserServiceImpl implements UserService {
+    private static final int MAX_LOGIN_ID_LENGTH = 100;
+    private static final int MAX_USER_NAME_LENGTH = 100;
+    private static final int MAX_PASSWORD_LENGTH = 1000;
 
     private final UserMapper userMapper;
     private final SuperAdminProperties superAdminProperties;
@@ -58,6 +61,9 @@ public class UserServiceImpl implements UserService {
         if (userSeq == null && userPw == null) {
             throw new IllegalArgumentException("user_pw is required");
         }
+        validateLength("login_id", loginId, MAX_LOGIN_ID_LENGTH);
+        validateLength("user_nm", userNm, MAX_USER_NAME_LENGTH);
+        validateLength("user_pw", userPw, MAX_PASSWORD_LENGTH);
 
         if (superAdminProperties.isSuperLoginIdIgnoreCase(loginId) && !superAdminProperties.isSuperLoginId(loginId)) {
             throw new IllegalArgumentException("슈퍼관리자 아이디는 설정값과 정확히 일치해야 합니다.");
@@ -153,6 +159,7 @@ public class UserServiceImpl implements UserService {
         if (safeLoginId == null) {
             throw new IllegalArgumentException("login_id is required");
         }
+        validateLength("login_id", safeLoginId, MAX_LOGIN_ID_LENGTH);
         Map<String, Object> detail = userMapper.selectUserDetailByLoginId(safeLoginId);
         if (detail == null || detail.isEmpty()) {
             throw new IllegalArgumentException("user not found");
@@ -171,6 +178,8 @@ public class UserServiceImpl implements UserService {
         if (userNm == null) {
             throw new IllegalArgumentException("user_nm is required");
         }
+        validateLength("login_id", safeLoginId, MAX_LOGIN_ID_LENGTH);
+        validateLength("user_nm", userNm, MAX_USER_NAME_LENGTH);
 
         Map<String, Object> update = new HashMap<String, Object>();
         update.put("login_id", safeLoginId);
@@ -194,6 +203,9 @@ public class UserServiceImpl implements UserService {
         if (safeNewPassword == null) {
             throw new IllegalArgumentException("new_password is required");
         }
+        validateLength("login_id", safeLoginId, MAX_LOGIN_ID_LENGTH);
+        validateLength("current_password", safeCurrentPassword, MAX_PASSWORD_LENGTH);
+        validateLength("new_password", safeNewPassword, MAX_PASSWORD_LENGTH);
 
         String savedPassword = userMapper.selectPasswordByLoginId(safeLoginId);
         if (savedPassword == null) {
@@ -246,4 +258,12 @@ public class UserServiceImpl implements UserService {
         if (s == null) return def;
         return "N".equalsIgnoreCase(s) ? "N" : "Y";
     }
+
+    private void validateLength(String field, String value, int maxLength) {
+        if (value != null && value.length() > maxLength) {
+            throw new IllegalArgumentException(field + " length must be " + maxLength + " or less");
+        }
+    }
 }
+
+

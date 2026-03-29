@@ -28,4 +28,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/login/login.js?v=20260328_01"></script>
+<script src="${pageContext.request.contextPath}/static/js/login/login.js?v=${assetVersion}"></script>

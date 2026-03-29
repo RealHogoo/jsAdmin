@@ -10,4 +10,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/timeline/timeline-home.js"></script>
+<script src="${pageContext.request.contextPath}/static/js/timeline/timeline-home.js?v=${assetVersion}"></script>

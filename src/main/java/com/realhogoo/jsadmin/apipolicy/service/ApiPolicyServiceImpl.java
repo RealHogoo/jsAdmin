@@ -9,6 +9,14 @@ import java.util.Map;
 
 @Service
 public class ApiPolicyServiceImpl implements ApiPolicyService {
+    private static final int MAX_API_TYPE_LENGTH = 20;
+    private static final int MAX_API_NAME_LENGTH = 200;
+    private static final int MAX_CALLER_ID_LENGTH = 100;
+    private static final int MAX_TARGET_SERVICE_LENGTH = 100;
+    private static final int MAX_HTTP_METHOD_LENGTH = 10;
+    private static final int MAX_API_PATTERN_LENGTH = 500;
+    private static final int MAX_AUTH_TYPE_LENGTH = 30;
+    private static final int MAX_API_DESCRIPTION_LENGTH = 1000;
 
     private final ApiPolicyMapper apiPolicyMapper;
 
@@ -45,6 +53,14 @@ public class ApiPolicyServiceImpl implements ApiPolicyService {
         if (apiNm == null || callerId == null || targetService == null || apiPattern == null) {
             throw new IllegalArgumentException("api_nm, caller_id, target_service, api_pattern are required");
         }
+        validateLength("api_type", apiType, MAX_API_TYPE_LENGTH);
+        validateLength("api_nm", apiNm, MAX_API_NAME_LENGTH);
+        validateLength("caller_id", callerId, MAX_CALLER_ID_LENGTH);
+        validateLength("target_service", targetService, MAX_TARGET_SERVICE_LENGTH);
+        validateLength("http_method", httpMethod, MAX_HTTP_METHOD_LENGTH);
+        validateLength("api_pattern", apiPattern, MAX_API_PATTERN_LENGTH);
+        validateLength("auth_type", authType, MAX_AUTH_TYPE_LENGTH);
+        validateLength("api_desc", toStrOrNull(param.get("api_desc")), MAX_API_DESCRIPTION_LENGTH);
 
         int dup = apiPolicyMapper.countDupApiPolicy(apiType, callerId, targetService, httpMethod, apiPattern, apiSeq);
         if (dup > 0) {
@@ -164,5 +180,11 @@ public class ApiPolicyServiceImpl implements ApiPolicyService {
         String s = String.valueOf(value).trim();
         if (s.isEmpty() || "null".equalsIgnoreCase(s)) return null;
         return Long.valueOf(s);
+    }
+
+    private void validateLength(String field, String value, int maxLength) {
+        if (value != null && value.length() > maxLength) {
+            throw new IllegalArgumentException(field + " length must be " + maxLength + " or less");
+        }
     }
 }

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.timeline.mapper.TimelineMapper">
+
+    <select id="selectTimelineList" parameterType="map" resultType="map">
+        SELECT timeline_seq, timeline_type_cd, title, content_preview, event_dt, use_yn, updated_at, updated_by, created_at, created_by
+        FROM (
+            SELECT
+                t.timeline_seq AS timeline_seq,
+                t.timeline_type_cd AS timeline_type_cd,
+                t.title AS title,
+                SUBSTRING(COALESCE(t.content, '') FROM 1 FOR 200) AS content_preview,
+                TO_CHAR(t.event_dt, 'YYYY-MM-DD') AS event_dt,
+                COALESCE(t.use_yn, 'Y') AS use_yn,
+                TO_CHAR(t.updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at,
+                t.updated_by AS updated_by,
+                TO_CHAR(t.created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+                t.created_by AS created_by,
+                ROW_NUMBER() OVER (ORDER BY t.event_dt DESC, t.timeline_seq DESC) AS rn
+            FROM adm_timeline_mst t
+            WHERE 1=1
+              <if test="use_yn != null and use_yn != ''">
+              AND COALESCE(t.use_yn, 'Y') = #{use_yn}
+              </if>
+              <if test="use_yn == null or use_yn == ''">
+              AND COALESCE(t.use_yn, 'Y') = 'Y'
+              </if>
+              <if test="timeline_type_cd != null and timeline_type_cd != ''">
+              AND t.timeline_type_cd = #{timeline_type_cd}
+              </if>
+              <if test="title != null and title != ''">
+              AND t.title LIKE '%' || #{title} || '%'
+              </if>
+              <if test="event_dt_from != null and event_dt_from != ''">
+              AND t.event_dt <![CDATA[>=]]> TO_DATE(#{event_dt_from}, 'YYYY-MM-DD')
+              </if>
+              <if test="event_dt_to != null and event_dt_to != ''">
+              AND t.event_dt <![CDATA[<=]]> TO_DATE(#{event_dt_to}, 'YYYY-MM-DD')
+              </if>
+        ) r
+        WHERE 1=1
+          <if test="offset != null">
+          AND r.rn <![CDATA[>]]> #{offset}
+          </if>
+          <if test="size != null">
+          AND r.rn <![CDATA[<=]]> (COALESCE(#{offset}, 0) + #{size})
+          </if>
+        ORDER BY r.rn
+    </select>
+
+    <select id="selectTimelineDetail" parameterType="long" resultType="map">
+        SELECT
+            timeline_seq AS timeline_seq,
+            timeline_type_cd AS timeline_type_cd,
+            title AS title,
+            content AS content,
+            TO_CHAR(event_dt, 'YYYY-MM-DD') AS event_dt,
+            COALESCE(use_yn, 'Y') AS use_yn,
+            TO_CHAR(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at,
+            updated_by AS updated_by,
+            TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+            created_by AS created_by
+        FROM adm_timeline_mst
+        WHERE timeline_seq = #{timelineSeq}
+    </select>
+
+    <insert id="insertTimeline" parameterType="map">
+        <selectKey keyProperty="timeline_seq" resultType="long" order="BEFORE">
+            SELECT nextval('adm_timeline_mst_seq')
+        </selectKey>
+        INSERT INTO adm_timeline_mst (
+            timeline_seq, timeline_type_cd, title, content, event_dt, use_yn,
+            created_at, created_by, updated_at, updated_by
+        ) VALUES (
+            #{timeline_seq}, #{timeline_type_cd}, #{title}, #{content},
+            TO_DATE(#{event_dt}, 'YYYY-MM-DD'), COALESCE(#{use_yn}, 'Y'),
+            CURRENT_TIMESTAMP, #{created_by}, NULL, NULL
+        )
+    </insert>
+
+    <update id="updateTimeline" parameterType="map">
+        UPDATE adm_timeline_mst
+           SET timeline_type_cd = #{timeline_type_cd},
+               title = #{title},
+               content = #{content},
+               event_dt = TO_DATE(#{event_dt}, 'YYYY-MM-DD'),
+               use_yn = COALESCE(#{use_yn}, 'Y'),
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE timeline_seq = #{timeline_seq}
+    </update>
+
+    <update id="deleteTimeline" parameterType="map">
+        UPDATE adm_timeline_mst
+           SET use_yn = 'N',
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE timeline_seq = #{timeline_seq}
+    </update>
+
+</mapper>

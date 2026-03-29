@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.apipolicy.mapper.ApiPolicyMapper">
+
+    <select id="selectApiPolicyList" parameterType="map" resultType="map">
+        SELECT
+            api_seq AS api_seq, api_type AS api_type, api_nm AS api_nm, caller_id AS caller_id,
+            target_service AS target_service, http_method AS http_method, api_pattern AS api_pattern,
+            auth_type AS auth_type, api_desc AS api_desc, use_yn AS use_yn,
+            TO_CHAR(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at,
+            updated_by AS updated_by,
+            TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+            created_by AS created_by
+        FROM adm_api_mst
+        WHERE api_type = #{api_type}
+        <if test="use_yn != null and use_yn != ''">
+            AND use_yn = #{use_yn}
+        </if>
+        <if test="keyword != null and keyword != ''">
+            AND (
+                api_nm LIKE '%' || #{keyword} || '%'
+                OR caller_id LIKE '%' || #{keyword} || '%'
+                OR target_service LIKE '%' || #{keyword} || '%'
+                OR api_pattern LIKE '%' || #{keyword} || '%'
+                OR auth_type LIKE '%' || #{keyword} || '%'
+            )
+        </if>
+        ORDER BY api_seq DESC
+    </select>
+
+    <select id="countApiPolicyAll" resultType="int">
+        SELECT COUNT(1) FROM adm_api_mst
+    </select>
+
+    <select id="countDupApiPolicy" resultType="int">
+        SELECT COUNT(1)
+          FROM adm_api_mst
+         WHERE api_type = #{api_type}
+           AND caller_id = #{caller_id}
+           AND target_service = #{target_service}
+           AND http_method = #{http_method}
+           AND api_pattern = #{api_pattern}
+        <if test="api_seq != null">
+           AND api_seq != #{api_seq}
+        </if>
+    </select>
+
+    <insert id="insertApiPolicy" parameterType="map">
+        <selectKey keyProperty="api_seq" resultType="long" order="BEFORE">
+            SELECT nextval('adm_api_mst_seq')
+        </selectKey>
+        INSERT INTO adm_api_mst (
+            api_seq, api_type, api_nm, caller_id, target_service, http_method,
+            api_pattern, auth_type, api_desc, use_yn, created_at, created_by
+        ) VALUES (
+            #{api_seq,jdbcType=NUMERIC}, #{api_type,jdbcType=VARCHAR}, #{api_nm,jdbcType=VARCHAR},
+            #{caller_id,jdbcType=VARCHAR}, #{target_service,jdbcType=VARCHAR}, #{http_method,jdbcType=VARCHAR},
+            #{api_pattern,jdbcType=VARCHAR}, #{auth_type,jdbcType=VARCHAR}, #{api_desc,jdbcType=VARCHAR},
+            COALESCE(#{use_yn,jdbcType=VARCHAR}, 'Y'), CURRENT_TIMESTAMP, #{created_by,jdbcType=VARCHAR}
+        )
+    </insert>
+
+    <update id="updateApiPolicy" parameterType="map">
+        UPDATE adm_api_mst
+           SET api_type = #{api_type,jdbcType=VARCHAR},
+               api_nm = #{api_nm,jdbcType=VARCHAR},
+               caller_id = #{caller_id,jdbcType=VARCHAR},
+               target_service = #{target_service,jdbcType=VARCHAR},
+               http_method = #{http_method,jdbcType=VARCHAR},
+               api_pattern = #{api_pattern,jdbcType=VARCHAR},
+               auth_type = #{auth_type,jdbcType=VARCHAR},
+               api_desc = #{api_desc,jdbcType=VARCHAR},
+               use_yn = COALESCE(#{use_yn,jdbcType=VARCHAR}, 'Y'),
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by,jdbcType=VARCHAR}
+         WHERE api_seq = #{api_seq,jdbcType=NUMERIC}
+    </update>
+
+    <update id="deleteApiPolicy" parameterType="map">
+        UPDATE adm_api_mst
+           SET use_yn = 'N',
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by,jdbcType=VARCHAR}
+         WHERE api_seq = #{api_seq,jdbcType=NUMERIC}
+    </update>
+
+</mapper>

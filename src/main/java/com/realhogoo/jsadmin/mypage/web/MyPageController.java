@@ -14,6 +14,7 @@ import java.util.Map;
 
 @Controller
 public class MyPageController {
+    private static final int MAX_USER_NAME_LENGTH = 100;
 
     private final UserService userService;
     private final AccessService accessService;
@@ -38,6 +39,11 @@ public class MyPageController {
     @ResponseBody
     public Map<String, Object> save(@RequestBody Map<String, Object> body, HttpServletRequest request) {
         String currentUserId = currentUserId(request);
+        String userNm = toNullableString(body == null ? null : body.get("user_nm"));
+        if (userNm == null) {
+            throw new IllegalArgumentException("user_nm is required");
+        }
+        validateLength("user_nm", userNm, MAX_USER_NAME_LENGTH);
         int updated = userService.updateMyProfile(currentUserId, body, currentUserId);
         accessService.recordLoginHistory(loginUser(request), currentUserId, true, "MYPAGE_UPDATE", sessionId(request), request);
         return ok(updated);
@@ -89,5 +95,22 @@ public class MyPageController {
         res.put("message", "success");
         res.put("data", data);
         return res;
+    }
+
+    private String toNullableString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String s = String.valueOf(value).trim();
+        if (s.isEmpty() || "null".equalsIgnoreCase(s)) {
+            return null;
+        }
+        return s;
+    }
+
+    private void validateLength(String field, String value, int maxLength) {
+        if (value != null && value.length() > maxLength) {
+            throw new IllegalArgumentException(field + " length must be " + maxLength + " or less");
+        }
     }
 }

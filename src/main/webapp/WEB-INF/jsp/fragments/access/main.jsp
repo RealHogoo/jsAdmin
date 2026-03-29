@@ -92,4 +92,4 @@
     </section>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/access/access.js?v=20260328_02"></script>
+<script src="${pageContext.request.contextPath}/static/js/access/access.js?v=${assetVersion}"></script>

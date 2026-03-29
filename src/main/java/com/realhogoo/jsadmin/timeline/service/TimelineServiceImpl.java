@@ -9,6 +9,9 @@ import java.util.Map;
 
 @Service
 public class TimelineServiceImpl implements TimelineService {
+    private static final int MAX_TIMELINE_TYPE_CODE_LENGTH = 30;
+    private static final int MAX_TIMELINE_TITLE_LENGTH = 300;
+    private static final int MAX_TIMELINE_CONTENT_LENGTH = 4000;
 
     private final TimelineMapper timelineMapper;
 
@@ -55,6 +58,9 @@ public class TimelineServiceImpl implements TimelineService {
         if (title == null) {
             throw new IllegalArgumentException("title is required");
         }
+        validateLength("timeline_type_cd", toStrOrNull(param.get("timeline_type_cd")), MAX_TIMELINE_TYPE_CODE_LENGTH);
+        validateLength("title", title, MAX_TIMELINE_TITLE_LENGTH);
+        validateLength("content", toStrOrNull(param.get("content")), MAX_TIMELINE_CONTENT_LENGTH);
 
         String eventDt = toDateStrOrNull(param.get("event_dt"));
         if (eventDt == null) {
@@ -132,6 +138,12 @@ public class TimelineServiceImpl implements TimelineService {
             return Integer.valueOf(s);
         } catch (NumberFormatException e) {
             return null;
+        }
+    }
+
+    private void validateLength(String field, String value, int maxLength) {
+        if (value != null && value.length() > maxLength) {
+            throw new IllegalArgumentException(field + " length must be " + maxLength + " or less");
         }
     }
 }

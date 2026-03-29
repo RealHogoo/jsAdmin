@@ -9,6 +9,9 @@ import java.util.Map;
 
 @Service
 public class NoticeServiceImpl implements NoticeService {
+    private static final int MAX_NOTICE_TYPE_CODE_LENGTH = 30;
+    private static final int MAX_NOTICE_TITLE_LENGTH = 300;
+    private static final int MAX_NOTICE_CONTENT_LENGTH = 4000;
 
     private final NoticeMapper noticeMapper;
 
@@ -43,6 +46,9 @@ public class NoticeServiceImpl implements NoticeService {
         if (title == null) {
             throw new IllegalArgumentException("title is required");
         }
+        validateLength("noti_type_cd", toStrOrNull(param.get("noti_type_cd")), MAX_NOTICE_TYPE_CODE_LENGTH);
+        validateLength("title", title, MAX_NOTICE_TITLE_LENGTH);
+        validateLength("content", toStrOrNull(param.get("content")), MAX_NOTICE_CONTENT_LENGTH);
 
         String startDt = toDateStrOrNull(param.get("start_dt"));
         String endDt = toDateStrOrNull(param.get("end_dt"));
@@ -113,5 +119,11 @@ public class NoticeServiceImpl implements NoticeService {
             throw new IllegalArgumentException("date format must be yyyy-MM-dd");
         }
         return s;
+    }
+
+    private void validateLength(String field, String value, int maxLength) {
+        if (value != null && value.length() > maxLength) {
+            throw new IllegalArgumentException(field + " length must be " + maxLength + " or less");
+        }
     }
 }

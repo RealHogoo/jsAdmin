@@ -77,4 +77,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/code/code.js?v=20260328_01"></script>
+<script src="${pageContext.request.contextPath}/static/js/code/code.js?v=${assetVersion}"></script>

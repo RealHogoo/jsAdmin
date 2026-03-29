@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.access.mapper.AccessMapper">
+
+    <insert id="insertLoginHistory" parameterType="map">
+        <selectKey keyProperty="hist_seq" resultType="long" order="BEFORE">
+            SELECT nextval('adm_login_hist_seq')
+        </selectKey>
+        INSERT INTO adm_login_hist (
+            hist_seq, user_seq, login_id, user_nm, result_cd, result_msg,
+            session_id, client_ip, user_agent, login_at, created_at, created_by
+        ) VALUES (
+            #{hist_seq,jdbcType=NUMERIC}, #{user_seq,jdbcType=NUMERIC}, #{login_id,jdbcType=VARCHAR},
+            #{user_nm,jdbcType=VARCHAR}, #{result_cd,jdbcType=VARCHAR}, #{result_msg,jdbcType=VARCHAR},
+            #{session_id,jdbcType=VARCHAR}, #{client_ip,jdbcType=VARCHAR}, #{user_agent,jdbcType=VARCHAR},
+            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, COALESCE(#{created_by,jdbcType=VARCHAR}, 'SYSTEM')
+        )
+    </insert>
+
+    <insert id="insertLoginSession" parameterType="map">
+        <selectKey keyProperty="sesn_seq" resultType="long" order="BEFORE">
+            SELECT nextval('adm_login_sesn_seq')
+        </selectKey>
+        INSERT INTO adm_login_sesn (
+            sesn_seq, session_id, user_seq, login_id, user_nm, status_cd,
+            client_ip, user_agent, login_at, last_access_at, expires_at,
+            created_at, created_by, updated_at, updated_by
+        ) VALUES (
+            #{sesn_seq,jdbcType=NUMERIC}, #{session_id,jdbcType=VARCHAR}, #{user_seq,jdbcType=NUMERIC},
+            #{login_id,jdbcType=VARCHAR}, #{user_nm,jdbcType=VARCHAR}, #{status_cd,jdbcType=VARCHAR},
+            #{client_ip,jdbcType=VARCHAR}, #{user_agent,jdbcType=VARCHAR}, #{login_at,jdbcType=TIMESTAMP},
+            #{last_access_at,jdbcType=TIMESTAMP}, #{expires_at,jdbcType=TIMESTAMP},
+            CURRENT_TIMESTAMP, COALESCE(#{created_by,jdbcType=VARCHAR}, 'SYSTEM'),
+            CURRENT_TIMESTAMP, COALESCE(#{updated_by,jdbcType=VARCHAR}, 'SYSTEM')
+        )
+    </insert>
+
+    <update id="updateSessionLastAccess">
+        UPDATE adm_login_sesn
+           SET last_access_at = #{accessedAt},
+               updated_at = CURRENT_TIMESTAMP
+         WHERE session_id = #{sessionId}
+           AND status_cd = 'ACTIVE'
+    </update>
+
+    <update id="expireSession">
+        UPDATE adm_login_sesn
+           SET status_cd = #{statusCd},
+               logout_at = CURRENT_TIMESTAMP,
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = COALESCE(#{actor}, 'SYSTEM')
+         WHERE session_id = #{sessionId}
+           AND status_cd = 'ACTIVE'
+    </update>
+
+    <update id="expireSessionsByLoginId">
+        UPDATE adm_login_sesn
+           SET status_cd = #{statusCd},
+               logout_at = CURRENT_TIMESTAMP,
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = COALESCE(#{actor}, 'SYSTEM')
+         WHERE login_id = #{loginId}
+           AND status_cd = 'ACTIVE'
+    </update>
+
+    <select id="selectSessionStatus" resultType="map">
+        SELECT session_id, status_cd, expires_at, user_seq, login_id, user_nm
+        FROM adm_login_sesn
+        WHERE session_id = #{sessionId}
+    </select>
+
+    <select id="selectLoginSessionList" parameterType="map" resultType="map">
+        SELECT
+            sesn_seq, session_id, user_seq, login_id, user_nm, status_cd, client_ip, user_agent,
+            TO_CHAR(login_at, 'YYYY-MM-DD HH24:MI:SS') AS login_at,
+            TO_CHAR(last_access_at, 'YYYY-MM-DD HH24:MI:SS') AS last_access_at,
+            TO_CHAR(expires_at, 'YYYY-MM-DD HH24:MI:SS') AS expires_at,
+            TO_CHAR(logout_at, 'YYYY-MM-DD HH24:MI:SS') AS logout_at,
+            CASE
+                WHEN status_cd = 'ACTIVE' AND expires_at IS NOT NULL AND expires_at &lt; CURRENT_TIMESTAMP THEN 'EXPIRED'
+                ELSE status_cd
+            END AS view_status_cd
+        FROM adm_login_sesn
+        WHERE 1 = 1
+        <if test="keyword != null and keyword != ''">
+            AND (
+                login_id LIKE '%' || #{keyword} || '%'
+                OR COALESCE(user_nm, '') LIKE '%' || #{keyword} || '%'
+                OR COALESCE(client_ip, '') LIKE '%' || #{keyword} || '%'
+            )
+        </if>
+        <if test="status_cd != null and status_cd != ''">
+            <choose>
+                <when test="status_cd == 'EXPIRED'">
+                    AND (
+                        status_cd = 'EXPIRED'
+                        OR (status_cd = 'ACTIVE' AND expires_at IS NOT NULL AND expires_at &lt; CURRENT_TIMESTAMP)
+                    )
+                </when>
+                <otherwise>
+                    AND status_cd = #{status_cd}
+                </otherwise>
+            </choose>
+        </if>
+        ORDER BY login_at DESC, sesn_seq DESC
+    </select>
+
+    <select id="selectLoginHistoryList" parameterType="map" resultType="map">
+        SELECT
+            hist_seq, user_seq, login_id, user_nm, result_cd, result_msg, session_id, client_ip, user_agent,
+            TO_CHAR(login_at, 'YYYY-MM-DD HH24:MI:SS') AS login_at
+        FROM adm_login_hist
+        WHERE 1 = 1
+        <if test="keyword != null and keyword != ''">
+            AND (
+                login_id LIKE '%' || #{keyword} || '%'
+                OR COALESCE(user_nm, '') LIKE '%' || #{keyword} || '%'
+                OR COALESCE(client_ip, '') LIKE '%' || #{keyword} || '%'
+                OR COALESCE(result_msg, '') LIKE '%' || #{keyword} || '%'
+            )
+        </if>
+        <if test="result_cd != null and result_cd != ''">
+            AND result_cd = #{result_cd}
+        </if>
+        <if test="from_dt != null and from_dt != ''">
+            AND login_at &gt;= TO_TIMESTAMP(#{from_dt} || ' 00:00:00', 'YYYY-MM-DD HH24:MI:SS')
+        </if>
+        <if test="to_dt != null and to_dt != ''">
+            AND login_at &lt; TO_TIMESTAMP(#{to_dt} || ' 23:59:59', 'YYYY-MM-DD HH24:MI:SS')
+        </if>
+        ORDER BY login_at DESC, hist_seq DESC
+    </select>
+
+</mapper>

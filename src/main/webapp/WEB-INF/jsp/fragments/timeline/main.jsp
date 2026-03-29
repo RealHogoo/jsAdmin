@@ -85,4 +85,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/timeline/timeline-main.js?v=20260328_01"></script>
+<script src="${pageContext.request.contextPath}/static/js/timeline/timeline-main.js?v=${assetVersion}"></script>

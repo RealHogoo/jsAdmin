@@ -16,6 +16,10 @@ import java.util.Map;
 
 @Controller
 public class MenuController {
+    private static final int MAX_MENU_NAME_LENGTH = 100;
+    private static final int MAX_MENU_URL_LENGTH = 300;
+    private static final int MAX_MENU_TYPE_CODE_LENGTH = 30;
+    private static final int MAX_ICON_CLASS_LENGTH = 100;
 
     private final MenuService menuService;
 
@@ -77,6 +81,11 @@ public class MenuController {
 
         Map<String, Object> res = new HashMap<>();
         try {
+            validateRequired(param, "menu_nm");
+            validateLength("menu_nm", stringValue(param, "menu_nm"), MAX_MENU_NAME_LENGTH);
+            validateLength("menu_url", stringValue(param, "menu_url"), MAX_MENU_URL_LENGTH);
+            validateLength("menu_type_cd", stringValue(param, "menu_type_cd"), MAX_MENU_TYPE_CODE_LENGTH);
+            validateLength("icon_class", stringValue(param, "icon_class"), MAX_ICON_CLASS_LENGTH);
             Long menuSeq = menuService.saveMenu(param, userId);
             res.put("ok", true);
             res.put("code", "OK");
@@ -112,5 +121,32 @@ public class MenuController {
             res.put("data", null);
         }
         return res;
+    }
+
+    private void validateRequired(Map<String, Object> param, String field) {
+        if (stringValue(param, field) == null) {
+            throw new IllegalArgumentException(field + " is required");
+        }
+    }
+
+    private void validateLength(String field, String value, int maxLength) {
+        if (value != null && value.length() > maxLength) {
+            throw new IllegalArgumentException(field + " length must be " + maxLength + " or less");
+        }
+    }
+
+    private String stringValue(Map<String, Object> param, String field) {
+        if (param == null) {
+            return null;
+        }
+        Object value = param.get(field);
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.isEmpty() || "null".equalsIgnoreCase(text)) {
+            return null;
+        }
+        return text;
     }
 }

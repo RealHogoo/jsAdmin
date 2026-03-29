@@ -26,6 +26,10 @@ import java.util.UUID;
 public class AuthServiceImpl implements AuthService {
     private static final long ONE_MINUTE_MS = 60_000L;
     private static final long TEN_MINUTES_MS = 600_000L;
+    private static final int MAX_LOGIN_ID_LENGTH = 100;
+    private static final int MAX_PASSWORD_LENGTH = 1000;
+    private static final int MAX_REFRESH_TOKEN_LENGTH = 128;
+    private static final int MAX_SESSION_ID_LENGTH = 64;
 
     private final AuthMapper authMapper;
     private final JwtProvider jwtProvider;
@@ -160,6 +164,8 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public Map<String, Object> login(String userId, String userPw, HttpServletRequest request) {
         String normalizedUserId = normalizeLoginId(userId);
+        validateLength("user_id", normalizedUserId, MAX_LOGIN_ID_LENGTH);
+        validateLength("user_pw", userPw, MAX_PASSWORD_LENGTH);
 
         LoginUser user = authMapper.selectUserForLogin(normalizedUserId);
         if (user == null) {
@@ -214,6 +220,7 @@ public class AuthServiceImpl implements AuthService {
         if (refreshToken == null || refreshToken.trim().isEmpty()) {
             return fail("UNAUTHORIZED", "refresh token is required");
         }
+        validateLength("refresh_token", refreshToken.trim(), MAX_REFRESH_TOKEN_LENGTH);
 
         String tokenHash = hashToken(refreshToken);
         Map<String, Object> refreshRow = authMapper.selectActiveRefreshToken(tokenHash);
@@ -223,6 +230,8 @@ public class AuthServiceImpl implements AuthService {
 
         String sessionId = toNullableStr(refreshRow.get("session_id"));
         String loginId = toNullableStr(refreshRow.get("login_id"));
+        validateLength("session_id", sessionId, MAX_SESSION_ID_LENGTH);
+        validateLength("login_id", loginId, MAX_LOGIN_ID_LENGTH);
         String actor = loginId == null ? "SYSTEM" : loginId;
         if (!accessService.touchSession(sessionId, new Date().toInstant())) {
             authMapper.revokeRefreshToken(tokenHash, actor);
@@ -447,6 +456,12 @@ public class AuthServiceImpl implements AuthService {
         return res;
     }
 
+    private void validateLength(String field, String value, int maxLength) {
+        if (value != null && value.length() > maxLength) {
+            throw new IllegalArgumentException(field + " length must be " + maxLength + " or less");
+        }
+    }
+
     private static final class LoginFailureResult {
         private final String code;
         private final String message;
@@ -491,3 +506,4 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 }
+

@@ -60,4 +60,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/mypage/mypage.js"></script>
+<script src="${pageContext.request.contextPath}/static/js/mypage/mypage.js?v=${assetVersion}"></script>

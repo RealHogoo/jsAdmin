@@ -13,6 +13,8 @@ import java.util.Map;
 
 @Controller
 public class UserController {
+    private static final int MAX_LOGIN_ID_LENGTH = 100;
+    private static final int MAX_USER_NAME_LENGTH = 100;
 
     private final UserService userService;
 
@@ -41,6 +43,16 @@ public class UserController {
     @PostMapping("/user/save.json")
     @ResponseBody
     public Map<String, Object> save(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        String loginId = toNullableString(body == null ? null : body.get("login_id"));
+        String userNm = toNullableString(body == null ? null : body.get("user_nm"));
+        if (loginId == null) {
+            throw new IllegalArgumentException("login_id is required");
+        }
+        if (userNm == null) {
+            throw new IllegalArgumentException("user_nm is required");
+        }
+        validateLength("login_id", loginId, MAX_LOGIN_ID_LENGTH);
+        validateLength("user_nm", userNm, MAX_USER_NAME_LENGTH);
         String actor = request.getAttribute("user_id") == null ? null : String.valueOf(request.getAttribute("user_id"));
         Long userSeq = userService.saveUser(body, actor);
         return ok(Collections.singletonMap("user_seq", userSeq));
@@ -85,5 +97,18 @@ public class UserController {
         String s = String.valueOf(value).trim();
         if (s.isEmpty() || "null".equalsIgnoreCase(s)) return null;
         return Long.valueOf(s);
+    }
+
+    private String toNullableString(Object value) {
+        if (value == null) return null;
+        String s = String.valueOf(value).trim();
+        if (s.isEmpty() || "null".equalsIgnoreCase(s)) return null;
+        return s;
+    }
+
+    private void validateLength(String field, String value, int maxLength) {
+        if (value != null && value.length() > maxLength) {
+            throw new IllegalArgumentException(field + " length must be " + maxLength + " or less");
+        }
     }
 }

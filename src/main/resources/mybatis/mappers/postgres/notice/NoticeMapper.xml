@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.notice.mapper.NoticeMapper">
+
+    <select id="selectNoticeList" parameterType="map" resultType="map">
+        SELECT
+            noti_seq AS noti_seq,
+            noti_type_cd AS noti_type_cd,
+            title AS title,
+            TO_CHAR(start_dt, 'YYYY-MM-DD') AS start_dt,
+            TO_CHAR(end_dt, 'YYYY-MM-DD') AS end_dt,
+            COALESCE(pin_yn, 'N') AS pin_yn,
+            COALESCE(popup_yn, 'N') AS popup_yn,
+            COALESCE(view_cnt, 0) AS view_cnt,
+            COALESCE(use_yn, 'Y') AS use_yn,
+            TO_CHAR(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at,
+            updated_by AS updated_by,
+            TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+            created_by AS created_by
+        FROM adm_noti_mst
+        WHERE 1=1
+          <if test="use_yn != null and use_yn != ''">
+          AND COALESCE(use_yn, 'Y') = #{use_yn}
+          </if>
+          <if test="use_yn == null or use_yn == ''">
+          AND COALESCE(use_yn, 'Y') = 'Y'
+          </if>
+          <if test="noti_type_cd != null and noti_type_cd != ''">
+          AND noti_type_cd = #{noti_type_cd}
+          </if>
+          <if test="title != null and title != ''">
+          AND title LIKE '%' || #{title} || '%'
+          </if>
+        ORDER BY COALESCE(pin_yn, 'N') DESC, COALESCE(start_dt, DATE '1900-01-01') DESC, noti_seq DESC
+    </select>
+
+    <select id="selectNoticeDetail" parameterType="long" resultType="map">
+        SELECT
+            noti_seq AS noti_seq,
+            noti_type_cd AS noti_type_cd,
+            title AS title,
+            content AS content,
+            TO_CHAR(start_dt, 'YYYY-MM-DD') AS start_dt,
+            TO_CHAR(end_dt, 'YYYY-MM-DD') AS end_dt,
+            COALESCE(pin_yn, 'N') AS pin_yn,
+            COALESCE(popup_yn, 'N') AS popup_yn,
+            COALESCE(view_cnt, 0) AS view_cnt,
+            COALESCE(use_yn, 'Y') AS use_yn,
+            TO_CHAR(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at,
+            updated_by AS updated_by,
+            TO_CHAR(created_at, 'YYYY-MM-DD HH24:MI:SS') AS created_at,
+            created_by AS created_by
+        FROM adm_noti_mst
+        WHERE noti_seq = #{notiSeq}
+    </select>
+
+    <insert id="insertNotice" parameterType="map">
+        <selectKey keyProperty="noti_seq" resultType="long" order="BEFORE">
+            SELECT nextval('adm_noti_mst_seq')
+        </selectKey>
+        INSERT INTO adm_noti_mst (
+            noti_seq, noti_type_cd, title, content,
+            start_dt, end_dt,
+            pin_yn, popup_yn, view_cnt, use_yn,
+            created_at, created_by, updated_at, updated_by
+        ) VALUES (
+            #{noti_seq}, #{noti_type_cd}, #{title}, #{content},
+            CASE WHEN #{start_dt} IS NULL THEN NULL ELSE TO_DATE(#{start_dt}, 'YYYY-MM-DD') END,
+            CASE WHEN #{end_dt} IS NULL THEN NULL ELSE TO_DATE(#{end_dt}, 'YYYY-MM-DD') END,
+            COALESCE(#{pin_yn}, 'N'), COALESCE(#{popup_yn}, 'N'), 0, COALESCE(#{use_yn}, 'Y'),
+            CURRENT_TIMESTAMP, #{created_by}, NULL, NULL
+        )
+    </insert>
+
+    <update id="updateNotice" parameterType="map">
+        UPDATE adm_noti_mst
+           SET noti_type_cd = #{noti_type_cd},
+               title = #{title},
+               content = #{content},
+               start_dt = CASE WHEN #{start_dt} IS NULL THEN NULL ELSE TO_DATE(#{start_dt}, 'YYYY-MM-DD') END,
+               end_dt = CASE WHEN #{end_dt} IS NULL THEN NULL ELSE TO_DATE(#{end_dt}, 'YYYY-MM-DD') END,
+               pin_yn = COALESCE(#{pin_yn}, 'N'),
+               popup_yn = COALESCE(#{popup_yn}, 'N'),
+               use_yn = COALESCE(#{use_yn}, 'Y'),
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE noti_seq = #{noti_seq}
+    </update>
+
+    <update id="deleteNotice" parameterType="map">
+        UPDATE adm_noti_mst
+           SET use_yn = 'N',
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE noti_seq = #{noti_seq}
+    </update>
+
+</mapper>

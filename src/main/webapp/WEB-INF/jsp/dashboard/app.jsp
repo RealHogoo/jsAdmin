@@ -6,7 +6,7 @@
 <head>
     <meta charset="UTF-8"/>
     <title>jsAdmin</title>
-    <link rel="stylesheet" href="/static/css/common.css?v=20260326_01">
+    <link rel="stylesheet" href="${pageContext.request.contextPath}/static/css/common.css?v=${assetVersion}">
 </head>
 <script>
 (function () {
@@ -42,13 +42,12 @@
         window.CTX = "${pageContext.request.contextPath}";
     </script>
 
-    <script src="${pageContext.request.contextPath}/static/js/ux.js"></script>
-    <script src="${pageContext.request.contextPath}/static/js/grid.js?v=20260326_01"></script>
-    <script src="${pageContext.request.contextPath}/static/js/menu-icons.js?v=20260325_05"></script>
-    <script src="${pageContext.request.contextPath}/static/js/app.js?v=20260328_03"></script>
-    <script src="${pageContext.request.contextPath}/static/js/header/header.js?v=20260328_02"></script>
-    <script src="${pageContext.request.contextPath}/static/js/footer/footer.js"></script>
-    <script src="${pageContext.request.contextPath}/static/js/sidebar/sidebar.js?v=20260327_02"></script>
+    <script src="${pageContext.request.contextPath}/static/js/ux.js?v=${assetVersion}"></script>
+    <script src="${pageContext.request.contextPath}/static/js/grid.js?v=${assetVersion}"></script>
+    <script src="${pageContext.request.contextPath}/static/js/menu-icons.js?v=${assetVersion}"></script>
+    <script src="${pageContext.request.contextPath}/static/js/app.js?v=${assetVersion}"></script>
+    <script src="${pageContext.request.contextPath}/static/js/header/header.js?v=${assetVersion}"></script>
+    <script src="${pageContext.request.contextPath}/static/js/sidebar/sidebar.js?v=${assetVersion}"></script>
 
     <script>
         (function () {

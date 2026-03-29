@@ -30,4 +30,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/home/home.js"></script>
+<script src="${pageContext.request.contextPath}/static/js/home/home.js?v=${assetVersion}"></script>

@@ -15,6 +15,10 @@ import java.util.Map;
 public class MenuServiceImpl implements MenuService {
 
     private static final Long COMMON_AUTH_GROUP_SEQ = 4L;
+    private static final int MAX_MENU_NAME_LENGTH = 100;
+    private static final int MAX_MENU_URL_LENGTH = 300;
+    private static final int MAX_MENU_TYPE_CODE_LENGTH = 30;
+    private static final int MAX_ICON_CLASS_LENGTH = 100;
 
     private final MenuMapper menuMapper;
 
@@ -76,6 +80,14 @@ public class MenuServiceImpl implements MenuService {
 
         Object menuSeqObj = param.get("menu_seq");
         Long menuSeq = menuSeqObj == null ? null : Long.valueOf(String.valueOf(menuSeqObj));
+        String menuNm = toNullableString(param.get("menu_nm"));
+        if (menuNm == null) {
+            throw new IllegalArgumentException("menu_nm is required");
+        }
+        validateLength("menu_nm", menuNm, MAX_MENU_NAME_LENGTH);
+        validateLength("menu_url", toNullableString(param.get("menu_url")), MAX_MENU_URL_LENGTH);
+        validateLength("menu_type_cd", toNullableString(param.get("menu_type_cd")), MAX_MENU_TYPE_CODE_LENGTH);
+        validateLength("icon_class", toNullableString(param.get("icon_class")), MAX_ICON_CLASS_LENGTH);
 
         param.put("updated_by", userId);
         if (menuSeq == null) {
@@ -147,5 +159,22 @@ public class MenuServiceImpl implements MenuService {
             }
         }
         return null;
+    }
+
+    private String toNullableString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.isEmpty() || "null".equalsIgnoreCase(text)) {
+            return null;
+        }
+        return text;
+    }
+
+    private void validateLength(String field, String value, int maxLength) {
+        if (value != null && value.length() > maxLength) {
+            throw new IllegalArgumentException(field + " length must be " + maxLength + " or less");
+        }
     }
 }

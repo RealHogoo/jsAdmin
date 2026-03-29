@@ -9,6 +9,7 @@ import java.util.HashMap;
 
 @Service
 public class CodeServiceImpl implements CodeService {
+    private static final int MAX_CODE_GROUP_LENGTH = 10;
 
     private final CodeMapper codeMapper;
 
@@ -36,6 +37,7 @@ public class CodeServiceImpl implements CodeService {
         if (isBlank(codeGrpCd) || isBlank(codeCd) || isBlank(codeNm)) {
             throw new IllegalArgumentException("code_grp_cd, code_cd, code_nm are required");
         }
+        validateLength("code_grp_cd", codeGrpCd, MAX_CODE_GROUP_LENGTH);
 
         Integer dup = codeMapper.countDupCode(codeGrpCd, codeCd, codeSeq);
         if (dup != null && dup > 0) {
@@ -105,5 +107,11 @@ public class CodeServiceImpl implements CodeService {
         String s = String.valueOf(v).trim();
         if (s.isEmpty()) return def;
         return Integer.parseInt(s);
+    }
+
+    private void validateLength(String field, String value, int maxLength) {
+        if (value != null && value.length() > maxLength) {
+            throw new IllegalArgumentException(field + " length must be " + maxLength + " or less");
+        }
     }
 }

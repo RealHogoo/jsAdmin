@@ -99,4 +99,4 @@
     </div>
 </div>
 
-<script src="${pageContext.request.contextPath}/static/js/notice/notice.js?v=20260328_01"></script>
+<script src="${pageContext.request.contextPath}/static/js/notice/notice.js?v=${assetVersion}"></script>
