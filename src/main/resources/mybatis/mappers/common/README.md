@@ -1,1 +1,3 @@
-Place vendor-neutral MyBatis mapper XML files here.
+# 공통 매퍼 안내
+
+DB 벤더와 무관하게 공통으로 사용하는 MyBatis 매퍼 XML을 이 디렉터리에 둡니다.

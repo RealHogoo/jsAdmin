@@ -1,29 +1,27 @@
-# Operations Guide
+# 운영 가이드
 
-## Required Settings
+## 필수 설정
 
-Base properties:
+- `APP_DB_VENDOR`: `oracle` 또는 `postgres`
+- `SERVER_PORT`: 서비스 포트
+- `JWT_SECRET`: JWT 서명 키
+- `JWT_EXP_SECONDS`: access token 만료 시간(초)
+- `ASSET_VERSION`: 정적 리소스 버전
+- `AUTH_SUPER_LOGIN_ID`: 슈퍼관리자 로그인 ID
 
-- `APP_DB_VENDOR`: `oracle` or `postgres`
-- `SERVER_PORT`: HTTP port
-- `JWT_SECRET`: JWT signing secret
-- `JWT_EXP_SECONDS`: access token lifetime in seconds
-- `ASSET_VERSION`: static asset cache version, usually `YYYYMMDD`
-- `AUTH_SUPER_LOGIN_ID`: explicit super admin login id
-
-Database settings:
+## DB 설정
 
 - Oracle: [src/main/resources/db/oracle.properties](/D:/MSA_project/ADMIN_project/admin-service/src/main/resources/db/oracle.properties)
 - PostgreSQL: [src/main/resources/db/postgres.properties](/D:/MSA_project/ADMIN_project/admin-service/src/main/resources/db/postgres.properties)
 
-Supported keys:
+지원 키:
 
-- `db.driver` or `jdbc.driverClassName`
-- `db.url` or `jdbc.url`
-- `db.username` or `jdbc.username`
-- `db.password` or `jdbc.password`
+- `db.driver` 또는 `jdbc.driverClassName`
+- `db.url` 또는 `jdbc.url`
+- `db.username` 또는 `jdbc.username`
+- `db.password` 또는 `jdbc.password`
 
-Recommended environment variables:
+권장 환경변수:
 
 - `DB_DRIVER`
 - `DB_URL`
@@ -34,54 +32,44 @@ Recommended environment variables:
 - `DB_MAX_IDLE`
 - `DB_MIN_IDLE`
 
-## Local Run
+## 로컬 실행
 
 Oracle:
 
 ```powershell
-$env:SERVER_PORT="8082"
 $env:APP_DB_VENDOR="oracle"
+$env:JWT_SECRET="change-this-secret"
+$env:DB_URL="jdbc:log4jdbc:oracle:thin:@localhost:1521/admin"
+$env:DB_USERNAME="ADMIN_DEV"
+$env:DB_PASSWORD="StrongDev123!"
 .\gradlew.bat bootRun
 ```
 
 PostgreSQL:
 
 ```powershell
-$env:SERVER_PORT="8082"
 $env:APP_DB_VENDOR="postgres"
+$env:JWT_SECRET="change-this-secret"
 .\gradlew.bat bootRun
 ```
 
-## Build And Test
-
-Compile resources:
+## 빌드 및 테스트
 
 ```powershell
 .\gradlew.bat compileJava processResources
-```
-
-Run tests:
-
-```powershell
 .\gradlew.bat test
-```
-
-Build WAR:
-
-```powershell
 .\gradlew.bat bootWar
 ```
 
-## Deployment Checklist
+## 배포 체크리스트
 
-- Set `JWT_SECRET` from environment, not from committed defaults.
-- Set the correct `APP_DB_VENDOR`.
-- Set `AUTH_SUPER_LOGIN_ID` explicitly and verify the matching account.
-- Verify DB credentials before deployment.
-- Set `ASSET_VERSION` to the deployment date, for example `20260331`.
-- If a same-day hotfix is required, use a suffix such as `20260331a`.
+- `JWT_SECRET`를 운영 환경변수로 주입했는지 확인
+- `APP_DB_VENDOR`를 올바르게 선택했는지 확인
+- `AUTH_SUPER_LOGIN_ID`와 실제 계정이 일치하는지 확인
+- DB 접속정보를 최종 검증했는지 확인
+- `ASSET_VERSION`을 배포일 기준으로 설정했는지 확인
 
-## Smoke Test Checklist
+## 스모크 테스트 체크리스트
 
 - `POST /login.json`
 - `POST /auth/me.json`
@@ -93,14 +81,8 @@ Build WAR:
 - `POST /timeline/list.json`
 - `POST /health/db.json`
 
-## Frontend Notes
+## 운영 주의사항
 
-- API payloads use `snake_case`.
-- Static JS should not assume `camelCase` response fields.
-- After changing static files, hard refresh the browser if cached assets are still served.
-
-## Known Operational Risks
-
-- Starting the app on a port already in use will fail immediately.
-- Oracle JDBC may log thread cleanup warnings during shutdown; these are separate from startup failures.
-- Invalid DB credentials fail fast during Hikari pool initialization.
+- 포트가 이미 사용 중이면 기동에 실패합니다.
+- Oracle JDBC는 종료 시 thread 정리 경고를 남길 수 있습니다.
+- DB 계정이나 비밀번호가 틀리면 Hikari 초기화 단계에서 즉시 실패합니다.

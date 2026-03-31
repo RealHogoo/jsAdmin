@@ -1,53 +1,50 @@
 # admin-service
 
-Administrative service built with Spring Boot, JSP, and MyBatis.
+`admin-service`는 Spring Boot, JSP, MyBatis 기반의 관리자 서비스입니다.
 
-## Scope
+## 주요 기능
 
-- Authentication and token refresh
-- User management
-- Menu and authorization management
-- Common code management
-- Notice and timeline management
-- Access history and session control
-- API policy management
-- My page
-- Health checks
+- 로그인, 토큰 갱신, 로그아웃
+- 사용자 관리
+- 메뉴 및 권한 관리
+- 공통 코드 관리
+- 공지사항 및 타임라인 관리
+- 접속 이력 및 세션 관리
+- API 정책 관리
+- 마이페이지
+- 헬스 체크
 
-## Stack
+## 기술 스택
 
 - Java 17
 - Spring Boot 2.7
 - JSP
 - MyBatis
-- Oracle or PostgreSQL
+- Oracle / PostgreSQL
 - JWT
 - BCrypt
 
-## Configuration
+## 설정 위치
 
-Base application settings are in [src/main/resources/app.properties](/D:/MSA_project/ADMIN_project/admin-service/src/main/resources/app.properties).
+- 공통 설정: [src/main/resources/app.properties](/D:/MSA_project/ADMIN_project/admin-service/src/main/resources/app.properties)
+- Oracle 설정: [src/main/resources/db/oracle.properties](/D:/MSA_project/ADMIN_project/admin-service/src/main/resources/db/oracle.properties)
+- PostgreSQL 설정: [src/main/resources/db/postgres.properties](/D:/MSA_project/ADMIN_project/admin-service/src/main/resources/db/postgres.properties)
 
-Database vendor settings are split by file.
-
-- [src/main/resources/db/oracle.properties](/D:/MSA_project/ADMIN_project/admin-service/src/main/resources/db/oracle.properties)
-- [src/main/resources/db/postgres.properties](/D:/MSA_project/ADMIN_project/admin-service/src/main/resources/db/postgres.properties)
-
-## Quick Start
+## 빠른 실행
 
 ```powershell
-$env:SERVER_PORT="8082"
 $env:APP_DB_VENDOR="oracle"
+$env:JWT_SECRET="change-this-secret"
 .\gradlew.bat bootRun
 ```
 
-## Documents
+## 문서
 
-- [Operations Guide](/D:/MSA_project/ADMIN_project/admin-service/docs/operations.md)
-- [Service Overview](/D:/MSA_project/ADMIN_project/admin-service/docs/admin-service.md)
-- [PostgreSQL SQL Guide](/D:/MSA_project/ADMIN_project/admin-service/docs/sqls/postgres/README.md)
+- [서비스 개요](/D:/MSA_project/ADMIN_project/admin-service/docs/admin-service.md)
+- [운영 가이드](/D:/MSA_project/ADMIN_project/admin-service/docs/operations.md)
+- [SQL 가이드](/D:/MSA_project/ADMIN_project/admin-service/docs/sqls/README.md)
 
-## Notes
+## 참고
 
-- Static asset cache version is controlled by `asset.version` or `ASSET_VERSION`.
-- Frontend JSON handling assumes `snake_case` API payloads. New UI code should not rely on `camelCase` response keys.
+- 정적 리소스 버전은 `asset.version` 또는 `ASSET_VERSION`으로 관리합니다.
+- 프런트엔드 JSON 응답은 `snake_case` 기준입니다.

@@ -1,26 +1,23 @@
-# 타임라인 관리 문서
+# 타임라인 문서
 
 ## 개요
 
-타임라인은 운영 이벤트나 게시형 이력을 시간순으로 관리하는 화면입니다.
+타임라인 기능은 관리자 화면에 노출되는 이력성 콘텐츠를 조회하고 관리합니다.
 
 ## 주요 기능
 
-- 목록 조회
+- 타임라인 목록 조회
 - 상세 조회
-- 등록/수정
-- 삭제
-- 홈 화면 요약 연동
+- 등록, 수정, 삭제
 
 ## 주요 API
 
-- `/timeline/home.do`
 - `/timeline/main.do`
 - `/timeline/list.json`
 - `/timeline/detail.json`
 - `/timeline/save.json`
 - `/timeline/delete.json`
 
-## 비고
+## 관련 테이블
 
-- 타임라인 목록과 상세는 비로그인 공개 정책으로 운영할 수 있습니다.
+- `ADM_TIMELINE_MST`

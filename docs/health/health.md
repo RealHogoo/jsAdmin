@@ -1,20 +1,12 @@
-# 헬스체크 문서
+# 헬스 체크 문서
 
 ## 개요
 
-헬스체크는 관리자 서비스와 연동 자원의 상태를 빠르게 확인하는 화면입니다.
-
-## 주요 기능
-
-- 서버 상태 조회
-- DB 상태 조회
-- 라이브/레디 상태 조회
-- 상세 상태 요약 확인
+헬스 체크는 서비스 상태, DB 연결 상태, 서버 기본 정보를 확인하는 기능입니다.
 
 ## 주요 API
 
 - `/health/main.do`
-- `/dashboard/health.do`
 - `/health/status.json`
 - `/health/db.json`
 - `/health/server.json`
@@ -22,6 +14,10 @@
 - `/health/ready.json`
 - `/health/detail.json`
 
-## 비고
+## 확인 항목
 
-- 일부 공개용 상태 API와 운영용 상세 API를 구분해서 사용할 수 있습니다.
+- DB 연결 및 ping 결과
+- Hikari 풀 상태
+- JVM 메모리
+- 스레드 수
+- 서버 가동 시간
