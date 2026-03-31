@@ -6,7 +6,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -15,6 +17,9 @@ public class UserServiceImpl implements UserService {
     private static final int MAX_LOGIN_ID_LENGTH = 100;
     private static final int MAX_USER_NAME_LENGTH = 100;
     private static final int MAX_PASSWORD_LENGTH = 1000;
+    private static final String TEMP_PASSWORD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*";
+    private static final int TEMP_PASSWORD_LENGTH = 16;
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UserMapper userMapper;
     private final SuperAdminProperties superAdminProperties;
@@ -137,7 +142,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public int resetPassword(Long userSeq, String actor) {
+    public Map<String, Object> resetPassword(Long userSeq, String actor) {
         if (userSeq == null) {
             throw new IllegalArgumentException("user_seq is required");
         }
@@ -146,11 +151,21 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("user not found");
         }
 
+        String temporaryPassword = generateTemporaryPassword();
+
         Map<String, Object> param = new HashMap<String, Object>();
         param.put("user_seq", userSeq);
         param.put("updated_by", actor == null || actor.trim().isEmpty() ? "SYSTEM" : actor.trim());
-        param.put("reset_pw", passwordEncoder.encode(String.valueOf(detail.get("login_id"))));
-        return userMapper.resetPassword(param);
+        param.put("reset_pw", passwordEncoder.encode(temporaryPassword));
+
+        int updated = userMapper.resetPassword(param);
+
+        Map<String, Object> result = new LinkedHashMap<String, Object>();
+        result.put("reset", updated);
+        result.put("login_id", detail.get("login_id"));
+        result.put("temporary_password", temporaryPassword);
+        result.put("password_reset_required", true);
+        return result;
     }
 
     @Override
@@ -263,6 +278,15 @@ public class UserServiceImpl implements UserService {
         if (value != null && value.length() > maxLength) {
             throw new IllegalArgumentException(field + " length must be " + maxLength + " or less");
         }
+    }
+
+    private String generateTemporaryPassword() {
+        StringBuilder builder = new StringBuilder(TEMP_PASSWORD_LENGTH);
+        for (int i = 0; i < TEMP_PASSWORD_LENGTH; i++) {
+            int index = SECURE_RANDOM.nextInt(TEMP_PASSWORD_CHARS.length());
+            builder.append(TEMP_PASSWORD_CHARS.charAt(index));
+        }
+        return builder.toString();
     }
 }
 

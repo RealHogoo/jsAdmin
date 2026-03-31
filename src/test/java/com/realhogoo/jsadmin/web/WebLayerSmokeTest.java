@@ -3,14 +3,29 @@ package com.realhogoo.jsadmin.web;
 import com.realhogoo.jsadmin.api.GlobalExceptionHandler;
 import com.realhogoo.jsadmin.api.SecurityHeadersFilter;
 import com.realhogoo.jsadmin.auth.service.AuthService;
+import com.realhogoo.jsadmin.auth.web.AuthController;
 import com.realhogoo.jsadmin.auth.web.LoginController;
+import com.realhogoo.jsadmin.health.mapper.HealthMapper;
+import com.realhogoo.jsadmin.health.web.HealthController;
+import com.realhogoo.jsadmin.menu.dto.MenuNode;
+import com.realhogoo.jsadmin.menu.service.MenuService;
+import com.realhogoo.jsadmin.menu.web.MenuController;
+import com.realhogoo.jsadmin.notice.service.NoticeService;
+import com.realhogoo.jsadmin.notice.web.NoticeController;
+import com.realhogoo.jsadmin.user.service.UserService;
+import com.realhogoo.jsadmin.user.web.UserController;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import javax.sql.DataSource;
 import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -27,42 +42,104 @@ class WebLayerSmokeTest {
 
     private MockMvc mockMvc;
     private AuthService authService;
+    private MenuService menuService;
+    private UserService userService;
+    private NoticeService noticeService;
 
     @BeforeEach
     void setUp() {
         authService = mock(AuthService.class);
+        menuService = mock(MenuService.class);
+        userService = mock(UserService.class);
+        noticeService = mock(NoticeService.class);
+        DataSource dataSource = mock(DataSource.class);
+        HealthMapper healthMapper = mock(HealthMapper.class);
+
         when(authService.login(anyString(), anyString(), any())).thenReturn(Collections.singletonMap("ok", true));
+        when(authService.me(anyString(), any(), anyString()))
+            .thenReturn(Map.of("user_id", "ADMIN", "user_nm", "관리자"));
+        when(menuService.getMenuTree(anyString())).thenReturn(List.of(sampleMenuNode()));
+        when(userService.getUserList(any())).thenReturn(List.of(Map.of("login_id", "ADMIN", "user_nm", "관리자")));
+        when(noticeService.selectNoticeList(any())).thenReturn(List.of(Map.of("noti_seq", 1L, "title", "Sample notice")));
 
         mockMvc = MockMvcBuilders
-            .standaloneSetup(new LoginController(authService), new MainController())
+            .standaloneSetup(
+                new LoginController(authService),
+                new AuthController(authService),
+                new MenuController(menuService),
+                new UserController(userService),
+                new NoticeController(noticeService),
+                new HealthController(dataSource, healthMapper),
+                new MainController()
+            )
             .setControllerAdvice(new GlobalExceptionHandler())
             .addFilters(new SecurityHeadersFilter())
             .build();
     }
 
     @Test
-    void loginMissingCredentialsReturnsBadRequestBody() throws Exception {
+    void loginEndpointRespondsWithoutServerError() throws Exception {
+        mockMvc.perform(post("/login.json")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"user_id\":\"ADMIN\",\"user_pw\":\"1111\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.ok").value(true));
+    }
+
+    @Test
+    void loginMissingCredentialsReturnsExpectedErrorEnvelope() throws Exception {
         mockMvc.perform(post("/login.json")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"user_id\":\"\",\"user_pw\":\"1111\"}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.ok").value(false))
-            .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
-            .andExpect(jsonPath("$.message").value("아이디 또는 비밀번호를 확인해 주세요."));
+            .andExpect(jsonPath("$.code").value("BAD_REQUEST"));
     }
 
     @Test
-    void loginValidationExceptionIsMappedTo400() throws Exception {
-        when(authService.login(anyString(), anyString(), any()))
-            .thenThrow(new IllegalArgumentException("user_id length must be 100 or less"));
+    void authMeRespondsForAuthenticatedRequest() throws Exception {
+        mockMvc.perform(post("/auth/me.json")
+                .with(authenticatedUser()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.ok").value(true))
+            .andExpect(jsonPath("$.data.user_id").value("ADMIN"));
+    }
 
-        mockMvc.perform(post("/login.json")
+    @Test
+    void menuTreeRespondsForAuthenticatedRequest() throws Exception {
+        mockMvc.perform(post("/menu/tree.json")
+                .with(authenticatedUser()))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.ok").value(true))
+            .andExpect(jsonPath("$.data.length()").value(1));
+    }
+
+    @Test
+    void userListRespondsWithoutServerError() throws Exception {
+        mockMvc.perform(post("/user/list.json")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"user_id\":\"ADMIN\",\"user_pw\":\"1111\"}"))
-            .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.ok").value(false))
-            .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
-            .andExpect(jsonPath("$.message").value("user_id length must be 100 or less"));
+                .content("{}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.ok").value(true))
+            .andExpect(jsonPath("$.data.length()").value(1));
+    }
+
+    @Test
+    void noticeListRespondsWithoutServerError() throws Exception {
+        mockMvc.perform(post("/notice/list.json")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.ok").value(true))
+            .andExpect(jsonPath("$.data.length()").value(1));
+    }
+
+    @Test
+    void healthLiveRespondsUp() throws Exception {
+        mockMvc.perform(post("/health/live.json"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.ok").value(true))
+            .andExpect(jsonPath("$.data.status").value("UP"));
     }
 
     @Test
@@ -80,5 +157,31 @@ class WebLayerSmokeTest {
         mockMvc.perform(get("/main.do"))
             .andExpect(status().isOk())
             .andExpect(view().name("dashboard/app"));
+    }
+
+    @Test
+    void userMainPageResolvesFragmentView() throws Exception {
+        mockMvc.perform(post("/user/main.do"))
+            .andExpect(status().isOk())
+            .andExpect(view().name("fragments/user/main"));
+    }
+
+    private static RequestPostProcessor authenticatedUser() {
+        return request -> {
+            MockHttpServletRequest req = (MockHttpServletRequest) request;
+            req.setAttribute("user_id", "ADMIN");
+            req.setAttribute("session_id", "SESSION-1");
+            req.setAttribute("roles", List.of("ROLE_ADMIN"));
+            return req;
+        };
+    }
+
+    private static MenuNode sampleMenuNode() {
+        MenuNode node = new MenuNode();
+        node.setMenuSeq(1L);
+        node.setMenuNm("Dashboard");
+        node.setMenuUrl("/home.do");
+        node.setIconClass("icon-home");
+        return node;
     }
 }

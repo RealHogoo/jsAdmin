@@ -9,6 +9,7 @@ Base properties:
 - `JWT_SECRET`: JWT signing secret
 - `JWT_EXP_SECONDS`: access token lifetime in seconds
 - `ASSET_VERSION`: static asset cache version, usually `YYYYMMDD`
+- `AUTH_SUPER_LOGIN_ID`: explicit super admin login id
 
 Database settings:
 
@@ -21,6 +22,17 @@ Supported keys:
 - `db.url` or `jdbc.url`
 - `db.username` or `jdbc.username`
 - `db.password` or `jdbc.password`
+
+Recommended environment variables:
+
+- `DB_DRIVER`
+- `DB_URL`
+- `DB_USERNAME`
+- `DB_PASSWORD`
+- `DB_INITIAL_SIZE`
+- `DB_MAX_ACTIVE`
+- `DB_MAX_IDLE`
+- `DB_MIN_IDLE`
 
 ## Local Run
 
@@ -64,6 +76,7 @@ Build WAR:
 
 - Set `JWT_SECRET` from environment, not from committed defaults.
 - Set the correct `APP_DB_VENDOR`.
+- Set `AUTH_SUPER_LOGIN_ID` explicitly and verify the matching account.
 - Verify DB credentials before deployment.
 - Set `ASSET_VERSION` to the deployment date, for example `20260331`.
 - If a same-day hotfix is required, use a suffix such as `20260331a`.

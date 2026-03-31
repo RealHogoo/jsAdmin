@@ -14,7 +14,7 @@ public interface UserService {
 
     int unlockUser(Long userSeq, String actor);
 
-    int resetPassword(Long userSeq, String actor);
+    Map<String, Object> resetPassword(Long userSeq, String actor);
 
     Map<String, Object> getMyProfile(String loginId);
 

@@ -79,7 +79,7 @@ public class UserController {
     public Map<String, Object> resetPassword(@RequestBody Map<String, Object> body, HttpServletRequest request) {
         String actor = request.getAttribute("user_id") == null ? null : String.valueOf(request.getAttribute("user_id"));
         Long userSeq = toLong(body == null ? null : body.get("user_seq"));
-        return ok(Collections.singletonMap("reset", userService.resetPassword(userSeq, actor)));
+        return ok(userService.resetPassword(userSeq, actor));
     }
 
     private Map<String, Object> ok(Object data) {

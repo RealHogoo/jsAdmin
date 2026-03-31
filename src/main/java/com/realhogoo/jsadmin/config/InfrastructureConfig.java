@@ -188,7 +188,7 @@ public class InfrastructureConfig implements EnvironmentAware {
         for (String key : keys) {
             String value = source.getProperty(key);
             if (value != null && !value.trim().isEmpty()) {
-                return value.trim();
+                return environment.resolvePlaceholders(value).trim();
             }
         }
         return null;
