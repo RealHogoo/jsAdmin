@@ -398,4 +398,30 @@
            AND USE_YN = 'Y'
     </select>
 
+    <select id="selectUserRoleCodes" resultType="string">
+        WITH USER_GROUPS AS (
+            SELECT AG.AUTH_GROUP_CD
+              FROM ADM_AUTH_GROUP AG
+              JOIN ADM_AUTH_GROUP_USER AGU
+                ON AGU.AUTH_GROUP_SEQ = AG.AUTH_GROUP_SEQ
+               AND AGU.USER_SEQ = #{userSeq}
+               AND AGU.USE_YN = 'Y'
+             WHERE AG.USE_YN = 'Y'
+            UNION
+            SELECT AG.AUTH_GROUP_CD
+              FROM ADM_AUTH_GROUP AG
+              JOIN ADM_AUTH_GROUP_DEPT AGD
+                ON AGD.AUTH_GROUP_SEQ = AG.AUTH_GROUP_SEQ
+               AND AGD.USE_YN = 'Y'
+              JOIN ADM_USER_MST U
+                ON U.USER_SEQ = #{userSeq}
+               AND U.DEPT_SEQ = AGD.DEPT_SEQ
+             WHERE AG.USE_YN = 'Y'
+        )
+        SELECT DISTINCT AUTH_GROUP_CD
+          FROM USER_GROUPS
+         WHERE AUTH_GROUP_CD IS NOT NULL
+         ORDER BY AUTH_GROUP_CD
+    </select>
+
 </mapper>

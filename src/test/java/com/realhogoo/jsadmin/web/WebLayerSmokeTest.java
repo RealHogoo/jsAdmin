@@ -1,5 +1,6 @@
 package com.realhogoo.jsadmin.web;
 
+import com.realhogoo.jsadmin.api.ApiResponse;
 import com.realhogoo.jsadmin.api.GlobalExceptionHandler;
 import com.realhogoo.jsadmin.api.SecurityHeadersFilter;
 import com.realhogoo.jsadmin.auth.service.AuthService;
@@ -55,7 +56,7 @@ class WebLayerSmokeTest {
         DataSource dataSource = mock(DataSource.class);
         HealthMapper healthMapper = mock(HealthMapper.class);
 
-        when(authService.login(anyString(), anyString(), any())).thenReturn(Collections.singletonMap("ok", true));
+        when(authService.login(anyString(), anyString(), any())).thenReturn(ApiResponse.ok(Collections.emptyMap(), "TRACE-1"));
         when(authService.me(anyString(), any(), anyString()))
             .thenReturn(Map.of("user_id", "ADMIN", "user_nm", "관리자"));
         when(menuService.getMenuTree(anyString())).thenReturn(List.of(sampleMenuNode()));

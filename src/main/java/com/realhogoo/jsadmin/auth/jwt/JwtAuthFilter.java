@@ -63,7 +63,7 @@ public class JwtAuthFilter implements Filter {
         HttpServletResponse resp = (HttpServletResponse) response;
 
         if (!"POST".equalsIgnoreCase(req.getMethod())) {
-            writeJson(resp, 405, ApiResponse.fail(ApiCode.METHOD_NOT_ALLOWED, "POST only", getTraceId(req)));
+            writeJson(resp, 405, ApiResponse.fail(ApiCode.METHOD_NOT_ALLOWED, "POST only", req));
             return;
         }
 
@@ -89,7 +89,7 @@ public class JwtAuthFilter implements Filter {
         try {
             JwtProvider provider = (jwtProvider != null) ? jwtProvider : resolveJwtProvider();
             if (provider == null) {
-                writeJson(resp, 500, ApiResponse.fail(ApiCode.SERVER_ERROR, null, getTraceId(req)));
+                writeJson(resp, 500, ApiResponse.fail(ApiCode.SERVER_ERROR, null, req));
                 return;
             }
 
@@ -111,7 +111,7 @@ public class JwtAuthFilter implements Filter {
                     }
                 } catch (Exception e) {
                     log.error("session touch failed. uri={}, sessionId={}", path, sessionId, e);
-                    writeJson(resp, 500, ApiResponse.fail(ApiCode.SERVER_ERROR, null, getTraceId(req)));
+                    writeJson(resp, 500, ApiResponse.fail(ApiCode.SERVER_ERROR, null, req));
                     return;
                 }
             }
@@ -124,7 +124,7 @@ public class JwtAuthFilter implements Filter {
             writeUnauthorized(req, resp);
         } catch (Exception e) {
             log.error("jwt filter error. uri={}", path, e);
-            writeJson(resp, 500, ApiResponse.fail(ApiCode.SERVER_ERROR, null, getTraceId(req)));
+            writeJson(resp, 500, ApiResponse.fail(ApiCode.SERVER_ERROR, null, req));
         }
     }
 
@@ -173,7 +173,7 @@ public class JwtAuthFilter implements Filter {
     }
 
     private void writeUnauthorized(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        writeJson(resp, 401, ApiResponse.fail(ApiCode.UNAUTHORIZED, "login required", getTraceId(req)));
+        writeJson(resp, 401, ApiResponse.fail(ApiCode.UNAUTHORIZED, "login required", req));
     }
 
     private void tryBindAuthContext(HttpServletRequest req) {
@@ -226,14 +226,4 @@ public class JwtAuthFilter implements Filter {
         return (ctx != null && !ctx.isEmpty()) ? uri.substring(ctx.length()) : uri;
     }
 
-    private String getTraceId(HttpServletRequest req) {
-        Object v = req.getAttribute("trace_id");
-        if (v == null) {
-            v = req.getHeader("X-Trace-Id");
-        }
-        if (v == null) {
-            v = req.getHeader("X-Request-Id");
-        }
-        return v != null ? String.valueOf(v) : java.util.UUID.randomUUID().toString();
-    }
 }

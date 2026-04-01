@@ -15,8 +15,7 @@ public class GlobalExceptionHandler {
 
 
     private String traceId(HttpServletRequest req) {
-        Object v = req.getAttribute("trace_id");
-        return v != null ? String.valueOf(v) : TraceId.newId();
+        return TraceId.resolve(req);
     }
     
     @ExceptionHandler(ApiException.class)

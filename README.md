@@ -26,9 +26,9 @@
 
 ## 설정 위치
 
-- 공통 설정: [src/main/resources/app.properties](/D:/MSA_project/ADMIN_project/admin-service/src/main/resources/app.properties)
-- Oracle 설정: [src/main/resources/db/oracle.properties](/D:/MSA_project/ADMIN_project/admin-service/src/main/resources/db/oracle.properties)
-- PostgreSQL 설정: [src/main/resources/db/postgres.properties](/D:/MSA_project/ADMIN_project/admin-service/src/main/resources/db/postgres.properties)
+- 공통 설정: [src/main/resources/app.properties](src/main/resources/app.properties)
+- Oracle 설정: [src/main/resources/db/oracle.properties](src/main/resources/db/oracle.properties)
+- PostgreSQL 설정: [src/main/resources/db/postgres.properties](src/main/resources/db/postgres.properties)
 
 ## 빠른 실행
 
@@ -40,9 +40,9 @@ $env:JWT_SECRET="change-this-secret"
 
 ## 문서
 
-- [서비스 개요](/D:/MSA_project/ADMIN_project/admin-service/docs/admin-service.md)
-- [운영 가이드](/D:/MSA_project/ADMIN_project/admin-service/docs/operations.md)
-- [SQL 가이드](/D:/MSA_project/ADMIN_project/admin-service/docs/sqls/README.md)
+- [서비스 개요](docs/admin-service.md)
+- [운영 가이드](docs/operations.md)
+- [SQL 가이드](docs/sqls/README.md)
 
 ## 참고
 

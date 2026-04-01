@@ -1,5 +1,6 @@
 package com.realhogoo.jsadmin.auth.web;
 
+import com.realhogoo.jsadmin.api.ApiResponse;
 import com.realhogoo.jsadmin.auth.service.AuthService;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -8,7 +9,6 @@ import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletRequest;
-import java.util.HashMap;
 import java.util.Map;
 
 @Controller
@@ -24,16 +24,11 @@ public class LoginController {
 
     @ResponseBody
     @RequestMapping(value = "/login.json", method = RequestMethod.POST, produces = "application/json;charset=UTF-8")
-    public Map<String, Object> login(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+    public ApiResponse<Map<String, Object>> login(@RequestBody Map<String, Object> body, HttpServletRequest request) {
         String userId = body.get("user_id") == null ? null : String.valueOf(body.get("user_id"));
         String userPw = body.get("user_pw") == null ? null : String.valueOf(body.get("user_pw"));
         if (userId == null || userId.trim().isEmpty() || userPw == null) {
-            Map<String, Object> res = new HashMap<String, Object>();
-            res.put("ok", false);
-            res.put("code", "BAD_REQUEST");
-            res.put("message", "아이디 또는 비밀번호를 확인해 주세요.");
-            res.put("data", null);
-            return res;
+            return ApiResponse.fail("BAD_REQUEST", "?꾩씠???먮뒗 鍮꾨?踰덊샇瑜??뺤씤??二쇱꽭??", null, request);
         }
         validateLength("user_id", userId.trim(), MAX_LOGIN_ID_LENGTH);
         validateLength("user_pw", userPw, MAX_PASSWORD_LENGTH);

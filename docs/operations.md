@@ -11,8 +11,8 @@
 
 ## DB 설정
 
-- Oracle: [src/main/resources/db/oracle.properties](/D:/MSA_project/ADMIN_project/admin-service/src/main/resources/db/oracle.properties)
-- PostgreSQL: [src/main/resources/db/postgres.properties](/D:/MSA_project/ADMIN_project/admin-service/src/main/resources/db/postgres.properties)
+- Oracle: [src/main/resources/db/oracle.properties](../src/main/resources/db/oracle.properties)
+- PostgreSQL: [src/main/resources/db/postgres.properties](../src/main/resources/db/postgres.properties)
 
 지원 키:
 

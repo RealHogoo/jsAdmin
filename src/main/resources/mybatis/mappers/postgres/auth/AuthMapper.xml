@@ -286,4 +286,30 @@
            AND use_yn = 'Y'
     </select>
 
+    <select id="selectUserRoleCodes" resultType="string">
+        WITH user_groups AS (
+            SELECT ag.auth_group_cd
+              FROM adm_auth_group ag
+              JOIN adm_auth_group_user agu
+                ON agu.auth_group_seq = ag.auth_group_seq
+               AND agu.user_seq = #{userSeq}
+               AND agu.use_yn = 'Y'
+             WHERE ag.use_yn = 'Y'
+            UNION
+            SELECT ag.auth_group_cd
+              FROM adm_auth_group ag
+              JOIN adm_auth_group_dept agd
+                ON agd.auth_group_seq = ag.auth_group_seq
+               AND agd.use_yn = 'Y'
+              JOIN adm_user_mst u
+                ON u.user_seq = #{userSeq}
+               AND u.dept_seq = agd.dept_seq
+             WHERE ag.use_yn = 'Y'
+        )
+        SELECT DISTINCT auth_group_cd
+          FROM user_groups
+         WHERE auth_group_cd IS NOT NULL
+         ORDER BY auth_group_cd
+    </select>
+
 </mapper>

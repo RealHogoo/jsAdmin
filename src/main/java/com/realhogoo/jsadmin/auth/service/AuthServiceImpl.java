@@ -1,6 +1,7 @@
 package com.realhogoo.jsadmin.auth.service;
 
 import com.realhogoo.jsadmin.access.service.AccessService;
+import com.realhogoo.jsadmin.api.ApiResponse;
 import com.realhogoo.jsadmin.auth.config.SuperAdminProperties;
 import com.realhogoo.jsadmin.auth.dto.LoginUser;
 import com.realhogoo.jsadmin.auth.jwt.JwtProvider;
@@ -13,12 +14,13 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.servlet.http.HttpServletRequest;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HexFormat;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -162,7 +164,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public Map<String, Object> login(String userId, String userPw, HttpServletRequest request) {
+    public ApiResponse<Map<String, Object>> login(String userId, String userPw, HttpServletRequest request) {
         String normalizedUserId = normalizeLoginId(userId);
         validateLength("user_id", normalizedUserId, MAX_LOGIN_ID_LENGTH);
         validateLength("user_pw", userPw, MAX_PASSWORD_LENGTH);
@@ -170,25 +172,25 @@ public class AuthServiceImpl implements AuthService {
         LoginUser user = authMapper.selectUserForLogin(normalizedUserId);
         if (user == null) {
             accessService.recordLoginHistory(null, normalizedUserId, false, "USER_NOT_FOUND", null, request);
-            return fail("LOGIN_FAIL", "아이디 또는 비밀번호가 올바르지 않습니다.");
+            return ApiResponse.fail("LOGIN_FAIL", "?꾩씠???먮뒗 鍮꾨?踰덊샇媛 ?щ컮瑜댁? ?딆뒿?덈떎.", null, request);
         }
 
         Date now = new Date();
         if ("Y".equalsIgnoreCase(user.getLockYn())) {
             accessService.recordLoginHistory(user, normalizedUserId, false, "ACCOUNT_LOCKED", null, request);
-            return fail("LOGIN_FAIL", "아이디 또는 비밀번호가 올바르지 않습니다.");
+            return ApiResponse.fail("LOGIN_FAIL", "?꾩씠???먮뒗 鍮꾨?踰덊샇媛 ?щ컮瑜댁? ?딆뒿?덈떎.", null, request);
         }
 
         if (user.getLockUntilAt() != null && user.getLockUntilAt().after(now)) {
             long remainingSeconds = Math.max(1L, (user.getLockUntilAt().getTime() - now.getTime() + 999L) / 1000L);
             accessService.recordLoginHistory(user, normalizedUserId, false, "LOGIN_DELAY_ACTIVE_" + remainingSeconds + "S", null, request);
-            return fail("LOGIN_FAIL", "아이디 또는 비밀번호가 올바르지 않습니다.", delayData(remainingSeconds));
+            return ApiResponse.fail("LOGIN_FAIL", "?꾩씠???먮뒗 鍮꾨?踰덊샇媛 ?щ컮瑜댁? ?딆뒿?덈떎.", delayData(remainingSeconds), request);
         }
 
         PasswordCheckResult passwordCheck = verifyPassword(user.getUserPw(), userPw);
         if (!passwordCheck.matched) {
             LoginFailureResult failure = applyLoginFailurePolicy(user, request);
-            return fail(failure.code, failure.message, failure.data);
+            return ApiResponse.fail(failure.code, failure.message, failure.data, request);
         }
 
         if (passwordCheck.needsUpgrade) {
@@ -197,35 +199,31 @@ public class AuthServiceImpl implements AuthService {
 
         if ("Y".equalsIgnoreCase(user.getPwdResetYn())) {
             accessService.recordLoginHistory(user, normalizedUserId, false, "PASSWORD_RESET_REQUIRED", null, request);
-            return fail("PASSWORD_RESET_REQUIRED", "아이디 또는 비밀번호가 올바르지 않습니다.");
+            return ApiResponse.fail("PASSWORD_RESET_REQUIRED", "?꾩씠???먮뒗 鍮꾨?踰덊샇媛 ?щ컮瑜댁? ?딆뒿?덈떎.", null, request);
         }
 
         authMapper.resetLoginFailState(user.getUserSeq(), normalizedUserId);
         authMapper.updateLastLoginAt(user.getUserSeq(), normalizedUserId);
 
-        List<String> roles = Arrays.asList("ROLE_ADMIN");
-        if (superAdminProperties.isSuperLoginId(user.getUserId())) {
-            roles = Arrays.asList("ROLE_SUPER_ADMIN", "ROLE_ADMIN");
-        }
-
+        List<String> roles = resolveRoles(user);
         TokenBundle tokenBundle = issueTokens(user, roles, request, null);
         accessService.recordLoginHistory(user, normalizedUserId, true, "LOGIN_SUCCESS", tokenBundle.sessionId, request);
 
-        return ok(tokenResponse(user, roles, tokenBundle));
+        return ApiResponse.ok(tokenResponse(user, roles, tokenBundle), request);
     }
 
     @Override
     @Transactional
-    public Map<String, Object> refresh(String refreshToken, HttpServletRequest request) {
+    public ApiResponse<Map<String, Object>> refresh(String refreshToken, HttpServletRequest request) {
         if (refreshToken == null || refreshToken.trim().isEmpty()) {
-            return fail("UNAUTHORIZED", "refresh token is required");
+            return ApiResponse.fail("UNAUTHORIZED", "refresh token is required", null, request);
         }
         validateLength("refresh_token", refreshToken.trim(), MAX_REFRESH_TOKEN_LENGTH);
 
         String tokenHash = hashToken(refreshToken);
         Map<String, Object> refreshRow = authMapper.selectActiveRefreshToken(tokenHash);
         if (refreshRow == null || refreshRow.isEmpty()) {
-            return fail("UNAUTHORIZED", "invalid refresh token");
+            return ApiResponse.fail("UNAUTHORIZED", "invalid refresh token", null, request);
         }
 
         String sessionId = toNullableStr(refreshRow.get("session_id"));
@@ -235,23 +233,19 @@ public class AuthServiceImpl implements AuthService {
         String actor = loginId == null ? "SYSTEM" : loginId;
         if (!accessService.touchSession(sessionId, new Date().toInstant())) {
             authMapper.revokeRefreshToken(tokenHash, actor);
-            return fail("UNAUTHORIZED", "session expired");
+            return ApiResponse.fail("UNAUTHORIZED", "session expired", null, request);
         }
 
         LoginUser user = authMapper.selectUserForLogin(loginId);
         if (user == null) {
             authMapper.revokeRefreshToken(tokenHash, actor);
-            return fail("UNAUTHORIZED", "user not found");
+            return ApiResponse.fail("UNAUTHORIZED", "user not found", null, request);
         }
 
-        List<String> roles = Arrays.asList("ROLE_ADMIN");
-        if (superAdminProperties.isSuperLoginId(user.getUserId())) {
-            roles = Arrays.asList("ROLE_SUPER_ADMIN", "ROLE_ADMIN");
-        }
-
+        List<String> roles = resolveRoles(user);
         authMapper.revokeRefreshToken(tokenHash, actor);
         TokenBundle tokenBundle = issueTokens(user, roles, request, sessionId);
-        return ok(tokenResponse(user, roles, tokenBundle));
+        return ApiResponse.ok(tokenResponse(user, roles, tokenBundle), request);
     }
 
     @Override
@@ -265,10 +259,11 @@ public class AuthServiceImpl implements AuthService {
             throw new IllegalArgumentException("user not found");
         }
 
+        List<String> resolvedRoles = resolveRoles(user);
         Map<String, Object> data = new HashMap<String, Object>();
         data.put("user_id", user.getUserId());
         data.put("user_nm", user.getUserNm());
-        data.put("roles", roles == null ? Collections.emptyList() : roles);
+        data.put("roles", resolvedRoles.isEmpty() ? (roles == null ? Collections.emptyList() : roles) : resolvedRoles);
         data.put("session_id", sessionId);
         data.put("super_admin", superAdminProperties.isSuperLoginId(user.getUserId()));
         return data;
@@ -290,6 +285,44 @@ public class AuthServiceImpl implements AuthService {
             return trimmed;
         }
         return trimmed.toLowerCase();
+    }
+
+    private List<String> resolveRoles(LoginUser user) {
+        if (user == null || user.getUserSeq() == null) {
+            return Collections.emptyList();
+        }
+
+        LinkedHashSet<String> roles = new LinkedHashSet<String>();
+        List<String> roleCodes = authMapper.selectUserRoleCodes(user.getUserSeq());
+        if (roleCodes != null) {
+            for (String roleCode : roleCodes) {
+                String roleName = toRoleName(roleCode);
+                if (roleName != null) {
+                    roles.add(roleName);
+                }
+            }
+        }
+        if (superAdminProperties.isSuperLoginId(user.getUserId())) {
+            roles.add("ROLE_SUPER_ADMIN");
+        }
+        return List.copyOf(roles);
+    }
+
+    private String toRoleName(String code) {
+        if (code == null) {
+            return null;
+        }
+
+        String normalized = code.trim();
+        if (normalized.isEmpty()) {
+            return null;
+        }
+
+        normalized = normalized.replace('-', '_').replace(' ', '_').toUpperCase(Locale.ROOT);
+        if (!normalized.startsWith("ROLE_")) {
+            normalized = "ROLE_" + normalized;
+        }
+        return normalized;
     }
 
     private TokenBundle issueTokens(LoginUser user, List<String> roles, HttpServletRequest request, String existingSessionId) {
@@ -370,7 +403,7 @@ public class AuthServiceImpl implements AuthService {
         String lockYn = "N";
         String reason = "INVALID_PASSWORD";
         String code = "LOGIN_FAIL";
-        String message = "아이디 또는 비밀번호가 올바르지 않습니다.";
+        String message = "?꾩씠???먮뒗 鍮꾨?踰덊샇媛 ?щ컮瑜댁? ?딆뒿?덈떎.";
         Map<String, Object> data = null;
 
         if (nextFailCount >= 7) {
@@ -434,28 +467,6 @@ public class AuthServiceImpl implements AuthService {
         return null;
     }
 
-    private Map<String, Object> ok(Object data) {
-        Map<String, Object> res = new HashMap<String, Object>();
-        res.put("ok", true);
-        res.put("code", "OK");
-        res.put("message", "success");
-        res.put("data", data);
-        return res;
-    }
-
-    private Map<String, Object> fail(String code, String msg) {
-        return fail(code, msg, null);
-    }
-
-    private Map<String, Object> fail(String code, String msg, Object data) {
-        Map<String, Object> res = new HashMap<String, Object>();
-        res.put("ok", false);
-        res.put("code", code);
-        res.put("message", msg);
-        res.put("data", data);
-        return res;
-    }
-
     private void validateLength(String field, String value, int maxLength) {
         if (value != null && value.length() > maxLength) {
             throw new IllegalArgumentException(field + " length must be " + maxLength + " or less");
@@ -506,4 +517,3 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 }
-

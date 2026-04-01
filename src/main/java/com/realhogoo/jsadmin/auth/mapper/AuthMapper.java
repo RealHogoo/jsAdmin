@@ -45,6 +45,8 @@ public interface AuthMapper {
 
     LoginUser selectUserForLogin(@Param("user_id") String userId);
 
+    List<String> selectUserRoleCodes(@Param("userSeq") Long userSeq);
+
     int insertRefreshToken(Map<String, Object> param);
 
     Map<String, Object> selectActiveRefreshToken(@Param("tokenHash") String tokenHash);

@@ -1,5 +1,7 @@
 package com.realhogoo.jsadmin.auth.service;
 
+import com.realhogoo.jsadmin.api.ApiResponse;
+
 import javax.servlet.http.HttpServletRequest;
 import java.util.List;
 import java.util.Map;
@@ -20,9 +22,9 @@ public interface AuthService {
 
     void deleteUserException(Long userSeq, Long menuSeq);
 
-    Map<String, Object> login(String userId, String userPw, HttpServletRequest request);
+    ApiResponse<Map<String, Object>> login(String userId, String userPw, HttpServletRequest request);
 
-    Map<String, Object> refresh(String refreshToken, HttpServletRequest request);
+    ApiResponse<Map<String, Object>> refresh(String refreshToken, HttpServletRequest request);
 
     Map<String, Object> me(String userId, List<String> roles, String sessionId);
 
