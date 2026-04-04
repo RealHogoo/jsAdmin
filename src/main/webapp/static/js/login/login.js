@@ -2,6 +2,7 @@
     "use strict";
 
     var UX = global.UX;
+    var returnUrl = null;
 
     var countdownTimer = null;
     var retryUntilMs = 0;
@@ -112,6 +113,29 @@
         });
     }
 
+    function resolveReturnUrl() {
+        try {
+            var params = new URLSearchParams(global.location.search || "");
+            var value = params.get("return_url");
+            if (!value) return null;
+            var decoded = value.trim();
+            if (!decoded) return null;
+            if (/^https?:\/\//i.test(decoded)) {
+                var parsed = new URL(decoded, global.location.origin);
+                if (parsed.hostname !== global.location.hostname) {
+                    return null;
+                }
+                return parsed.toString();
+            }
+            if (decoded.charAt(0) === "/") {
+                return decoded;
+            }
+            return null;
+        } catch (e) {
+            return null;
+        }
+    }
+
     function doLogin() {
         var userId = UX.normalizeText(UX.byId("login_user_id") && UX.byId("login_user_id").value);
         var userPw = (UX.byId("login_user_pw") && UX.byId("login_user_pw").value) || "";
@@ -146,7 +170,9 @@
                 setMsg(MSG_SUCCESS, "success");
                 document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
 
-                if (global.app && typeof global.app.loadPage === "function") {
+                if (returnUrl) {
+                    location.href = returnUrl;
+                } else if (global.app && typeof global.app.loadPage === "function") {
                     global.app.loadPage("/home.do");
                 } else {
                     location.href = (global.CTX || "") + "/main.do";
@@ -177,6 +203,7 @@
         if (userId) userId.onkeydown = handleEnter;
         if (pw) pw.onkeydown = handleEnter;
 
+        returnUrl = resolveReturnUrl();
         restoreCountdown();
     }
 

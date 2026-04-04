@@ -10,9 +10,11 @@
 </head>
 <script>
 (function () {
+    var initialPage = "${empty initialPage ? '/home.do' : initialPage}";
+
     function boot() {
         if (window.jsAdminSpa && typeof window.jsAdminSpa.load === "function") {
-            window.jsAdminSpa.load("/home.do");
+            window.jsAdminSpa.load(initialPage);
         }
     }
 
@@ -51,13 +53,14 @@
 
     <script>
         (function () {
+            var initialPage = "${empty initialPage ? '/home.do' : initialPage}";
             if (typeof window.load === "function") {
-                window.load("/main.do");
+                window.load(initialPage);
                 return;
             }
 
             if (window.jsAdminSpa && typeof window.jsAdminSpa.load === "function") {
-                window.jsAdminSpa.load("/main.do");
+                window.jsAdminSpa.load(initialPage);
             }
         })();
     </script>

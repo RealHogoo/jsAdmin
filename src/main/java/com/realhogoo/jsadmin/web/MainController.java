@@ -2,6 +2,8 @@ package com.realhogoo.jsadmin.web;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
@@ -19,8 +21,24 @@ import java.util.Map;
 public class MainController {
 
     @GetMapping("/main.do")
-    public String main() {
+    public String main(Model model) {
+        model.addAttribute("initialPage", "/home.do");
         return "dashboard/app";
+    }
+
+    @GetMapping("/login-page.do")
+    public String loginPage(Model model) {
+        model.addAttribute("initialPage", "/login.do");
+        return "dashboard/app";
+    }
+
+    @GetMapping("/service-login-page.do")
+    public String serviceLoginPage(
+        @RequestParam(name = "service_nm", required = false) String serviceName,
+        Model model
+    ) {
+        model.addAttribute("serviceName", normalizeServiceName(serviceName));
+        return "login/service-login-page";
     }
 
     @PostMapping("/home.do")
@@ -31,6 +49,15 @@ public class MainController {
     @PostMapping("/login.do")
     public String loginFragment() {
         return "fragments/login/login";
+    }
+
+    @PostMapping("/service-login.do")
+    public String serviceLoginFragment(
+        @RequestParam(name = "service_nm", required = false) String serviceName,
+        Model model
+    ) {
+        model.addAttribute("serviceName", normalizeServiceName(serviceName));
+        return "fragments/login/service-login";
     }
 
     @PostMapping("/home/intro.json")
@@ -116,5 +143,12 @@ public class MainController {
         data.put("highlights", bullets);
         data.put("raw_markdown", markdown == null ? "" : markdown);
         return data;
+    }
+
+    private String normalizeServiceName(String serviceName) {
+        if (serviceName == null || serviceName.trim().isEmpty()) {
+            return "연계 서비스";
+        }
+        return serviceName.trim();
     }
 }
