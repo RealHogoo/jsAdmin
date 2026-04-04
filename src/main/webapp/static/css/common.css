@@ -1445,19 +1445,51 @@ body.app-shell {
 
 .health-page {
     gap: 16px;
+    position: relative;
 }
 
-.health-head {
+.health-toolbar {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    justify-content: flex-end;
+    align-items: center;
     gap: 12px;
+    flex-wrap: wrap;
 }
 
-.health-checked-at {
-    font-size: 12px;
-    color: #64748b;
-    align-self: center;
+.health-meta-panel {
+    padding-top: 14px;
+    padding-bottom: 14px;
+}
+
+.health-service-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.health-service-tab {
+    gap: 8px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.health-service-tab.is-disabled {
+    opacity: 0.85;
+    border-style: dashed;
+}
+
+.health-service-use {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 11px;
+    font-weight: 800;
 }
 
 .health-summary-grid {
@@ -1469,6 +1501,7 @@ body.app-shell {
 .health-kpi {
     position: relative;
     overflow: hidden;
+    min-height: 120px;
 }
 
 .health-kpi::before {
@@ -1491,6 +1524,10 @@ body.app-shell {
     background: #d97706;
 }
 
+.health-kpi.health-disabled::before {
+    background: #64748b;
+}
+
 .health-kpi-label {
     font-size: 12px;
     color: #64748b;
@@ -1509,6 +1546,7 @@ body.app-shell {
     margin-top: 10px;
     font-size: 12px;
     color: #64748b;
+    line-height: 1.45;
 }
 
 .health-main-grid {
@@ -1527,7 +1565,8 @@ body.app-shell {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    padding: 10px 12px;
+    min-height: 74px;
+    padding: 12px;
     border: 1px solid #e5e7eb;
     border-radius: 10px;
     background: #f8fafc;
@@ -1552,7 +1591,7 @@ body.app-shell {
 }
 
 .health-pool-box {
-    padding: 10px 12px;
+    padding: 12px;
     border-radius: 10px;
     background: linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
     border: 1px solid #dbeafe;
@@ -1597,6 +1636,16 @@ body.app-shell {
     color: #92400e;
 }
 
+.health-badge.disabled {
+    background: #e2e8f0;
+    color: #334155;
+}
+
+.health-page .tbl th,
+.health-page .tbl td {
+    vertical-align: middle;
+}
+
 @media (max-width: 1024px) {
     .health-summary-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1612,8 +1661,9 @@ body.app-shell {
 }
 
 @media (max-width: 640px) {
-    .health-head {
+    .health-toolbar {
         flex-direction: column;
+        align-items: stretch;
     }
 
     .health-summary-grid {

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.health.mapper.ServiceRegistryMapper">
+  <select id="selectServiceRegistryList" resultType="map">
+    SELECT
+      service_seq,
+      service_cd,
+      service_nm,
+      base_url,
+      status_path,
+      live_path,
+      ready_path,
+      timeout_ms,
+      use_yn,
+      sort_ord,
+      remark
+    FROM adm_service_mst
+    ORDER BY sort_ord, service_seq
+  </select>
+
+  <select id="selectServiceRegistryByCode" parameterType="string" resultType="map">
+    SELECT
+      service_seq,
+      service_cd,
+      service_nm,
+      base_url,
+      status_path,
+      live_path,
+      ready_path,
+      timeout_ms,
+      use_yn,
+      sort_ord,
+      remark
+    FROM adm_service_mst
+    WHERE service_cd = #{serviceCd}
+  </select>
+</mapper>

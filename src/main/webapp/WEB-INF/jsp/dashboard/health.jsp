@@ -1,15 +1,25 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 
-<div id="healthPage" class="page-root health-page">
-    <div class="health-head">
-        <div>
+<div id="healthPage" class="page-root health-page" data-page-url="/health/main.do">
+    <div class="page-title-row">
+        <div class="page-title-group">
             <h2 class="page-title">&#xd5ec;&#xc2a4;&#xccb4;&#xd06c;</h2>
-            <p class="muted">&#xc11c;&#xbe44;&#xc2a4; &#xc0c1;&#xd0dc;, DB &#xc5f0;&#xacb0;, &#xc11c;&#xbc84; &#xc790;&#xc6d0;&#xc744; &#xd55c; &#xd654;&#xba74;&#xc5d0;&#xc11c; &#xd655;&#xc778;&#xd569;&#xb2c8;&#xb2e4;.</p>
+            <div class="tabs health-service-tabs" id="healthServiceTabs">
+                <a href="javascript:void(0)" class="tab health-service-tab is-active">Loading...</a>
+            </div>
         </div>
-        <div class="btns">
-            <a href="#" class="btn" id="btnHealthRefresh" role="button">&#xc0c8;&#xb85c;&#xace0;&#xce68;</a>
-            <span class="health-checked-at" id="healthCheckedAt">-</span>
+    </div>
+
+    <details class="page-help">
+        <summary><span class="page-help-toggle">?</span></summary>
+        <div class="page-help-body">
+            &#xc0c1;&#xb2e8; &#xd0ed;&#xc5d0;&#xc11c; &#xb300;&#xc0c1; &#xc11c;&#xbe44;&#xc2a4;&#xb97c; &#xc120;&#xd0dd;&#xd558;&#xba74; &#xac19;&#xc740; &#xad6c;&#xc131;&#xc73c;&#xb85c; &#xd5ec;&#xc2a4; &#xc0c1;&#xd0dc;&#xb97c; &#xbe44;&#xad50;&#xd560; &#xc218; &#xc788;&#xc2b5;&#xb2c8;&#xb2e4;.
         </div>
+    </details>
+
+    <div class="toolbar btns health-toolbar">
+        <span class="meta">&#xcd5c;&#xc885; &#xd655;&#xc778;: <b id="healthCheckedAt">-</b></span>
+        <a href="#" class="btn" id="btnHealthRefresh" role="button">&#xc0c8;&#xb85c;&#xace0;&#xce68;</a>
     </div>
 
     <div class="health-summary-grid">
@@ -32,6 +42,16 @@
             <div class="health-kpi-label">DB Latency</div>
             <div class="health-kpi-value" id="healthDbLatency">-</div>
             <div class="health-kpi-sub" id="healthDbMessage">-</div>
+        </div>
+    </div>
+
+    <div class="panel health-meta-panel">
+        <div class="panel-title">&#xc11c;&#xbe44;&#xc2a4; &#xc815;&#xbcf4;</div>
+        <div class="health-detail-grid">
+            <div class="health-field"><span>Base URL</span><b id="healthBaseUrl">-</b></div>
+            <div class="health-field"><span>Use</span><b id="healthUseYn">-</b></div>
+            <div class="health-field"><span>Remark</span><b id="healthRemark">-</b></div>
+            <div class="health-field"><span>Selected Service</span><b id="healthServiceLabel">-</b></div>
         </div>
     </div>
 

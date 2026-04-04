@@ -7,6 +7,7 @@ import com.realhogoo.jsadmin.auth.service.AuthService;
 import com.realhogoo.jsadmin.auth.web.AuthController;
 import com.realhogoo.jsadmin.auth.web.LoginController;
 import com.realhogoo.jsadmin.health.mapper.HealthMapper;
+import com.realhogoo.jsadmin.health.mapper.ServiceRegistryMapper;
 import com.realhogoo.jsadmin.health.web.HealthController;
 import com.realhogoo.jsadmin.menu.dto.MenuNode;
 import com.realhogoo.jsadmin.menu.service.MenuService;
@@ -55,13 +56,30 @@ class WebLayerSmokeTest {
         noticeService = mock(NoticeService.class);
         DataSource dataSource = mock(DataSource.class);
         HealthMapper healthMapper = mock(HealthMapper.class);
+        ServiceRegistryMapper serviceRegistryMapper = mock(ServiceRegistryMapper.class);
 
         when(authService.login(anyString(), anyString(), any())).thenReturn(ApiResponse.ok(Collections.emptyMap(), "TRACE-1"));
         when(authService.me(anyString(), any(), anyString()))
-            .thenReturn(Map.of("user_id", "ADMIN", "user_nm", "관리자"));
+            .thenReturn(Map.of("user_id", "ADMIN", "user_nm", "ADMIN USER"));
         when(menuService.getMenuTree(anyString())).thenReturn(List.of(sampleMenuNode()));
-        when(userService.getUserList(any())).thenReturn(List.of(Map.of("login_id", "ADMIN", "user_nm", "관리자")));
+        when(userService.getUserList(any())).thenReturn(List.of(Map.of("login_id", "ADMIN", "user_nm", "ADMIN USER")));
         when(noticeService.selectNoticeList(any())).thenReturn(List.of(Map.of("noti_seq", 1L, "title", "Sample notice")));
+        when(serviceRegistryMapper.selectServiceRegistryByCode("admin-service"))
+            .thenReturn(Map.of(
+                "service_cd", "admin-service",
+                "service_nm", "Admin Service",
+                "base_url", "http://localhost:8081",
+                "use_yn", "Y",
+                "remark", "Test registry"
+            ));
+        when(serviceRegistryMapper.selectServiceRegistryList())
+            .thenReturn(List.of(Map.of(
+                "service_cd", "admin-service",
+                "service_nm", "Admin Service",
+                "base_url", "http://localhost:8081",
+                "use_yn", "Y",
+                "sort_ord", 1
+            )));
 
         mockMvc = MockMvcBuilders
             .standaloneSetup(
@@ -70,7 +88,7 @@ class WebLayerSmokeTest {
                 new MenuController(menuService),
                 new UserController(userService),
                 new NoticeController(noticeService),
-                new HealthController(dataSource, healthMapper),
+                new HealthController(dataSource, healthMapper, serviceRegistryMapper),
                 new MainController()
             )
             .setControllerAdvice(new GlobalExceptionHandler())

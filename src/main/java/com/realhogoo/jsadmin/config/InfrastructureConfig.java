@@ -9,6 +9,7 @@ import com.realhogoo.jsadmin.common.interceptor.LowercaseMapKeyInterceptor;
 import com.realhogoo.jsadmin.health.mapper.HealthMapper;
 import com.realhogoo.jsadmin.menu.mapper.MenuMapper;
 import com.realhogoo.jsadmin.notice.mapper.NoticeMapper;
+import com.realhogoo.jsadmin.serviceregistry.mapper.ServiceAdminMapper;
 import com.realhogoo.jsadmin.timeline.mapper.TimelineMapper;
 import com.realhogoo.jsadmin.user.mapper.UserMapper;
 import com.zaxxer.hikari.HikariConfig;
@@ -47,6 +48,7 @@ import java.util.Properties;
     HealthMapper.class,
     MenuMapper.class,
     NoticeMapper.class,
+    ServiceAdminMapper.class,
     TimelineMapper.class,
     UserMapper.class
 })

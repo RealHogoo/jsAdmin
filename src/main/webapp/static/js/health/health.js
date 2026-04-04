@@ -8,6 +8,8 @@
     global.__jsadminHealthBound = true;
 
     var timerId = null;
+    var currentServiceCd = null;
+    var serviceListCache = [];
 
     function root() {
         return UX.qs("#healthPage");
@@ -20,9 +22,10 @@
     function setCardStatus(cardKey, status) {
         var card = UX.qs("[data-health-card='" + cardKey + "']", root());
         if (!card) return;
-        card.classList.remove("health-up", "health-down", "health-degraded");
+        card.classList.remove("health-up", "health-down", "health-degraded", "health-disabled");
         if (status === "UP") card.classList.add("health-up");
         else if (status === "DOWN") card.classList.add("health-down");
+        else if (status === "DISABLED") card.classList.add("health-disabled");
         else card.classList.add("health-degraded");
     }
 
@@ -65,7 +68,9 @@
 
         tbody.innerHTML = list.map(function (row) {
             var status = row && row.status ? String(row.status) : "-";
-            var statusClass = status === "UP" ? "health-badge up" : (status === "DOWN" ? "health-badge down" : "health-badge degraded");
+            var statusClass = status === "UP"
+                ? "health-badge up"
+                : (status === "DOWN" ? "health-badge down" : (status === "DISABLED" ? "health-badge disabled" : "health-badge degraded"));
             return "<tr>"
                 + "<td>" + UX.esc(row.name) + "</td>"
                 + "<td>" + UX.esc(row.type) + "</td>"
@@ -74,6 +79,34 @@
                 + "<td>" + UX.esc(row.message) + "</td>"
                 + "</tr>";
         }).join("");
+    }
+
+    function renderServiceTabs(list) {
+        var target = UX.qs("#healthServiceTabs", root());
+        if (!target) return;
+        if (!Array.isArray(list) || !list.length) {
+            target.innerHTML = "<a href='javascript:void(0)' class='tab health-service-tab is-active'>No services</a>";
+            return;
+        }
+
+        target.innerHTML = list.map(function (row) {
+            var serviceCd = row.service_cd || "";
+            var active = serviceCd === currentServiceCd ? " is-active" : "";
+            var disabled = row.use_yn === "N" ? " is-disabled" : "";
+            var badge = row.use_yn === "N" ? "<span class='health-service-use'>OFF</span>" : "";
+            return "<a href='javascript:void(0)' class='tab health-service-tab" + active + disabled + "' data-service-cd='" + UX.esc(serviceCd) + "'>"
+                + "<span>" + UX.esc(row.service_nm || serviceCd) + "</span>"
+                + badge
+                + "</a>";
+        }).join("");
+    }
+
+    function ensureCurrentService(list) {
+        if (currentServiceCd) return currentServiceCd;
+        if (Array.isArray(list) && list.length) {
+            currentServiceCd = list[0].service_cd;
+        }
+        return currentServiceCd;
     }
 
     function render(data) {
@@ -88,13 +121,17 @@
         setText("healthCheckedAt", summary.checked_at ? new Date(summary.checked_at).toLocaleString() : "-");
         setText("healthDbLatency", fmtMs(db.elapsed_ms));
         setText("healthDbMessage", db.ok ? "DB connection OK" : (db.error || "DB connection failed"));
+        setText("healthBaseUrl", summary.base_url || "-");
+        setText("healthUseYn", summary.use_yn === "N" ? "DISABLED" : "ENABLED");
+        setText("healthRemark", summary.remark || "-");
+        setText("healthServiceLabel", summary.service_nm || summary.service || "-");
 
         setCardStatus("overall", summary.overall_status);
         setCardStatus("live", summary.liveness);
         setCardStatus("ready", summary.readiness);
-        setCardStatus("db", db.ok ? "UP" : "DOWN");
+        setCardStatus("db", summary.use_yn === "N" ? "DISABLED" : (db.ok ? "UP" : "DOWN"));
 
-        setText("dbStatusText", db.ok ? "UP" : "DOWN");
+        setText("dbStatusText", db.ok ? "UP" : (summary.use_yn === "N" ? "DISABLED" : "DOWN"));
         setText("dbPing", db.ping);
         setText("dbElapsed", fmtMs(db.elapsed_ms));
         setText("dbError", db.error || "-");
@@ -105,18 +142,26 @@
 
         setText("svHost", server.host || "-");
         setText("svJava", server.java_version || "-");
-        setText("svOs", [server.os_name, server.os_version, server.os_arch].filter(Boolean).join(" "));
-        setText("svCpu", server.available_processors);
+        setText("svOs", [server.os_name, server.os_version, server.os_arch].filter(Boolean).join(" ") || "-");
+        setText("svCpu", server.available_processors || "-");
         setText("svUptime", fmtUptime(server.uptime_ms));
         setText("svInfo", server.server_info || "-");
-        setText("svThreads", server.threads_live + " / peak " + server.threads_peak);
+        setText("svThreads", (server.threads_live || "-") + " / peak " + (server.threads_peak || "-"));
         setText("svHeap", fmtBytes(server.heap_total) + " / max " + fmtBytes(server.heap_max));
 
         renderDependencies(data && data.dependencies ? data.dependencies : []);
     }
 
+    function refreshServiceList() {
+        return app.callJson("/health/service/list.json", {}, function (data) {
+            serviceListCache = Array.isArray(data) ? data : [];
+            ensureCurrentService(serviceListCache);
+            renderServiceTabs(serviceListCache);
+        });
+    }
+
     function refresh() {
-        return app.callJson("/health/detail.json", {}, function (data) {
+        return app.callJson("/health/detail.json", { service_cd: currentServiceCd }, function (data) {
             render(data || {});
         });
     }
@@ -124,6 +169,15 @@
     function bind() {
         UX.bindOnce(UX.qs("#btnHealthRefresh", root()), "click", function (e) {
             e.preventDefault();
+            refreshServiceList().then(refresh);
+        });
+
+        UX.bindOnce(UX.qs("#healthServiceTabs", root()), "click", function (e) {
+            var button = e.target.closest("[data-service-cd]");
+            if (!button) return;
+            e.preventDefault();
+            currentServiceCd = button.getAttribute("data-service-cd");
+            renderServiceTabs(serviceListCache);
             refresh();
         });
     }
@@ -133,11 +187,11 @@
         if (!page || page.dataset.healthInited === "1") return;
         page.dataset.healthInited = "1";
         bind();
-        refresh();
+        refreshServiceList().then(refresh);
 
         if (timerId) clearInterval(timerId);
         timerId = setInterval(function () {
-            if (root()) refresh();
+            if (root()) refreshServiceList().then(refresh);
         }, 15000);
     }
 

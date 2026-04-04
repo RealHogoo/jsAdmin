@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.serviceregistry.mapper.ServiceAdminMapper">
+
+  <select id="selectServiceList" parameterType="map" resultType="map">
+    SELECT
+      service_seq,
+      service_cd,
+      service_nm,
+      base_url,
+      status_path,
+      live_path,
+      ready_path,
+      timeout_ms,
+      use_yn,
+      sort_ord,
+      remark
+    FROM adm_service_mst
+    WHERE 1 = 1
+    <if test="keyword != null and keyword != ''">
+      AND (
+        service_cd LIKE '%' || #{keyword} || '%'
+        OR service_nm LIKE '%' || #{keyword} || '%'
+        OR base_url LIKE '%' || #{keyword} || '%'
+      )
+    </if>
+    <if test="use_yn != null and use_yn != ''">
+      AND use_yn = #{use_yn}
+    </if>
+    ORDER BY sort_ord, service_seq
+  </select>
+
+  <select id="selectServiceDetail" parameterType="long" resultType="map">
+    SELECT
+      service_seq,
+      service_cd,
+      service_nm,
+      base_url,
+      status_path,
+      live_path,
+      ready_path,
+      timeout_ms,
+      use_yn,
+      sort_ord,
+      remark
+    FROM adm_service_mst
+    WHERE service_seq = #{serviceSeq}
+  </select>
+
+  <select id="selectServiceSeqByCode" parameterType="string" resultType="long">
+    SELECT service_seq
+    FROM adm_service_mst
+    WHERE service_cd = #{serviceCd}
+  </select>
+
+  <insert id="insertService" parameterType="map">
+    <selectKey keyProperty="service_seq" resultType="long" order="BEFORE">
+      SELECT nextval('adm_service_mst_seq')
+    </selectKey>
+    INSERT INTO adm_service_mst (
+      service_seq, service_cd, service_nm, base_url, status_path, live_path, ready_path,
+      timeout_ms, use_yn, sort_ord, remark, created_at, created_by, updated_at, updated_by
+    ) VALUES (
+      #{service_seq,jdbcType=NUMERIC}, #{service_cd,jdbcType=VARCHAR}, #{service_nm,jdbcType=VARCHAR},
+      #{base_url,jdbcType=VARCHAR}, #{status_path,jdbcType=VARCHAR}, #{live_path,jdbcType=VARCHAR}, #{ready_path,jdbcType=VARCHAR},
+      #{timeout_ms,jdbcType=NUMERIC}, #{use_yn,jdbcType=VARCHAR}, #{sort_ord,jdbcType=NUMERIC}, #{remark,jdbcType=VARCHAR},
+      CURRENT_TIMESTAMP, #{created_by,jdbcType=VARCHAR}, CURRENT_TIMESTAMP, #{updated_by,jdbcType=VARCHAR}
+    )
+  </insert>
+
+  <update id="updateService" parameterType="map">
+    UPDATE adm_service_mst
+       SET service_cd = #{service_cd,jdbcType=VARCHAR},
+           service_nm = #{service_nm,jdbcType=VARCHAR},
+           base_url = #{base_url,jdbcType=VARCHAR},
+           status_path = #{status_path,jdbcType=VARCHAR},
+           live_path = #{live_path,jdbcType=VARCHAR},
+           ready_path = #{ready_path,jdbcType=VARCHAR},
+           timeout_ms = #{timeout_ms,jdbcType=NUMERIC},
+           use_yn = #{use_yn,jdbcType=VARCHAR},
+           sort_ord = #{sort_ord,jdbcType=NUMERIC},
+           remark = #{remark,jdbcType=VARCHAR},
+           updated_at = CURRENT_TIMESTAMP,
+           updated_by = #{updated_by,jdbcType=VARCHAR}
+     WHERE service_seq = #{service_seq,jdbcType=NUMERIC}
+  </update>
+
+</mapper>

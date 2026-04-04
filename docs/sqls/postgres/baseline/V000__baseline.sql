@@ -229,6 +229,25 @@ CREATE TABLE adm_api_mst (
     CONSTRAINT ck_adm_api_mst_use_yn CHECK (use_yn IN ('Y', 'N'))
 );
 
+CREATE TABLE adm_service_mst (
+    service_seq      BIGINT PRIMARY KEY,
+    service_cd       VARCHAR(100) NOT NULL UNIQUE,
+    service_nm       VARCHAR(200) NOT NULL,
+    base_url         VARCHAR(500) NOT NULL,
+    status_path      VARCHAR(300) NOT NULL DEFAULT '/health/status.json',
+    live_path        VARCHAR(300) NOT NULL DEFAULT '/health/live.json',
+    ready_path       VARCHAR(300) NOT NULL DEFAULT '/health/ready.json',
+    timeout_ms       INTEGER NOT NULL DEFAULT 3000,
+    use_yn           CHAR(1) NOT NULL DEFAULT 'Y',
+    sort_ord         INTEGER NOT NULL DEFAULT 0,
+    remark           VARCHAR(1000),
+    created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by       VARCHAR(100) NOT NULL,
+    updated_at       TIMESTAMP,
+    updated_by       VARCHAR(100),
+    CONSTRAINT ck_adm_service_mst_use_yn CHECK (use_yn IN ('Y', 'N'))
+);
+
 CREATE SEQUENCE adm_user_mst_seq START 1 INCREMENT 1;
 CREATE SEQUENCE adm_auth_group_seq START 1 INCREMENT 1;
 CREATE SEQUENCE adm_menu_mst_seq START 1 INCREMENT 1;
@@ -239,6 +258,7 @@ CREATE SEQUENCE adm_login_sesn_seq START 1 INCREMENT 1;
 CREATE SEQUENCE adm_login_hist_seq START 1 INCREMENT 1;
 CREATE SEQUENCE adm_refresh_token_seq START 1 INCREMENT 1;
 CREATE SEQUENCE adm_api_mst_seq START 1 INCREMENT 1;
+CREATE SEQUENCE adm_service_mst_seq START 1 INCREMENT 1;
 
 CREATE INDEX idx_adm_menu_mst_01 ON adm_menu_mst (up_menu_seq, sort_ord, menu_seq);
 CREATE INDEX idx_adm_auth_group_user_01 ON adm_auth_group_user (user_seq, use_yn);
@@ -254,6 +274,7 @@ CREATE INDEX idx_adm_refresh_token_01 ON adm_refresh_token (token_hash, revoked_
 CREATE INDEX idx_adm_refresh_token_02 ON adm_refresh_token (session_id, revoked_yn);
 CREATE INDEX idx_adm_api_mst_01 ON adm_api_mst (api_type, use_yn, api_seq DESC);
 CREATE INDEX idx_adm_api_mst_02 ON adm_api_mst (caller_id, target_service, http_method);
+CREATE INDEX idx_adm_service_mst_01 ON adm_service_mst (use_yn, sort_ord, service_seq);
 
 INSERT INTO adm_user_mst (
     user_seq, login_id, user_nm, pwd_hash, dept_seq, use_yn, login_fail_cnt,
@@ -293,3 +314,10 @@ INSERT INTO adm_auth_menu (
     (1, 3, 9, 'Y', 'SYSTEM', 'SYSTEM'),
     (1, 4, 9, 'Y', 'SYSTEM', 'SYSTEM'),
     (1, 5, 9, 'Y', 'SYSTEM', 'SYSTEM');
+
+INSERT INTO adm_service_mst (
+    service_seq, service_cd, service_nm, base_url, status_path, live_path, ready_path,
+    timeout_ms, use_yn, sort_ord, remark, created_by, updated_by
+) VALUES
+    (1, 'admin-service', 'Admin Service', 'http://localhost:8081', '/health/status.json', '/health/live.json', '/health/ready.json', 3000, 'Y', 1, 'Common auth and admin portal', 'SYSTEM', 'SYSTEM'),
+    (2, 'schedule-service', 'Schedule Service', 'http://localhost:8082', '/health/status.json', '/health/live.json', '/health/ready.json', 3000, 'Y', 2, 'Project and task scheduling service', 'SYSTEM', 'SYSTEM');
