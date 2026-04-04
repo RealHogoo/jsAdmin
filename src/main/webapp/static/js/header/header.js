@@ -4,14 +4,6 @@
     var LABEL_LOGIN = "\uB85C\uADF8\uC778";
     var LABEL_LOGOUT = "\uB85C\uADF8\uC544\uC6C3";
 
-    function getToken() {
-        try {
-            return localStorage.getItem("JWT") || "";
-        } catch (e) {
-            return "";
-        }
-    }
-
     function getLoginUser() {
         try {
             var raw = localStorage.getItem("LOGIN_USER");
@@ -21,13 +13,9 @@
         }
     }
 
-    function hasToken() {
-        return !!getToken().trim();
-    }
-
     function hasLoginState() {
         var user = getLoginUser();
-        return hasToken() && !!(user && user.user_id);
+        return !!(user && user.user_id);
     }
 
     function updateAuthButton() {
@@ -73,11 +61,6 @@
         var targetUrl = String(url || "").trim();
         var onHome = targetUrl === "/home.do" || targetUrl === "/main.do" || !targetUrl;
 
-        if (!hasToken()) {
-            updateAuthButton();
-            return;
-        }
-
         if (!onHome) {
             updateAuthButton();
             return;
@@ -89,6 +72,10 @@
                 updateAuthButton();
                 return;
             }
+        }
+
+        if (window.app && typeof window.app.syncAuthProfile === "function") {
+            await window.app.syncAuthProfile();
         }
 
         updateAuthButton();

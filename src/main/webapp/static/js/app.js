@@ -92,9 +92,15 @@
         var payload = data || {};
         if (!UX.localSet) return;
 
-        UX.localSet("JWT", payload.token || "");
-        UX.localSet("REFRESH_TOKEN", payload.refresh_token || "");
-        UX.localSet("LOGIN_SESSION_ID", payload.session_id || "");
+        if (payload.token !== undefined) {
+            UX.localSet("JWT", payload.token || "");
+        }
+        if (payload.refresh_token !== undefined) {
+            UX.localSet("REFRESH_TOKEN", payload.refresh_token || "");
+        }
+        if (payload.session_id !== undefined) {
+            UX.localSet("LOGIN_SESSION_ID", payload.session_id || "");
+        }
         UX.localSet("LOGIN_USER", JSON.stringify(payload.user || {}));
     }
 
@@ -166,10 +172,6 @@
 
     async function refreshAuth() {
         var refreshToken = UX.localGet ? UX.localGet("REFRESH_TOKEN", "") : "";
-        if (!refreshToken) {
-            return false;
-        }
-
         if (refreshPromise) {
             return refreshPromise;
         }
@@ -180,7 +182,7 @@
                 "Content-Type": "application/json; charset=UTF-8",
                 "Accept": "application/json"
             },
-            body: JSON.stringify({ refresh_token: refreshToken }),
+            body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
             credentials: "same-origin"
         }).then(async function (response) {
             var text = await response.text();
@@ -257,11 +259,6 @@
     }
 
     async function verifyAuth() {
-        var token = UX.localGet ? UX.localGet("JWT", "") : "";
-        if (!token) {
-            return false;
-        }
-
         try {
             var response = await fetch("/auth/ping.json", {
                 method: "POST",
@@ -283,6 +280,47 @@
             return !!(body && body.ok && body.data && body.data.user_id);
         } catch (e) {
             return false;
+        }
+    }
+
+    async function syncAuthProfile() {
+        try {
+            var response = await fetch("/auth/me.json", {
+                method: "POST",
+                headers: authHeaders(),
+                body: JSON.stringify({}),
+                credentials: "same-origin"
+            });
+
+            if (response.status === 401) {
+                clearAuthState();
+                return null;
+            }
+            if (!response.ok) {
+                return null;
+            }
+
+            var text = await response.text();
+            var body = text && text.trim() ? JSON.parse(text) : null;
+            if (!body || body.ok !== true || !body.data) {
+                return null;
+            }
+
+            storeAuthState({
+                token: UX.localGet ? UX.localGet("JWT", "") : "",
+                refresh_token: UX.localGet ? UX.localGet("REFRESH_TOKEN", "") : "",
+                session_id: body.data.session_id || (UX.localGet ? UX.localGet("LOGIN_SESSION_ID", "") : ""),
+                user: {
+                    user_id: body.data.user_id || "",
+                    user_nm: body.data.user_nm || "",
+                    roles: body.data.roles || [],
+                    super_admin: body.data.super_admin === true
+                }
+            });
+            document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+            return body.data;
+        } catch (e) {
+            return null;
         }
     }
 
@@ -506,6 +544,7 @@
     app.requestJson = requestJson;
     app.requestHtml = requestHtml;
     app.verifyAuth = verifyAuth;
+    app.syncAuthProfile = syncAuthProfile;
     app.clearAuthState = clearAuthState;
     app.storeAuthState = storeAuthState;
     app.refreshAuth = refreshAuth;

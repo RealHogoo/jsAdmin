@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.realhogoo.jsadmin.access.service.AccessService;
 import com.realhogoo.jsadmin.api.ApiCode;
 import com.realhogoo.jsadmin.api.ApiResponse;
+import com.realhogoo.jsadmin.auth.web.AuthCookieSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.context.WebApplicationContext;
@@ -74,13 +75,7 @@ public class JwtAuthFilter implements Filter {
             return;
         }
 
-        String auth = req.getHeader("Authorization");
-        if (auth == null || auth.isBlank() || !auth.startsWith("Bearer ")) {
-            writeUnauthorized(req, resp);
-            return;
-        }
-
-        String token = auth.substring("Bearer ".length()).trim();
+        String token = resolveToken(req);
         if (token.isEmpty()) {
             writeUnauthorized(req, resp);
             return;
@@ -177,12 +172,7 @@ public class JwtAuthFilter implements Filter {
     }
 
     private void tryBindAuthContext(HttpServletRequest req) {
-        String auth = req.getHeader("Authorization");
-        if (auth == null || auth.isBlank() || !auth.startsWith("Bearer ")) {
-            return;
-        }
-
-        String token = auth.substring("Bearer ".length()).trim();
+        String token = resolveToken(req);
         if (token.isEmpty()) {
             return;
         }
@@ -226,4 +216,16 @@ public class JwtAuthFilter implements Filter {
         return (ctx != null && !ctx.isEmpty()) ? uri.substring(ctx.length()) : uri;
     }
 
+    private String resolveToken(HttpServletRequest request) {
+        String auth = request.getHeader("Authorization");
+        if (auth != null && !auth.isBlank() && auth.startsWith("Bearer ")) {
+            String token = auth.substring("Bearer ".length()).trim();
+            if (!token.isEmpty()) {
+                return token;
+            }
+        }
+
+        String cookieToken = AuthCookieSupport.readCookie(request, AuthCookieSupport.ACCESS_TOKEN_COOKIE);
+        return cookieToken == null ? "" : cookieToken;
+    }
 }

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -102,10 +103,28 @@ public class AuthController {
 
     @PostMapping("/refresh.json")
     @ResponseBody
-    public ApiResponse<Map<String, Object>> refresh(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
+    public ApiResponse<Map<String, Object>> refresh(
+        @RequestBody(required = false) Map<String, Object> body,
+        HttpServletRequest request,
+        HttpServletResponse response
+    ) {
         String refreshToken = body == null ? null : toStringValue(firstNonNull(body, "refresh_token", "refreshToken"));
+        if (refreshToken == null) {
+            refreshToken = AuthCookieSupport.readCookie(request, AuthCookieSupport.REFRESH_TOKEN_COOKIE);
+        }
         validateLength("refresh_token", refreshToken, MAX_REFRESH_TOKEN_LENGTH);
-        return authService.refresh(refreshToken, request);
+        ApiResponse<Map<String, Object>> result = authService.refresh(refreshToken, request);
+        if (result != null && result.isOk() && result.getData() != null) {
+            AuthCookieSupport.writeAuthCookies(
+                response,
+                toStringValue(result.getData().get("token")),
+                toStringValue(result.getData().get("refresh_token")),
+                toStringValue(result.getData().get("session_id"))
+            );
+        } else {
+            AuthCookieSupport.clearAuthCookies(response);
+        }
+        return result;
     }
 
     @PostMapping("/me.json")

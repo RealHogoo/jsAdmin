@@ -70,7 +70,7 @@
          WHERE fs.final_perm_lvl > 0
            AND NOT EXISTS (SELECT 1 FROM deny_tree d WHERE d.menu_seq = fs.menu_seq)
     ),
-    allowed_with_parents AS (
+    allowed_with_parents(menu_seq, up_menu_seq) AS (
         SELECT m.menu_seq, m.up_menu_seq
           FROM adm_menu_mst m
           JOIN allowed_leaf al ON al.menu_seq = m.menu_seq
@@ -85,36 +85,20 @@
         SELECT DISTINCT awp.menu_seq
           FROM allowed_with_parents awp
          WHERE NOT EXISTS (SELECT 1 FROM deny_tree d WHERE d.menu_seq = awp.menu_seq)
-    ),
-    ordered_menu AS (
-        SELECT
-            m.menu_seq, m.menu_nm, m.menu_url, m.icon_class, m.up_menu_seq, m.sort_ord,
-            CASE WHEN COALESCE(fs.final_perm_lvl, 0) > 0 THEN fs.final_perm_lvl ELSE 1 END AS perm_lvl,
-            LPAD(COALESCE(m.sort_ord, 0)::text, 10, '0') || ':' || LPAD(m.menu_seq::text, 20, '0') AS sort_path
-        FROM adm_menu_mst m
-        JOIN included_menu im ON im.menu_seq = m.menu_seq
-        LEFT JOIN final_self fs ON fs.menu_seq = m.menu_seq
-        WHERE m.up_menu_seq IS NULL
-        UNION ALL
-        SELECT
-            c.menu_seq, c.menu_nm, c.menu_url, c.icon_class, c.up_menu_seq, c.sort_ord,
-            CASE WHEN COALESCE(fs.final_perm_lvl, 0) > 0 THEN fs.final_perm_lvl ELSE 1 END AS perm_lvl,
-            om.sort_path || '/' || LPAD(COALESCE(c.sort_ord, 0)::text, 10, '0') || ':' || LPAD(c.menu_seq::text, 20, '0')
-        FROM adm_menu_mst c
-        JOIN ordered_menu om ON om.menu_seq = c.up_menu_seq
-        JOIN included_menu im ON im.menu_seq = c.menu_seq
-        LEFT JOIN final_self fs ON fs.menu_seq = c.menu_seq
     )
     SELECT
-        menu_seq AS menu_seq,
-        menu_nm AS menu_nm,
-        menu_url AS menu_url,
-        icon_class AS icon_class,
-        up_menu_seq AS up_menu_seq,
-        sort_ord AS sort_no,
-        perm_lvl AS perm_lvl
-    FROM ordered_menu
-    ORDER BY sort_path
+        m.menu_seq AS menu_seq,
+        m.menu_nm AS menu_nm,
+        m.menu_url AS menu_url,
+        m.icon_class AS icon_class,
+        m.up_menu_seq AS up_menu_seq,
+        m.sort_ord AS sort_no,
+        CASE WHEN COALESCE(fs.final_perm_lvl, 0) > 0 THEN fs.final_perm_lvl ELSE 1 END AS perm_lvl
+    FROM adm_menu_mst m
+    JOIN included_menu im ON im.menu_seq = m.menu_seq
+    LEFT JOIN final_self fs ON fs.menu_seq = m.menu_seq
+    WHERE m.use_yn = 'Y'
+    ORDER BY COALESCE(m.up_menu_seq, 0), m.sort_ord, m.menu_seq
   </select>
 
   <select id="selectMenuListByAuthGroupSeq" parameterType="long" resultType="map">
@@ -131,7 +115,7 @@
           FROM base_perm bp
          WHERE bp.base_perm_lvl > 0
     ),
-    allowed_with_parents AS (
+    allowed_with_parents(menu_seq, up_menu_seq) AS (
         SELECT m.menu_seq, m.up_menu_seq
           FROM adm_menu_mst m
           JOIN allowed_leaf al ON al.menu_seq = m.menu_seq
@@ -141,38 +125,20 @@
           FROM adm_menu_mst p
           JOIN allowed_with_parents awp ON awp.up_menu_seq = p.menu_seq
          WHERE p.use_yn = 'Y'
-    ),
-    ordered_menu AS (
-        SELECT
-            m.menu_seq, m.menu_nm, m.menu_url, m.icon_class, m.up_menu_seq, m.sort_ord,
-            CASE WHEN COALESCE(bp.base_perm_lvl, 0) > 0 THEN bp.base_perm_lvl ELSE 1 END AS perm_lvl,
-            LPAD(COALESCE(m.sort_ord, 0)::text, 10, '0') || ':' || LPAD(m.menu_seq::text, 20, '0') AS sort_path
-        FROM adm_menu_mst m
-        JOIN allowed_with_parents awp ON awp.menu_seq = m.menu_seq
-        LEFT JOIN base_perm bp ON bp.menu_seq = m.menu_seq
-        WHERE m.use_yn = 'Y'
-          AND m.up_menu_seq IS NULL
-        UNION ALL
-        SELECT
-            c.menu_seq, c.menu_nm, c.menu_url, c.icon_class, c.up_menu_seq, c.sort_ord,
-            CASE WHEN COALESCE(bp.base_perm_lvl, 0) > 0 THEN bp.base_perm_lvl ELSE 1 END AS perm_lvl,
-            om.sort_path || '/' || LPAD(COALESCE(c.sort_ord, 0)::text, 10, '0') || ':' || LPAD(c.menu_seq::text, 20, '0')
-        FROM adm_menu_mst c
-        JOIN ordered_menu om ON om.menu_seq = c.up_menu_seq
-        JOIN allowed_with_parents awp ON awp.menu_seq = c.menu_seq
-        LEFT JOIN base_perm bp ON bp.menu_seq = c.menu_seq
-        WHERE c.use_yn = 'Y'
     )
     SELECT
-        menu_seq AS menu_seq,
-        menu_nm AS menu_nm,
-        menu_url AS menu_url,
-        icon_class AS icon_class,
-        up_menu_seq AS up_menu_seq,
-        sort_ord AS sort_no,
-        perm_lvl AS perm_lvl
-    FROM ordered_menu
-    ORDER BY sort_path
+        m.menu_seq AS menu_seq,
+        m.menu_nm AS menu_nm,
+        m.menu_url AS menu_url,
+        m.icon_class AS icon_class,
+        m.up_menu_seq AS up_menu_seq,
+        m.sort_ord AS sort_no,
+        CASE WHEN COALESCE(bp.base_perm_lvl, 0) > 0 THEN bp.base_perm_lvl ELSE 1 END AS perm_lvl
+    FROM adm_menu_mst m
+    JOIN allowed_with_parents awp ON awp.menu_seq = m.menu_seq
+    LEFT JOIN base_perm bp ON bp.menu_seq = m.menu_seq
+    WHERE m.use_yn = 'Y'
+    ORDER BY COALESCE(m.up_menu_seq, 0), m.sort_ord, m.menu_seq
   </select>
 
   <select id="selectMenuListAll" parameterType="map" resultType="map">

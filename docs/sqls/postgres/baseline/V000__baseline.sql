@@ -254,3 +254,42 @@ CREATE INDEX idx_adm_refresh_token_01 ON adm_refresh_token (token_hash, revoked_
 CREATE INDEX idx_adm_refresh_token_02 ON adm_refresh_token (session_id, revoked_yn);
 CREATE INDEX idx_adm_api_mst_01 ON adm_api_mst (api_type, use_yn, api_seq DESC);
 CREATE INDEX idx_adm_api_mst_02 ON adm_api_mst (caller_id, target_service, http_method);
+
+INSERT INTO adm_user_mst (
+    user_seq, login_id, user_nm, pwd_hash, dept_seq, use_yn, login_fail_cnt,
+    lock_yn, pwd_reset_yn, created_by, updated_by
+) VALUES (
+    1, 'ADMIN', 'ADMIN USER', '1111', NULL, 'Y', 0,
+    'N', 'N', 'SYSTEM', 'SYSTEM'
+);
+
+INSERT INTO adm_auth_group (
+    auth_group_seq, auth_group_cd, auth_group_nm, auth_group_desc, use_yn, created_by, updated_by
+) VALUES (
+    1, 'ADMIN', 'Administrators', 'Default admin group', 'Y', 'SYSTEM', 'SYSTEM'
+);
+
+INSERT INTO adm_auth_group_user (
+    auth_group_seq, user_seq, use_yn, created_by, updated_by
+) VALUES (
+    1, 1, 'Y', 'SYSTEM', 'SYSTEM'
+);
+
+INSERT INTO adm_menu_mst (
+    menu_seq, up_menu_seq, menu_nm, menu_url, menu_type_cd, icon_class,
+    sort_ord, use_yn, created_by, updated_by
+) VALUES
+    (1, NULL, '대시보드', '/home.do', 'PAGE', 'dashboard', 1, 'Y', 'SYSTEM', 'SYSTEM'),
+    (2, NULL, '시스템', NULL, 'GROUP', 'settings', 2, 'Y', 'SYSTEM', 'SYSTEM'),
+    (3, 2, '권한 관리', '/auth/main.do', 'PAGE', 'shield_person', 1, 'Y', 'SYSTEM', 'SYSTEM'),
+    (4, 2, '메뉴 관리', '/menu/main.do', 'PAGE', 'menu', 2, 'Y', 'SYSTEM', 'SYSTEM'),
+    (5, 2, '헬스 체크', '/health/main.do', 'PAGE', 'monitor_heart', 3, 'Y', 'SYSTEM', 'SYSTEM');
+
+INSERT INTO adm_auth_menu (
+    auth_group_seq, menu_seq, perm_lvl, use_yn, created_by, updated_by
+) VALUES
+    (1, 1, 9, 'Y', 'SYSTEM', 'SYSTEM'),
+    (1, 2, 9, 'Y', 'SYSTEM', 'SYSTEM'),
+    (1, 3, 9, 'Y', 'SYSTEM', 'SYSTEM'),
+    (1, 4, 9, 'Y', 'SYSTEM', 'SYSTEM'),
+    (1, 5, 9, 'Y', 'SYSTEM', 'SYSTEM');

@@ -2,12 +2,14 @@ package com.realhogoo.jsadmin.access.web;
 
 import com.realhogoo.jsadmin.access.service.AccessService;
 import com.realhogoo.jsadmin.auth.service.AuthService;
+import com.realhogoo.jsadmin.auth.web.AuthCookieSupport;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -70,11 +72,12 @@ public class AccessController {
 
     @PostMapping("/logout.json")
     @ResponseBody
-    public Map<String, Object> logout(HttpServletRequest request) {
+    public Map<String, Object> logout(HttpServletRequest request, HttpServletResponse response) {
         String sessionId = stringValue(request.getAttribute("session_id"));
         String actor = stringValue(request.getAttribute("user_id"));
         int expired = accessService.logout(sessionId, actor, request);
         authService.revokeRefreshTokensBySessionId(sessionId, actor);
+        AuthCookieSupport.clearAuthCookies(response);
         return ok(Collections.singletonMap("logout", expired));
     }
 
