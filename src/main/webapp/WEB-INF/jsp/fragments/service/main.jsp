@@ -1,7 +1,7 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
 <div id="servicePage" class="page-root" data-page-url="/service/main.do">
-    <jsp:include page="/WEB-INF/jsp/common/page-header.jspf">
+    <jsp:include page="/WEB-INF/jsp/common/page-header.jsp">
         <jsp:param name="title" value="&#xc11c;&#xbe44;&#xc2a4; &#xad00;&#xb9ac;" />
         <jsp:param name="help" value="&#xc6b4;&#xc601; &#xc911;&#xc778; MSA &#xc11c;&#xbe44;&#xc2a4;&#xc758; URL, &#xd5ec;&#xc2a4;&#xccb4;&#xd06c; &#xacbd;&#xb85c;, &#xc0ac;&#xc6a9; &#xc5ec;&#xbd80;&#xb97c; &#xad00;&#xb9ac;&#xd569;&#xb2c8;&#xb2e4;." />
     </jsp:include>

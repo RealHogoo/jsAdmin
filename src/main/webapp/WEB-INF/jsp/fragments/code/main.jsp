@@ -1,7 +1,7 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
 <div class="page-root" id="codePage" data-page-url="/code/main.do">
-    <jsp:include page="/WEB-INF/jsp/common/page-header.jspf">
+    <jsp:include page="/WEB-INF/jsp/common/page-header.jsp">
         <jsp:param name="title" value="&#xcf54;&#xb4dc; &#xad00;&#xb9ac;" />
         <jsp:param name="help" value="&#xacf5;&#xd1b5; &#xcf54;&#xb4dc; &#xadf8;&#xb8f9;, &#xcf54;&#xb4dc;, &#xc815;&#xb82c; &#xc21c;&#xc11c;, &#xc0ac;&#xc6a9; &#xc5ec;&#xbd80;&#xb97c; &#xad00;&#xb9ac;&#xd569;&#xb2c8;&#xb2e4;." />
     </jsp:include>

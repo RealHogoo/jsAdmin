@@ -1,12 +1,13 @@
-(function () {
+(function (global) {
     "use strict";
 
+    var UX = global.UX;
     var LABEL_LOGIN = "\uB85C\uADF8\uC778";
     var LABEL_LOGOUT = "\uB85C\uADF8\uC544\uC6C3";
 
     function getLoginUser() {
         try {
-            var raw = localStorage.getItem("LOGIN_USER");
+            var raw = UX.localGet("LOGIN_USER", "");
             return raw ? JSON.parse(raw) : null;
         } catch (e) {
             return null;
@@ -19,9 +20,9 @@
     }
 
     function updateAuthButton() {
-        var btn = document.getElementById("authBtn");
-        var myPageBtn = document.getElementById("myPageBtn");
-        var userLabel = document.getElementById("authUserLabel");
+        var btn = UX.byId("authBtn");
+        var myPageBtn = UX.byId("myPageBtn");
+        var userLabel = UX.byId("authUserLabel");
         var loginUser = getLoginUser();
 
         if (!btn) return;
@@ -47,14 +48,15 @@
                     ? (loginUser.user_nm + " (" + (loginUser.user_id || "") + ")")
                     : (loginUser && loginUser.user_id ? loginUser.user_id : "");
             }
-        } else {
-            btn.textContent = LABEL_LOGIN;
-            btn.removeAttribute("data-action");
-            btn.setAttribute("data-spa", "/login.do");
-            btn.className = "header-chip header-chip-active";
-            if (myPageBtn) myPageBtn.style.display = "none";
-            if (userLabel) userLabel.textContent = "";
+            return;
         }
+
+        btn.textContent = LABEL_LOGIN;
+        btn.removeAttribute("data-action");
+        btn.setAttribute("data-spa", "/login.do");
+        btn.className = "header-chip header-chip-active";
+        if (myPageBtn) myPageBtn.style.display = "none";
+        if (userLabel) userLabel.textContent = "";
     }
 
     async function syncAuthState(url) {
@@ -66,16 +68,16 @@
             return;
         }
 
-        if (window.app && typeof window.app.verifyAuth === "function") {
-            var valid = await window.app.verifyAuth();
+        if (global.app && typeof global.app.verifyAuth === "function") {
+            var valid = await global.app.verifyAuth();
             if (!valid) {
                 updateAuthButton();
                 return;
             }
         }
 
-        if (window.app && typeof window.app.syncAuthProfile === "function") {
-            await window.app.syncAuthProfile();
+        if (global.app && typeof global.app.syncAuthProfile === "function") {
+            await global.app.syncAuthProfile();
         }
 
         updateAuthButton();
@@ -83,36 +85,33 @@
 
     async function doLogout() {
         try {
-            if (window.jsAdminSpa && typeof window.jsAdminSpa.call === "function") {
-                await window.jsAdminSpa.call("/logout.json", {});
+            if (global.jsAdminSpa && typeof global.jsAdminSpa.call === "function") {
+                await global.jsAdminSpa.call("/logout.json", {});
             }
         } catch (e) {}
 
-        if (window.app && typeof window.app.clearAuthState === "function") {
-            window.app.clearAuthState();
+        if (global.app && typeof global.app.clearAuthState === "function") {
+            global.app.clearAuthState();
         } else {
-            try { localStorage.removeItem("JWT"); } catch (e) {}
-            try { localStorage.removeItem("REFRESH_TOKEN"); } catch (e) {}
-            try { localStorage.removeItem("LOGIN_USER"); } catch (e) {}
-            try { localStorage.removeItem("LOGIN_SESSION_ID"); } catch (e) {}
-            document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+            UX.localRemove(["JWT", "REFRESH_TOKEN", "LOGIN_USER", "LOGIN_SESSION_ID"]);
+            global.document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
         }
 
-        if (window.jsAdminSpa && typeof window.jsAdminSpa.load === "function") {
-            await window.jsAdminSpa.load("/login.do");
+        if (global.jsAdminSpa && typeof global.jsAdminSpa.load === "function") {
+            await global.jsAdminSpa.load("/login.do");
         }
     }
 
     async function goMain() {
-        if (window.jsAdminSpa && typeof window.jsAdminSpa.load === "function") {
-            await window.jsAdminSpa.load("/main.do");
+        if (global.jsAdminSpa && typeof global.jsAdminSpa.load === "function") {
+            await global.jsAdminSpa.load("/main.do");
             return;
         }
-        window.location.href = "/main.do";
+        global.location.href = "/main.do";
     }
 
     function bindBrandClick() {
-        var el = document.getElementById("brandHome");
+        var el = UX.byId("brandHome");
         if (!el || el.dataset.brandBound === "1") return;
 
         el.dataset.brandBound = "1";
@@ -123,7 +122,7 @@
         });
     }
 
-    document.addEventListener("click", function (e) {
+    global.document.addEventListener("click", function (e) {
         var logoutA = e.target.closest("a[data-action='logout']");
         if (!logoutA) return;
 
@@ -131,12 +130,12 @@
         doLogout();
     });
 
-    document.addEventListener("jsadmin:pageLoaded", function (e) {
+    global.document.addEventListener("jsadmin:pageLoaded", function (e) {
         syncAuthState(e && e.detail ? e.detail.url : "");
         bindBrandClick();
     });
 
-    document.addEventListener("jsadmin:authChanged", function () {
+    global.document.addEventListener("jsadmin:authChanged", function () {
         updateAuthButton();
         bindBrandClick();
     });

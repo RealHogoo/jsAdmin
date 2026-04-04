@@ -111,23 +111,39 @@ public class MainController {
         String title = "MSA admin-service";
         String summary = "Admin portal and common gateway";
         List<String> bullets = new ArrayList<String>();
+        boolean titleResolved = false;
+        boolean summaryResolved = false;
 
         for (String raw : lines) {
             String line = raw == null ? "" : raw.trim();
             if (line.isEmpty()) continue;
 
-            if (line.startsWith("# ") && "MSA admin-service".equals(title)) {
+            if (line.startsWith("# ") && !titleResolved) {
                 title = line.substring(2).trim();
+                titleResolved = true;
                 continue;
             }
 
-            if (!line.startsWith("#") && !line.startsWith("-") && "Admin portal and common gateway".equals(summary)) {
+            if (!line.startsWith("#") && !line.startsWith("-") && !line.startsWith("```") && !summaryResolved) {
                 summary = line;
+                summaryResolved = true;
                 continue;
             }
 
-            if (line.startsWith("- ")) {
-                bullets.add(line.substring(2).trim());
+            if (line.startsWith("## ")) {
+                String heading = line.substring(3).trim();
+                heading = heading.replaceFirst("^\\d+(?:\\.\\d+)*\\.\\s*", "").trim();
+                if (!heading.isEmpty() && !bullets.contains(heading)) {
+                    bullets.add(heading);
+                }
+                continue;
+            }
+
+            if (bullets.size() < 8 && line.startsWith("- ")) {
+                String bullet = line.substring(2).trim();
+                if (!bullet.isEmpty() && !bullets.contains(bullet)) {
+                    bullets.add(bullet);
+                }
             }
         }
 

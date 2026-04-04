@@ -16,22 +16,72 @@
         return endDt ? (start + " ~ " + endDt) : start;
     }
 
+    function renderIntroMarkdown(markdown) {
+        var lines = String(markdown || "").split(/\r?\n/);
+        var html = [];
+        var listOpen = false;
+
+        function closeList() {
+            if (!listOpen) return;
+            html.push("</ul>");
+            listOpen = false;
+        }
+
+        lines.forEach(function (raw) {
+            var line = raw == null ? "" : String(raw).trim();
+
+            if (!line || line === "---") {
+                closeList();
+                return;
+            }
+
+            if (line.indexOf("```") === 0) {
+                closeList();
+                return;
+            }
+
+            if (line.indexOf("# ") === 0) {
+                closeList();
+                html.push("<h3 class='home-intro-title'>" + UX.esc(line.substring(2).trim()) + "</h3>");
+                return;
+            }
+
+            if (line.indexOf("## ") === 0) {
+                closeList();
+                html.push("<h4 class='home-intro-section'>" + UX.esc(line.substring(3).replace(/^\d+(?:\.\d+)*\.\s*/, "").trim()) + "</h4>");
+                return;
+            }
+
+            if (line.indexOf("### ") === 0) {
+                closeList();
+                html.push("<h5 class='home-intro-subsection'>" + UX.esc(line.substring(4).trim()) + "</h5>");
+                return;
+            }
+
+            if (line.indexOf("- ") === 0) {
+                if (!listOpen) {
+                    html.push("<ul class='home-intro-list'>");
+                    listOpen = true;
+                }
+                html.push("<li>" + UX.esc(line.substring(2).trim()) + "</li>");
+                return;
+            }
+
+            closeList();
+            html.push("<p class='home-intro-summary'>" + UX.esc(line) + "</p>");
+        });
+
+        closeList();
+        return html.join("");
+    }
+
     function loadIntro(page) {
         return app.callJson("/home/intro.json", {}, function (data) {
             if (!data) return;
-            UX.setText("#homeIntroTitle", data.title || "MSA admin-service", page);
-            UX.setText("#homeIntroSummary", data.summary || "", page);
-
-            var list = Array.isArray(data.highlights) ? data.highlights : [];
-            var listRoot = UX.qs("#homeIntroList", page);
-            if (listRoot) {
-                listRoot.innerHTML = list.map(function (item) {
-                    return "<li>" + UX.esc(item) + "</li>";
-                }).join("");
+            var markdownRoot = UX.qs("#homeIntroMarkdown", page);
+            if (markdownRoot) {
+                markdownRoot.innerHTML = renderIntroMarkdown(data.raw_markdown || "");
             }
-
-            var raw = UX.qs("#homeIntroRaw", page);
-            if (raw) raw.textContent = data.raw_markdown || "";
         });
     }
 

@@ -1,7 +1,7 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
 <div class="page-root" id="timelinePage" data-page-url="/timeline/main.do">
-    <jsp:include page="/WEB-INF/jsp/common/page-header.jspf">
+    <jsp:include page="/WEB-INF/jsp/common/page-header.jsp">
         <jsp:param name="title" value="&#xd0c0;&#xc784;&#xb77c;&#xc778; &#xad00;&#xb9ac;" />
         <jsp:param name="help" value="&#xd0c0;&#xc784;&#xb77c;&#xc778; &#xc774;&#xbca4;&#xd2b8;&#xb97c; &#xb4f1;&#xb85d;&#xd558;&#xace0; &#xae30;&#xac04;&#xacfc; &#xc0ac;&#xc6a9; &#xc5ec;&#xbd80;&#xb97c; &#xad00;&#xb9ac;&#xd569;&#xb2c8;&#xb2e4;." />
     </jsp:include>

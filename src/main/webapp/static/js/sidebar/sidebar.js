@@ -1,7 +1,8 @@
-﻿(function (global) {
+(function (global) {
     "use strict";
 
-    // 중복 로드/초기화 방지
+    var UX = global.UX;
+
     if (global.__SIDEBAR_LOADED__) return;
     global.__SIDEBAR_LOADED__ = true;
 
@@ -13,34 +14,7 @@
     var MenuIconCatalog = global.MenuIconCatalog;
 
     function hasToken() {
-        try {
-            return !!(localStorage.getItem("JWT") || "").trim();
-        } catch (e) {
-            return false;
-        }
-    }
-
-    function esc(s) {
-        return String(s == null ? "" : s).replace(/[&<>"']/g, function (m) {
-            return ({
-                "&": "&amp;",
-                "<": "&lt;",
-                ">": "&gt;",
-                '"': "&quot;",
-                "'": "&#39;"
-            })[m];
-        });
-    }
-
-    function value(obj, keys) {
-        var source = obj || {};
-        for (var i = 0; i < keys.length; i++) {
-            var key = keys[i];
-            if (source[key] !== undefined && source[key] !== null) {
-                return source[key];
-            }
-        }
-        return null;
+        return !!UX.strOrNull(UX.localGet("JWT", ""));
     }
 
     function toSpaUrl(url) {
@@ -48,8 +22,6 @@
         var s = String(url).trim();
         if (!s) return "";
         if (s.charAt(0) !== "/") s = "/" + s;
-
-        // 메뉴 URL이 API(.json)인 경우 화면 URL(.do)로 변환
         if (s.toLowerCase().endsWith(".json")) {
             var segs = s.split("/").filter(Boolean);
             if (segs.length > 0) {
@@ -60,40 +32,32 @@
         return s;
     }
 
-    // sidebar.jspf 구조가 달라도 컨테이너를 찾아 렌더링
-    // 1) #sidebarMenu 우선 사용
-    // 2) 없으면 a[data-spa]가 포함된 ul 사용
     function resolveContainer() {
-        var el = document.querySelector("#sidebarMenu");
+        var el = UX.qs("#sidebarMenu");
         if (el) return el;
 
-        var a = document.querySelector("a[data-spa]");
-        if (a) {
-            var ul = a.closest("ul");
-            if (ul) return ul;
-        }
-        return null;
+        var link = UX.qs("a[data-spa]");
+        if (!link) return null;
+        return link.closest("ul");
     }
 
     function renderNode(node) {
-        var name = esc(value(node, ["menuNm", "menu_nm"]));
-        var url = toSpaUrl(value(node, ["menuUrl", "menu_url"]));
-        var children = Array.isArray(value(node, ["children"])) ? value(node, ["children"]) : [];
+        var name = UX.esc(UX.value(node, ["menuNm", "menu_nm"], ""));
+        var url = toSpaUrl(UX.value(node, ["menuUrl", "menu_url"], ""));
+        var children = Array.isArray(UX.value(node, ["children"], [])) ? UX.value(node, ["children"], []) : [];
         var iconHtml = MenuIconCatalog && typeof MenuIconCatalog.render === "function"
-            ? MenuIconCatalog.render(value(node, ["iconClass", "icon_class"]))
+            ? MenuIconCatalog.render(UX.value(node, ["iconClass", "icon_class"], ""))
             : "";
 
-        // app.js 규칙에 맞춰 a[data-spa] 링크 생성
         var label = url
-            ? '<a href="#" data-spa="' + esc(url) + '">' + iconHtml + "<span class='menu-link-label'>" + name + "</span></a>"
+            ? '<a href="#" data-spa="' + UX.esc(url) + '">' + iconHtml + "<span class='menu-link-label'>" + name + "</span></a>"
             : "<span>" + iconHtml + "<span class='menu-link-label'>" + name + "</span></span>";
 
-        var childrenHtml = "";
-        if (children.length > 0) {
-            childrenHtml = '<ul class="menu-children">' + children.map(renderNode).join("") + "</ul>";
-        }
+        var childrenHtml = children.length
+            ? '<ul class="menu-children">' + children.map(renderNode).join("") + "</ul>"
+            : "";
 
-        return '<li class="menu-item" data-menu-seq="' + esc(value(node, ["menuSeq", "menu_seq"])) + '">' + label + childrenHtml + "</li>";
+        return '<li class="menu-item" data-menu-seq="' + UX.esc(UX.value(node, ["menuSeq", "menu_seq"], "")) + '">' + label + childrenHtml + "</li>";
     }
 
     function normalizePageUrl(url) {
@@ -109,8 +73,8 @@
         var prefix = Array.isArray(trail) ? trail : [];
         for (var i = 0; i < list.length; i++) {
             var node = list[i];
-            var nextTrail = prefix.concat([value(node, ["menuNm", "menu_nm"])]);
-            var spaUrl = normalizePageUrl(toSpaUrl(value(node, ["menuUrl", "menu_url"])));
+            var nextTrail = prefix.concat([UX.value(node, ["menuNm", "menu_nm"], "")]);
+            var spaUrl = normalizePageUrl(toSpaUrl(UX.value(node, ["menuUrl", "menu_url"], "")));
             if (spaUrl && spaUrl === targetUrl) {
                 return nextTrail;
             }
@@ -121,8 +85,8 @@
     }
 
     function updatePageTitle(url) {
-        var pageRoot = document.querySelector(".page-root");
-        var titleEl = document.querySelector(".page-title");
+        var pageRoot = UX.qs(".page-root");
+        var titleEl = UX.qs(".page-title");
         if (!pageRoot || !titleEl) return;
 
         var targetUrl = normalizePageUrl(url || pageRoot.getAttribute("data-page-url") || activeSpaUrl);
@@ -137,10 +101,6 @@
 
     function clearMenu(container) {
         if (!container) return;
-        if (container.tagName && container.tagName.toLowerCase() === "ul") {
-            container.innerHTML = "";
-            return;
-        }
         container.innerHTML = "";
     }
 
@@ -151,9 +111,7 @@
     }
 
     function scheduleReload(delay) {
-        if (retryTimer) {
-            clearTimeout(retryTimer);
-        }
+        if (retryTimer) clearTimeout(retryTimer);
         retryTimer = setTimeout(function () {
             retryTimer = null;
             loadMenuTree();
@@ -172,55 +130,43 @@
 
     function markActive(url) {
         activeSpaUrl = normalizeSpaUrl(url);
-        var links = document.querySelectorAll("#sidebarMenu a[data-spa]");
+        var links = UX.qsa("#sidebarMenu a[data-spa]");
         var matched = false;
-        for (var i = 0; i < links.length; i++) {
-            var a = links[i];
-            var spa = normalizeSpaUrl(a.getAttribute("data-spa"));
-            var active = false;
-            if (!matched && !!activeSpaUrl && spa === activeSpaUrl) {
-                active = true;
-                matched = true;
-            }
+        links.forEach(function (link) {
+            var spa = normalizeSpaUrl(link.getAttribute("data-spa"));
+            var active = !matched && !!activeSpaUrl && spa === activeSpaUrl;
             if (active) {
-                a.classList.add("is-active");
-                a.setAttribute("aria-current", "page");
-            } else {
-                a.classList.remove("is-active");
-                a.removeAttribute("aria-current");
+                matched = true;
+                link.classList.add("is-active");
+                link.setAttribute("aria-current", "page");
+                return;
             }
-        }
+            link.classList.remove("is-active");
+            link.removeAttribute("aria-current");
+        });
     }
 
     function markActiveElement(el) {
-        var links = document.querySelectorAll("#sidebarMenu a[data-spa]");
-        for (var i = 0; i < links.length; i++) {
-            var a = links[i];
-            var active = (a === el);
+        UX.qsa("#sidebarMenu a[data-spa]").forEach(function (link) {
+            var active = link === el;
             if (active) {
-                a.classList.add("is-active");
-                a.setAttribute("aria-current", "page");
-                activeSpaUrl = normalizeSpaUrl(a.getAttribute("data-spa"));
-            } else {
-                a.classList.remove("is-active");
-                a.removeAttribute("aria-current");
+                link.classList.add("is-active");
+                link.setAttribute("aria-current", "page");
+                activeSpaUrl = normalizeSpaUrl(link.getAttribute("data-spa"));
+                return;
             }
-        }
+            link.classList.remove("is-active");
+            link.removeAttribute("aria-current");
+        });
     }
 
     async function loadMenuTree() {
         var container = resolveContainer();
-        if (!container) return;
+        if (!container || !global.jsAdminSpa || typeof global.jsAdminSpa.call !== "function" || inFlight) return;
 
-        // 공통 SPA API 래퍼가 준비되지 않았으면 종료
-        if (!global.jsAdminSpa || typeof global.jsAdminSpa.call !== "function") return;
-        if (inFlight) return;
         inFlight = true;
         try {
-            // jsAdminSpa.call()은 envelope가 아니라 data만 반환
             var tree = await global.jsAdminSpa.call("/menu/tree.json", {});
-
-            // 비정상 응답이면 메뉴 비움
             if (!Array.isArray(tree)) {
                 loadedOnce = false;
                 clearMenu(container);
@@ -228,7 +174,6 @@
                 return;
             }
 
-            // 컨테이너가 ul이면 li만, 아니면 ul 래핑
             if (container.tagName && container.tagName.toLowerCase() === "ul") {
                 container.classList.add("menu-root");
                 container.innerHTML = tree.map(renderNode).join("");
@@ -237,10 +182,7 @@
             }
 
             menuTree = tree.slice();
-
-            if (activeSpaUrl) {
-                markActive(activeSpaUrl);
-            }
+            if (activeSpaUrl) markActive(activeSpaUrl);
             updatePageTitle(activeSpaUrl);
 
             loadedOnce = true;
@@ -250,35 +192,26 @@
             }
         } catch (e) {
             loadedOnce = false;
-            if (!hasRenderedMenu(container)) {
-                clearMenu(container);
-            }
+            if (!hasRenderedMenu(container)) clearMenu(container);
             try { console.warn("[sidebar] loadMenuTree failed", e); } catch (ignore) {}
-            if (!global.__JSADMIN_AUTH_REDIRECTING) {
-                scheduleReload(900);
-            }
+            if (!global.__JSADMIN_AUTH_REDIRECTING) scheduleReload(900);
         } finally {
             inFlight = false;
         }
     }
 
-    // 같은 탭에서는 storage 이벤트가 발생하지 않아서 짧은 폴링으로 로그인 직후 1회 로드
     function bootstrapAfterLogin() {
         var tries = 0;
-        var maxTries = 80; // 80 * 250ms = 20초
+        var maxTries = 80;
 
         function tick() {
-            tries++;
-
+            tries += 1;
             if (loadedOnce) return;
 
-            try {
-                var token = localStorage.getItem("JWT");
-                if (token && global.jsAdminSpa && typeof global.jsAdminSpa.call === "function") {
-                    loadMenuTree();
-                    return;
-                }
-            } catch (e) {}
+            if (hasToken() && global.jsAdminSpa && typeof global.jsAdminSpa.call === "function") {
+                loadMenuTree();
+                return;
+            }
 
             if (tries < maxTries) setTimeout(tick, 250);
         }
@@ -286,15 +219,13 @@
         setTimeout(tick, 0);
     }
 
-    // 외부에서 메뉴 재로딩이 필요할 때 사용
     global.SIDEBAR_INIT = loadMenuTree;
 
     function init() {
         loadMenuTree();
         bootstrapAfterLogin();
 
-        // 권한 변경 저장 후 즉시 메뉴 동기화
-        document.addEventListener("jsadmin:authChanged", function () {
+        global.document.addEventListener("jsadmin:authChanged", function () {
             loadedOnce = false;
             menuTree = [];
             if (retryTimer) {
@@ -304,30 +235,27 @@
             loadMenuTree();
         });
 
-        // 화면 전환 시 컨테이너 재렌더링 대비
-        document.addEventListener("jsadmin:pageLoaded", function () {
+        global.document.addEventListener("jsadmin:pageLoaded", function () {
             if (!loadedOnce || !hasRenderedMenu()) loadMenuTree();
         });
 
-        document.addEventListener("jsadmin:pageLoaded", function (e) {
+        global.document.addEventListener("jsadmin:pageLoaded", function (e) {
             var url = e && e.detail ? e.detail.url : "";
-            if (url) {
-                markActive(url);
-                updatePageTitle(url);
-            }
+            if (!url) return;
+            markActive(url);
+            updatePageTitle(url);
         });
 
-        document.addEventListener("click", function (e) {
-            var a = e.target && e.target.closest ? e.target.closest("#sidebarMenu a[data-spa]") : null;
-            if (!a) return;
-            markActiveElement(a);
+        global.document.addEventListener("click", function (e) {
+            var link = e.target && e.target.closest ? e.target.closest("#sidebarMenu a[data-spa]") : null;
+            if (!link) return;
+            markActiveElement(link);
         });
     }
 
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", init);
+    if (global.document.readyState === "loading") {
+        global.document.addEventListener("DOMContentLoaded", init);
     } else {
         init();
     }
-
 })(window);

@@ -1160,16 +1160,55 @@ body.app-shell {
     display: grid;
     grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
     gap: 12px;
+    min-height: 0;
+    align-items: start;
+}
+
+.dashboard-page {
+    overflow: hidden;
+}
+
+.dashboard-page .home-intro,
+.dashboard-page .home-notice {
+    min-height: 0;
+}
+
+.dashboard-page .home-intro {
+    max-height: calc(100vh - 210px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+}
+
+.home-intro-markdown {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .home-intro-title {
-    margin: 0 0 8px;
+    margin: 0;
     font-size: 18px;
     line-height: 1.35;
 }
 
+.home-intro-section {
+    margin: 6px 0 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.home-intro-subsection {
+    margin: 2px 0 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: #374151;
+}
+
 .home-intro-summary {
-    margin: 0 0 10px;
+    margin: 0;
+    line-height: 1.55;
 }
 
 .home-intro-list {
@@ -1178,23 +1217,15 @@ body.app-shell {
     display: grid;
     gap: 6px;
     font-size: 14px;
-}
-
-.home-intro-raw {
-    margin: 10px 0 0;
-    padding: 10px;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    background: #f9fafb;
-    max-height: 280px;
-    overflow: auto;
-    white-space: pre-wrap;
-    font-size: 12px;
-    line-height: 1.45;
+    line-height: 1.5;
 }
 
 .home-intro-actions {
     margin-top: 14px;
+}
+
+.home-intro-actions.btns {
+    flex-wrap: wrap;
 }
 
 .access-filter-bar {
