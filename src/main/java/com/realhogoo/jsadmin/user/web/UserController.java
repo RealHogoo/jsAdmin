@@ -33,6 +33,12 @@ public class UserController {
         return ok(userService.getUserList(param));
     }
 
+    @PostMapping("/user/options.json")
+    @ResponseBody
+    public Map<String, Object> options(@RequestBody(required = false) Map<String, Object> param) {
+        return ok(userService.getUserOptions(param));
+    }
+
     @PostMapping("/user/detail.json")
     @ResponseBody
     public Map<String, Object> detail(@RequestBody Map<String, Object> body) {

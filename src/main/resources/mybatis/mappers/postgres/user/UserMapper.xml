@@ -25,6 +25,21 @@
         ORDER BY user_seq DESC
     </select>
 
+    <select id="selectUserOptions" parameterType="map" resultType="map">
+        SELECT
+            user_seq,
+            login_id AS user_id,
+            user_nm,
+            (user_nm || '(' || login_id || ')') AS label
+        FROM adm_user_mst
+        WHERE COALESCE(use_yn, 'Y') = 'Y'
+        <if test="keyword != null and keyword != ''">
+            AND (login_id LIKE '%' || #{keyword} || '%' OR user_nm LIKE '%' || #{keyword} || '%')
+        </if>
+        ORDER BY user_nm ASC, login_id ASC
+        LIMIT 20
+    </select>
+
     <select id="selectUserDetail" parameterType="long" resultType="map">
         SELECT
             user_seq, login_id, user_nm,

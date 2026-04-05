@@ -37,6 +37,11 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    public List<Map<String, Object>> getUserOptions(Map<String, Object> param) {
+        return userMapper.selectUserOptions(param == null ? new HashMap<String, Object>() : param);
+    }
+
+    @Override
     public Map<String, Object> getUserDetail(Long userSeq) {
         if (userSeq == null) {
             throw new IllegalArgumentException("user_seq is required");

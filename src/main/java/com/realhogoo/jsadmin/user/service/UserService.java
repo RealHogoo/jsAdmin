@@ -5,6 +5,7 @@ import java.util.Map;
 
 public interface UserService {
     List<Map<String, Object>> getUserList(Map<String, Object> param);
+    List<Map<String, Object>> getUserOptions(Map<String, Object> param);
 
     Map<String, Object> getUserDetail(Long userSeq);
 

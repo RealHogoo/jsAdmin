@@ -9,6 +9,7 @@ import java.util.Map;
 @Mapper("userMapper")
 public interface UserMapper {
     List<Map<String, Object>> selectUserList(Map<String, Object> param);
+    List<Map<String, Object>> selectUserOptions(Map<String, Object> param);
 
     Map<String, Object> selectUserDetail(@Param("userSeq") Long userSeq);
 

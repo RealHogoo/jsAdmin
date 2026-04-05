@@ -8,3 +8,4 @@
 \i ./migrations/V003__refresh_token.sql
 \i ./migrations/V004__timeline.sql
 \i ./migrations/V005__api_policy.sql
+\i ./migrations/V006__user_options_api_policy.sql
