@@ -1,5 +1,6 @@
 package com.realhogoo.jsadmin.code.web;
 
+import com.realhogoo.jsadmin.auth.AuthRequestSupport;
 import com.realhogoo.jsadmin.code.service.CodeService;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,7 +30,8 @@ public class CodeController {
 
     @PostMapping("/code/list.json")
     @ResponseBody
-    public Map<String, Object> list() {
+    public Map<String, Object> list(HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         List<Map<String, Object>> list = codeService.selectCodeListAll();
 
         Map<String, Object> res = new HashMap<>();
@@ -43,6 +45,7 @@ public class CodeController {
     @PostMapping("/code/save.json")
     @ResponseBody
     public Map<String, Object> save(@RequestBody Map<String, Object> param, HttpServletRequest req) {
+        AuthRequestSupport.ensureAdmin(req);
         String userId = String.valueOf(req.getAttribute("user_id"));
 
         Map<String, Object> res = new HashMap<>();
@@ -64,6 +67,7 @@ public class CodeController {
     @PostMapping("/code/delete.json")
     @ResponseBody
     public Map<String, Object> delete(@RequestBody Map<String, Object> param, HttpServletRequest req) {
+        AuthRequestSupport.ensureAdmin(req);
         String userId = String.valueOf(req.getAttribute("user_id"));
         Object codeSeqObj = param == null ? null : param.get("code_seq");
         Long codeSeq = codeSeqObj == null ? null : Long.valueOf(String.valueOf(codeSeqObj));

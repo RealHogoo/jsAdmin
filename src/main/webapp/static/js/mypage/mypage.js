@@ -39,9 +39,12 @@
 
     function syncStoredUserName(userNm) {
         try {
-            var user = JSON.parse(UX.localGet("LOGIN_USER", "{}"));
-            user.user_nm = userNm;
-            UX.localSet("LOGIN_USER", JSON.stringify(user));
+            if (app && typeof app.getAuthState === "function" && typeof app.storeAuthState === "function") {
+                var state = app.getAuthState();
+                var user = state && state.user ? state.user : {};
+                user.user_nm = userNm;
+                app.storeAuthState({ user: user, session_id: state ? state.session_id : "" });
+            }
             document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
         } catch (e) {}
     }

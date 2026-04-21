@@ -27,6 +27,16 @@ public interface AuthMapper {
 
     List<Map<String, Object>> selectUserMenuPermList(@Param("userSeq") Long userSeq);
 
+    List<Map<String, Object>> selectGroupServicePermList(@Param("authGroupSeq") Long authGroupSeq);
+
+    int upsertGroupServicePerm(Map<String, Object> param);
+
+    List<Map<String, Object>> selectUserServicePermList(@Param("userSeq") Long userSeq);
+
+    int deleteAllUserServiceException(@Param("userSeq") Long userSeq);
+
+    int upsertUserServiceException(Map<String, Object> param);
+
     int deleteAllUserException(@Param("userSeq") Long userSeq);
 
     int upsertUserException(Map<String, Object> param);
@@ -46,6 +56,8 @@ public interface AuthMapper {
     LoginUser selectUserForLogin(@Param("user_id") String userId);
 
     List<String> selectUserRoleCodes(@Param("userSeq") Long userSeq);
+
+    List<Map<String, Object>> selectResolvedServicePermissions(@Param("userSeq") Long userSeq);
 
     int insertRefreshToken(Map<String, Object> param);
 

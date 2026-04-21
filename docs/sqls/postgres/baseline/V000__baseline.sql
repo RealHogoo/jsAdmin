@@ -321,3 +321,76 @@ INSERT INTO adm_service_mst (
 ) VALUES
     (1, 'admin-service', 'Admin Service', 'http://localhost:8081', '/health/status.json', '/health/live.json', '/health/ready.json', 3000, 'Y', 1, 'Common auth and admin portal', 'SYSTEM', 'SYSTEM'),
     (2, 'schedule-service', 'Schedule Service', 'http://localhost:8082', '/health/status.json', '/health/live.json', '/health/ready.json', 3000, 'Y', 2, 'Project and task scheduling service', 'SYSTEM', 'SYSTEM');
+
+CREATE TABLE adm_service_perm_def (
+    service_perm_seq BIGINT PRIMARY KEY,
+    service_seq      BIGINT NOT NULL,
+    perm_cd          VARCHAR(100) NOT NULL,
+    perm_nm          VARCHAR(200) NOT NULL,
+    perm_desc        VARCHAR(1000),
+    sort_ord         INTEGER NOT NULL DEFAULT 0,
+    use_yn           CHAR(1) NOT NULL DEFAULT 'Y',
+    created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by       VARCHAR(100) NOT NULL,
+    updated_at       TIMESTAMP,
+    updated_by       VARCHAR(100),
+    CONSTRAINT uk_adm_service_perm_def_01 UNIQUE (service_seq, perm_cd),
+    CONSTRAINT ck_adm_service_perm_def_use_yn CHECK (use_yn IN ('Y', 'N')),
+    CONSTRAINT fk_adm_service_perm_def_service FOREIGN KEY (service_seq) REFERENCES adm_service_mst (service_seq)
+);
+
+CREATE TABLE adm_auth_service_perm (
+    auth_group_seq   BIGINT NOT NULL,
+    service_perm_seq BIGINT NOT NULL,
+    use_yn           CHAR(1) NOT NULL DEFAULT 'Y',
+    created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by       VARCHAR(100) NOT NULL,
+    updated_at       TIMESTAMP,
+    updated_by       VARCHAR(100),
+    PRIMARY KEY (auth_group_seq, service_perm_seq),
+    CONSTRAINT ck_adm_auth_service_perm_use_yn CHECK (use_yn IN ('Y', 'N')),
+    CONSTRAINT fk_adm_auth_service_perm_grp FOREIGN KEY (auth_group_seq) REFERENCES adm_auth_group (auth_group_seq),
+    CONSTRAINT fk_adm_auth_service_perm_def FOREIGN KEY (service_perm_seq) REFERENCES adm_service_perm_def (service_perm_seq)
+);
+
+CREATE TABLE adm_auth_user_service_perm (
+    user_seq         BIGINT NOT NULL,
+    service_perm_seq BIGINT NOT NULL,
+    access_yn        CHAR(1) NOT NULL DEFAULT 'Y',
+    created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by       VARCHAR(100) NOT NULL,
+    updated_at       TIMESTAMP,
+    updated_by       VARCHAR(100),
+    PRIMARY KEY (user_seq, service_perm_seq),
+    CONSTRAINT ck_adm_auth_user_service_perm_access_yn CHECK (access_yn IN ('Y', 'X')),
+    CONSTRAINT fk_adm_auth_user_service_perm_usr FOREIGN KEY (user_seq) REFERENCES adm_user_mst (user_seq),
+    CONSTRAINT fk_adm_auth_user_service_perm_def FOREIGN KEY (service_perm_seq) REFERENCES adm_service_perm_def (service_perm_seq)
+);
+
+CREATE SEQUENCE adm_service_perm_def_seq START 1 INCREMENT 1;
+
+CREATE INDEX idx_adm_service_perm_def_01 ON adm_service_perm_def (service_seq, use_yn, sort_ord, service_perm_seq);
+CREATE INDEX idx_adm_auth_service_perm_01 ON adm_auth_service_perm (service_perm_seq, use_yn);
+CREATE INDEX idx_adm_auth_user_service_perm_01 ON adm_auth_user_service_perm (service_perm_seq, access_yn);
+
+INSERT INTO adm_api_mst (
+    api_seq, api_type, api_nm, caller_id, target_service, http_method,
+    api_pattern, auth_type, api_desc, use_yn, created_by, updated_by
+) VALUES (
+    1, 'INTERNAL', 'Schedule PM User Options', 'schedule-service', 'admin-service', 'POST',
+    '/user/options.json', 'JWT', 'schedule-service PM selection user lookup API', 'Y', 'SYSTEM', 'SYSTEM'
+);
+
+INSERT INTO adm_service_perm_def (
+    service_perm_seq, service_seq, perm_cd, perm_nm, perm_desc, sort_ord, use_yn, created_by, updated_by
+) VALUES
+    (1, 2, 'DELETE', 'Delete Access', 'Allows delete actions in schedule service', 3, 'Y', 'SYSTEM', 'SYSTEM'),
+    (2, 2, 'WRITE', 'Write Access', 'Allows create and update actions in schedule service', 2, 'Y', 'SYSTEM', 'SYSTEM'),
+    (3, 2, 'DASHBOARD_ACCESS', 'Dashboard Access', 'Allows access to schedule dashboard views', 1, 'Y', 'SYSTEM', 'SYSTEM');
+
+INSERT INTO adm_auth_service_perm (
+    auth_group_seq, service_perm_seq, use_yn, created_by, updated_by
+) VALUES
+    (1, 1, 'Y', 'SYSTEM', 'SYSTEM'),
+    (1, 2, 'Y', 'SYSTEM', 'SYSTEM'),
+    (1, 3, 'Y', 'SYSTEM', 'SYSTEM');

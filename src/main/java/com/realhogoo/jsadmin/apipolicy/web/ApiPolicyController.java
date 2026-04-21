@@ -1,6 +1,7 @@
 package com.realhogoo.jsadmin.apipolicy.web;
 
 import com.realhogoo.jsadmin.apipolicy.service.ApiPolicyService;
+import com.realhogoo.jsadmin.auth.AuthRequestSupport;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,7 +29,8 @@ public class ApiPolicyController {
 
     @PostMapping("/api/list.json")
     @ResponseBody
-    public Map<String, Object> list(@RequestBody(required = false) Map<String, Object> param) {
+    public Map<String, Object> list(@RequestBody(required = false) Map<String, Object> param, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         List<Map<String, Object>> list = apiPolicyService.selectApiPolicyList(param);
 
         Map<String, Object> res = new HashMap<String, Object>();
@@ -42,6 +44,7 @@ public class ApiPolicyController {
     @PostMapping("/api/save.json")
     @ResponseBody
     public Map<String, Object> save(@RequestBody Map<String, Object> param, HttpServletRequest req) {
+        AuthRequestSupport.ensureAdmin(req);
         String userId = String.valueOf(req.getAttribute("user_id"));
 
         Map<String, Object> res = new HashMap<String, Object>();
@@ -63,6 +66,7 @@ public class ApiPolicyController {
     @PostMapping("/api/delete.json")
     @ResponseBody
     public Map<String, Object> delete(@RequestBody Map<String, Object> param, HttpServletRequest req) {
+        AuthRequestSupport.ensureAdmin(req);
         String userId = String.valueOf(req.getAttribute("user_id"));
         Object apiSeqObj = param == null ? null : param.get("api_seq");
         Long apiSeq = apiSeqObj == null ? null : Long.valueOf(String.valueOf(apiSeqObj));

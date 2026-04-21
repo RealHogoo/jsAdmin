@@ -160,11 +160,6 @@
                 stopCountdown();
                 if (global.app && typeof global.app.storeAuthState === "function") {
                     global.app.storeAuthState(res.data || {});
-                } else {
-                    UX.localSet("JWT", res.data && res.data.token ? res.data.token : "");
-                    UX.localSet("REFRESH_TOKEN", res.data && res.data.refresh_token ? res.data.refresh_token : "");
-                    UX.localSet("LOGIN_USER", JSON.stringify((res.data && res.data.user) ? res.data.user : {}));
-                    UX.localSet("LOGIN_SESSION_ID", res.data && res.data.session_id ? res.data.session_id : "");
                 }
 
                 setMsg(MSG_SUCCESS, "success");

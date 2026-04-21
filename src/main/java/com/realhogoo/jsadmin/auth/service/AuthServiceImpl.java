@@ -1,5 +1,6 @@
 package com.realhogoo.jsadmin.auth.service;
 
+import com.realhogoo.jsadmin.auth.ServicePermissionSupport;
 import com.realhogoo.jsadmin.access.service.AccessService;
 import com.realhogoo.jsadmin.api.ApiResponse;
 import com.realhogoo.jsadmin.auth.config.SuperAdminProperties;
@@ -38,6 +39,7 @@ public class AuthServiceImpl implements AuthService {
     private final AccessService accessService;
     private final SuperAdminProperties superAdminProperties;
     private final PasswordEncoder passwordEncoder;
+    private final LoginRateLimiter loginRateLimiter;
     private final long refreshExpSeconds;
 
     public AuthServiceImpl(
@@ -46,6 +48,7 @@ public class AuthServiceImpl implements AuthService {
         AccessService accessService,
         SuperAdminProperties superAdminProperties,
         PasswordEncoder passwordEncoder,
+        LoginRateLimiter loginRateLimiter,
         @Value("${jwt.refresh-exp-seconds:1209600}") long refreshExpSeconds
     ) {
         this.authMapper = authMapper;
@@ -53,6 +56,7 @@ public class AuthServiceImpl implements AuthService {
         this.accessService = accessService;
         this.superAdminProperties = superAdminProperties;
         this.passwordEncoder = passwordEncoder;
+        this.loginRateLimiter = loginRateLimiter;
         this.refreshExpSeconds = refreshExpSeconds;
     }
 
@@ -120,6 +124,89 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    public List<Map<String, Object>> getGroupServicePermList(Long authGroupSeq) {
+        if (authGroupSeq == null) return Collections.emptyList();
+        return authMapper.selectGroupServicePermList(authGroupSeq);
+    }
+
+    @Override
+    @Transactional
+    public int saveGroupServicePerm(Long authGroupSeq, List<Map<String, Object>> items, String actor) {
+        if (authGroupSeq == null) {
+            throw new IllegalArgumentException("auth_group_seq is required");
+        }
+        if (items == null) {
+            throw new IllegalArgumentException("items is required");
+        }
+
+        String safeActor = (actor == null || actor.trim().isEmpty()) ? "SYSTEM" : actor.trim();
+        int saved = 0;
+        for (Map<String, Object> item : items) {
+            if (item == null) {
+                continue;
+            }
+            Long servicePermSeq = toLong(firstNonNull(item, "service_perm_seq", "servicePermSeq"));
+            String useYn = toStr(firstNonNull(item, "use_yn", "useYn"), "N");
+            if (servicePermSeq == null) {
+                continue;
+            }
+
+            Map<String, Object> payload = new HashMap<String, Object>();
+            payload.put("auth_group_seq", authGroupSeq);
+            payload.put("service_perm_seq", servicePermSeq);
+            payload.put("use_yn", "Y".equalsIgnoreCase(useYn) ? "Y" : "N");
+            payload.put("created_by", safeActor);
+            payload.put("updated_by", safeActor);
+            authMapper.upsertGroupServicePerm(payload);
+            saved++;
+        }
+        return saved;
+    }
+
+    @Override
+    public List<Map<String, Object>> getUserServicePermList(Long userSeq) {
+        if (userSeq == null) return Collections.emptyList();
+        return authMapper.selectUserServicePermList(userSeq);
+    }
+
+    @Override
+    @Transactional
+    public void saveUserServiceExceptions(Long userSeq, List<Map<String, Object>> exceptions, String actor) {
+        if (userSeq == null) {
+            throw new IllegalArgumentException("user_seq is required");
+        }
+
+        String safeActor = (actor == null || actor.trim().isEmpty()) ? "SYSTEM" : actor.trim();
+        authMapper.deleteAllUserServiceException(userSeq);
+
+        if (exceptions == null) {
+            return;
+        }
+
+        for (Map<String, Object> row : exceptions) {
+            if (row == null) {
+                continue;
+            }
+            Long servicePermSeq = toLong(firstNonNull(row, "service_perm_seq", "servicePermSeq"));
+            String accessYn = toStr(firstNonNull(row, "access_yn", "accessYn"), "");
+            if (servicePermSeq == null) {
+                continue;
+            }
+            if (!"Y".equalsIgnoreCase(accessYn) && !"X".equalsIgnoreCase(accessYn)) {
+                continue;
+            }
+
+            Map<String, Object> payload = new HashMap<String, Object>();
+            payload.put("user_seq", userSeq);
+            payload.put("service_perm_seq", servicePermSeq);
+            payload.put("access_yn", accessYn.toUpperCase(Locale.ROOT));
+            payload.put("created_by", safeActor);
+            payload.put("updated_by", safeActor);
+            authMapper.upsertUserServiceException(payload);
+        }
+    }
+
+    @Override
     @Transactional
     public void saveUserExceptions(Long userSeq, List<Map<String, Object>> exceptions, String actor) {
         if (userSeq == null) {
@@ -166,29 +253,37 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public ApiResponse<Map<String, Object>> login(String userId, String userPw, HttpServletRequest request) {
         String normalizedUserId = normalizeLoginId(userId);
+        long nowMs = System.currentTimeMillis();
         validateLength("user_id", normalizedUserId, MAX_LOGIN_ID_LENGTH);
         validateLength("user_pw", userPw, MAX_PASSWORD_LENGTH);
+        long retryAfterSeconds = loginRateLimiter.retryAfterSeconds(request, nowMs);
+        if (retryAfterSeconds > 0L) {
+            accessService.recordLoginHistory(null, normalizedUserId, false, "IP_RATE_LIMIT_ACTIVE_" + retryAfterSeconds + "S", null, request);
+            return ApiResponse.fail("LOGIN_FAIL", "\uB85C\uADF8\uC778 \uC2DC\uB3C4\uAC00 \uB108\uBB34 \uB9CE\uC2B5\uB2C8\uB2E4. \uC7A0\uC2DC \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.", delayData(retryAfterSeconds), request);
+        }
 
         LoginUser user = authMapper.selectUserForLogin(normalizedUserId);
         if (user == null) {
+            loginRateLimiter.recordFailure(request, nowMs);
             accessService.recordLoginHistory(null, normalizedUserId, false, "USER_NOT_FOUND", null, request);
-            return ApiResponse.fail("LOGIN_FAIL", "?꾩씠???먮뒗 鍮꾨?踰덊샇媛 ?щ컮瑜댁? ?딆뒿?덈떎.", null, request);
+            return ApiResponse.fail("LOGIN_FAIL", "\uC544\uC774\uB514 \uB610\uB294 \uBE44\uBC00\uBC88\uD638\uAC00 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.", null, request);
         }
 
         Date now = new Date();
         if ("Y".equalsIgnoreCase(user.getLockYn())) {
             accessService.recordLoginHistory(user, normalizedUserId, false, "ACCOUNT_LOCKED", null, request);
-            return ApiResponse.fail("LOGIN_FAIL", "?꾩씠???먮뒗 鍮꾨?踰덊샇媛 ?щ컮瑜댁? ?딆뒿?덈떎.", null, request);
+            return ApiResponse.fail("LOGIN_FAIL", "\uC544\uC774\uB514 \uB610\uB294 \uBE44\uBC00\uBC88\uD638\uAC00 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.", null, request);
         }
 
         if (user.getLockUntilAt() != null && user.getLockUntilAt().after(now)) {
             long remainingSeconds = Math.max(1L, (user.getLockUntilAt().getTime() - now.getTime() + 999L) / 1000L);
             accessService.recordLoginHistory(user, normalizedUserId, false, "LOGIN_DELAY_ACTIVE_" + remainingSeconds + "S", null, request);
-            return ApiResponse.fail("LOGIN_FAIL", "?꾩씠???먮뒗 鍮꾨?踰덊샇媛 ?щ컮瑜댁? ?딆뒿?덈떎.", delayData(remainingSeconds), request);
+            return ApiResponse.fail("LOGIN_FAIL", "\uC544\uC774\uB514 \uB610\uB294 \uBE44\uBC00\uBC88\uD638\uAC00 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.", delayData(remainingSeconds), request);
         }
 
         PasswordCheckResult passwordCheck = verifyPassword(user.getUserPw(), userPw);
         if (!passwordCheck.matched) {
+            loginRateLimiter.recordFailure(request, nowMs);
             LoginFailureResult failure = applyLoginFailurePolicy(user, request);
             return ApiResponse.fail(failure.code, failure.message, failure.data, request);
         }
@@ -199,9 +294,10 @@ public class AuthServiceImpl implements AuthService {
 
         if ("Y".equalsIgnoreCase(user.getPwdResetYn())) {
             accessService.recordLoginHistory(user, normalizedUserId, false, "PASSWORD_RESET_REQUIRED", null, request);
-            return ApiResponse.fail("PASSWORD_RESET_REQUIRED", "?꾩씠???먮뒗 鍮꾨?踰덊샇媛 ?щ컮瑜댁? ?딆뒿?덈떎.", null, request);
+            return ApiResponse.fail("PASSWORD_RESET_REQUIRED", "\uBE44\uBC00\uBC88\uD638 \uC7AC\uC124\uC815\uC774 \uD544\uC694\uD569\uB2C8\uB2E4.", null, request);
         }
 
+        loginRateLimiter.reset(request);
         authMapper.resetLoginFailState(user.getUserSeq(), normalizedUserId);
         authMapper.updateLastLoginAt(user.getUserSeq(), normalizedUserId);
 
@@ -266,6 +362,9 @@ public class AuthServiceImpl implements AuthService {
         data.put("roles", resolvedRoles.isEmpty() ? (roles == null ? Collections.emptyList() : roles) : resolvedRoles);
         data.put("session_id", sessionId);
         data.put("super_admin", superAdminProperties.isSuperLoginId(user.getUserId()));
+        data.put("service_permissions", ServicePermissionSupport.toPermissionMap(
+            authMapper.selectResolvedServicePermissions(user.getUserSeq())
+        ));
         return data;
     }
 
@@ -403,7 +502,7 @@ public class AuthServiceImpl implements AuthService {
         String lockYn = "N";
         String reason = "INVALID_PASSWORD";
         String code = "LOGIN_FAIL";
-        String message = "?꾩씠???먮뒗 鍮꾨?踰덊샇媛 ?щ컮瑜댁? ?딆뒿?덈떎.";
+        String message = "\uC544\uC774\uB514 \uB610\uB294 \uBE44\uBC00\uBC88\uD638\uAC00 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.";
         Map<String, Object> data = null;
 
         if (nextFailCount >= 7) {

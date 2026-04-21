@@ -1,76 +1,55 @@
 # admin-service
 
-관리자 인증, 권한, 공통 운영 기능을 담당하는 MSA 기반 서비스
+관리자 포털, 공통 인증, 권한 관리, 서비스 레지스트리 관리를 담당하는 Spring Boot 기반 서비스입니다.
 
----
+## 역할
 
-## 1. 개요
-
-`admin-service`는 전체 시스템의 공통 관리자 서비스이며  
-로그인, JWT 발급/갱신, 사용자/권한/메뉴 관리, 운영성 기능을 담당한다.
-
-또한 `schedule-service` 같은 하위 서비스가 공통 인증 체계를 사용할 수 있도록  
-인증의 기준점 역할을 한다.
-
----
-
-## 2. 아키텍처 개요
-
-### 2.1 구성
-
-- admin-service
-  - 로그인
-  - JWT 발급 / refresh
-  - 사용자 관리
-  - 메뉴 / 권한 관리
-  - 공통 코드 관리
-  - 공지사항 / 타임라인 관리
-  - 접속 이력 / 세션 관리
-  - API 정책 관리
-  - MSA 서비스 관리
-  - 헬스체크
-
-### 2.2 전체 흐름
-
-[client] -> admin-service 로그인 -> JWT 발급 -> 각 서비스 요청 -> JWT 검증
-
-### 2.3 인증 흐름
-
-Authorization: Bearer {access_token}
-
-또는 `localhost` 공통 쿠키 기반 인증을 사용한다.
-
----
-
-## 3. 인증 / 권한 체계
-
-- 로그인 처리: admin-service
-- 토큰 발급: admin-service
-- 토큰 갱신: admin-service
-- 사용자 / 권한 / 메뉴 기준 정보 관리: admin-service
-- 다른 서비스는 admin-service가 발급한 JWT를 기준으로 인증 처리
-
----
-
-## 4. 주요 기능
-
-- 로그인 / 로그아웃
-- Access Token / Refresh Token 발급
-- 내 정보 조회
-- 사용자 관리
-- 메뉴 관리
-- 권한 관리
-- 공통 코드 관리
-- 공지사항 관리
-- 타임라인 관리
-- 접속 세션 / 로그인 이력 관리
+- 관리자 로그인, 액세스 토큰, 리프레시 토큰 발급
+- 사용자, 메뉴, 권한 그룹 관리
+- 서비스별 권한 관리
+- 공통 코드, 공지, 타임라인 관리
+- 로그인 세션, 로그인 이력 관리
 - API 정책 관리
-- MSA 서비스 관리
-- 서비스별 헬스체크
+- 서비스 레지스트리 및 헬스체크 관리
 
----
+## 현재 권한 모델
 
-## 5. DB 구조
+- 로그인만으로 접근 가능한 관리자 기능은 허용하지 않습니다.
+- 관리자성 쓰기 기능과 민감 조회 기능은 관리자 역할이 필요합니다.
+- `/auth/me.json` 응답에는 `roles`, `session_id`, `service_permissions`가 포함됩니다.
+- 서비스별 권한은 현재 `schedule-service`를 대상으로 사용합니다.
+
+서비스 권한 상세는 [docs/auth/service-permissions.md](docs/auth/service-permissions.md)를 참고합니다.
+
+## 주요 API
+
+- 인증
+  - `POST /login.json`
+  - `POST /auth/me.json`
+  - `POST /auth/refresh.json`
+  - `POST /logout.json`
+- 사용자/권한
+  - `POST /user/list.json`
+  - `POST /auth/list.json`
+  - `POST /auth/group/service/list.json`
+  - `POST /auth/user/servicePermList.json`
+- 운영 관리
+  - `POST /code/list.json`
+  - `POST /notice/list.json`
+  - `POST /timeline/list.json`
+  - `POST /access/session/list.json`
+  - `POST /api/list.json`
+  - `POST /service/list.json`
+- 헬스
+  - `POST /health/live.json`
+  - `POST /health/ready.json`
+  - `POST /health/status.json`
+
+헬스 엔드포인트는 인증 예외입니다. 내부 헬스체커 호환을 위해 빈 POST와 JSON 본문 POST 둘 다 처리합니다.
+
+## DB
+
+주 사용 DB는 PostgreSQL 기준으로 정리되어 있습니다.
 
 주요 테이블:
 
@@ -80,98 +59,53 @@ Authorization: Bearer {access_token}
 - `adm_menu_mst`
 - `adm_auth_menu`
 - `adm_auth_user`
-- `adm_code_mst`
+- `adm_service_mst`
+- `adm_service_perm_def`
+- `adm_auth_service_perm`
+- `adm_auth_user_service_perm`
 - `adm_noti_mst`
 - `adm_timeline_mst`
 - `adm_login_sesn`
 - `adm_login_hist`
 - `adm_refresh_token`
 - `adm_api_mst`
-- `adm_service_mst`
 
----
+## 실행
 
-## 6. API 개요
+기본 포트는 `8081`입니다.
 
-- `POST /login.json`
-- `POST /auth/me.json`
-- `POST /auth/refresh.json`
-- `POST /menu/tree.json`
-- `POST /user/list.json`
-- `POST /auth/list.json`
-- `POST /code/list.json`
-- `POST /notice/list.json`
-- `POST /timeline/list.json`
-- `POST /access/session/list.json`
-- `POST /api/list.json`
-- `POST /service/list.json`
-- `POST /health/detail.json`
-
----
-
-## 7. 기술 스택
-
-- Java 17
-- Spring Boot 2.7
-- JSP
-- MyBatis
-- PostgreSQL / Oracle
-- JWT
-- BCrypt
-
----
-
-## 8. 설정 파일
-
-- 공통 설정
-  - `src/main/resources/app.properties`
-- Oracle 설정
-  - `src/main/resources/db/oracle.properties`
-- PostgreSQL 설정
-  - `src/main/resources/db/postgres.properties`
-
----
-
-## 9. 실행
-
-### PostgreSQL 기준
+필수 또는 권장 환경 변수:
 
 ```powershell
 $env:APP_DB_VENDOR="postgres"
-$env:JWT_SECRET="change-this-secret-to-a-long-random-value"
+$env:DB_URL="jdbc:postgresql://localhost:5432/admin"
+$env:DB_USERNAME="postgres"
+$env:DB_PASSWORD="postgres"
+$env:JWT_SECRET="change-this-to-a-long-random-secret"
 .\gradlew.bat bootRun
 ```
 
-### Oracle 기준
+`JWT_SECRET`는 32자 이상 강한 값이어야 합니다.
+
+## SQL
+
+PostgreSQL 기준 전체 반영:
 
 ```powershell
-$env:APP_DB_VENDOR="oracle"
-$env:JWT_SECRET="change-this-secret-to-a-long-random-value"
-.\gradlew.bat bootRun
+psql -h localhost -U postgres -d admin -f docs/sqls/postgres/apply_all.sql
 ```
 
----
+신규 환경 기준으로는 `docs/sqls/postgres/baseline/V000__baseline.sql` 하나로 서비스 권한 포함 전체 구조를 구성합니다.
 
-## 10. 접속 경로
+## 문서
 
-- 메인 화면: `http://localhost:8081/main.do`
-- 로그인 API: `http://localhost:8081/login.json`
-- 내 정보 API: `http://localhost:8081/auth/me.json`
-- 헬스체크 화면: `http://localhost:8081/main.do`
+- 운영 가이드: [docs/operations.md](docs/operations.md)
+- SQL 가이드: [docs/sqls/README.md](docs/sqls/README.md)
+- PostgreSQL SQL: [docs/sqls/postgres/README.md](docs/sqls/postgres/README.md)
+- 인증 문서: [docs/auth/auth.md](docs/auth/auth.md)
+- 서비스 권한 문서: [docs/auth/service-permissions.md](docs/auth/service-permissions.md)
 
----
+## 참고
 
-## 11. 문서
-
-- 서비스 개요: `docs/admin-service.md`
-- 운영 가이드: `docs/operations.md`
-- SQL 가이드: `docs/sqls/README.md`
-- 인증 문서: `docs/auth/auth.md`
-- 로그인 문서: `docs/login/login.md`
-
----
-
-## 12. 정리
-
-`admin-service`는 관리자 포털이면서 공통 인증 서버 역할을 수행한다.  
-현재 구조는 `schedule-service`와 JWT 및 공통 쿠키 기반 로그인 흐름을 공유하도록 구성되어 있다.
+- Oracle 관련 SQL과 설정 파일은 레거시 호환 목적으로 남아 있을 수 있습니다.
+- 현재 개발/운영 기준 권장은 PostgreSQL입니다.

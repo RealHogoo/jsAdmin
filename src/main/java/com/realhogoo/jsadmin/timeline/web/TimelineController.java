@@ -1,5 +1,6 @@
 package com.realhogoo.jsadmin.timeline.web;
 
+import com.realhogoo.jsadmin.auth.AuthRequestSupport;
 import com.realhogoo.jsadmin.timeline.service.TimelineService;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -49,6 +50,7 @@ public class TimelineController {
     @PostMapping("/timeline/save.json")
     @ResponseBody
     public Map<String, Object> save(@RequestBody Map<String, Object> param, HttpServletRequest req) {
+        AuthRequestSupport.ensureAdmin(req);
         String userId = req.getAttribute("user_id") == null ? null : String.valueOf(req.getAttribute("user_id"));
         try {
             Long timelineSeq = timelineService.saveTimeline(param, userId);
@@ -61,6 +63,7 @@ public class TimelineController {
     @PostMapping("/timeline/delete.json")
     @ResponseBody
     public Map<String, Object> delete(@RequestBody Map<String, Object> param, HttpServletRequest req) {
+        AuthRequestSupport.ensureAdmin(req);
         String userId = req.getAttribute("user_id") == null ? null : String.valueOf(req.getAttribute("user_id"));
         Long timelineSeq = toLong(param == null ? null : param.get("timeline_seq"));
         try {

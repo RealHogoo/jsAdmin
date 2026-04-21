@@ -68,8 +68,8 @@
             created_at, created_by, updated_at, updated_by
         ) VALUES (
             #{noti_seq}, #{noti_type_cd}, #{title}, #{content},
-            CASE WHEN #{start_dt} IS NULL THEN NULL ELSE TO_DATE(#{start_dt}, 'YYYY-MM-DD') END,
-            CASE WHEN #{end_dt} IS NULL THEN NULL ELSE TO_DATE(#{end_dt}, 'YYYY-MM-DD') END,
+            TO_DATE(#{start_dt}, 'YYYY-MM-DD'),
+            TO_DATE(#{end_dt}, 'YYYY-MM-DD'),
             COALESCE(#{pin_yn}, 'N'), COALESCE(#{popup_yn}, 'N'), 0, COALESCE(#{use_yn}, 'Y'),
             CURRENT_TIMESTAMP, #{created_by}, NULL, NULL
         )
@@ -80,8 +80,8 @@
            SET noti_type_cd = #{noti_type_cd},
                title = #{title},
                content = #{content},
-               start_dt = CASE WHEN #{start_dt} IS NULL THEN NULL ELSE TO_DATE(#{start_dt}, 'YYYY-MM-DD') END,
-               end_dt = CASE WHEN #{end_dt} IS NULL THEN NULL ELSE TO_DATE(#{end_dt}, 'YYYY-MM-DD') END,
+               start_dt = TO_DATE(#{start_dt}, 'YYYY-MM-DD'),
+               end_dt = TO_DATE(#{end_dt}, 'YYYY-MM-DD'),
                pin_yn = COALESCE(#{pin_yn}, 'N'),
                popup_yn = COALESCE(#{popup_yn}, 'N'),
                use_yn = COALESCE(#{use_yn}, 'Y'),

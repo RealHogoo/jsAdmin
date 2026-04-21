@@ -7,7 +7,7 @@
     var listCtrl = null;
     var tabEventsBound = false;
 
-    function pageRoot() { return UX.qs("#apiPage") || document; }
+    function pageRoot() { return UX.qs("#apiPage"); }
     function formRoot() { return UX.qs("#apiForm") || document; }
 
     function currentApiType() {
@@ -15,10 +15,13 @@
     }
 
     function setCurrentApiType(apiType) {
+        var root = pageRoot();
         var type = String(apiType || "EXTERNAL").toUpperCase() === "INTERNAL" ? "INTERNAL" : "EXTERNAL";
         UX.setValue("#api_type", type, formRoot());
-        pageRoot().dataset.activeApiType = type;
-        UX.qsa(".tab[data-api-type]", pageRoot()).forEach(function (el) {
+        if (root && root.dataset) {
+            root.dataset.activeApiType = type;
+        }
+        UX.qsa(".tab[data-api-type]", root || document).forEach(function (el) {
             el.classList.toggle("is-active", el.getAttribute("data-api-type") === type);
         });
         applyTypeDefaults();
@@ -37,12 +40,17 @@
     }
 
     function setSelectedApiSeq(apiSeq) {
-        pageRoot().dataset.selectedApiSeq = apiSeq ? String(apiSeq) : "";
+        var root = pageRoot();
+        if (root && root.dataset) {
+            root.dataset.selectedApiSeq = apiSeq ? String(apiSeq) : "";
+        }
         if (listCtrl) listCtrl.refresh();
     }
 
     function selectedApiSeq() {
-        return UX.numOrNull(pageRoot().dataset.selectedApiSeq);
+        var root = pageRoot();
+        if (!root || !root.dataset) return null;
+        return UX.numOrNull(root.dataset.selectedApiSeq);
     }
 
     function fillForm(row) {
@@ -206,7 +214,8 @@
     }
 
     function init() {
-        if (!UX.qs("#apiListBody", pageRoot())) return;
+        var root = pageRoot();
+        if (!root || !UX.qs("#apiListBody", root)) return;
         if (listCtrl) listCtrl.destroy();
         listCtrl = app.createChunkListController({
             pageSize: 100,
@@ -221,8 +230,8 @@
         });
 
         bind();
-        app.applyPermission(pageRoot());
-        setCurrentApiType(pageRoot().dataset.activeApiType || "EXTERNAL");
+        app.applyPermission(root);
+        setCurrentApiType((root.dataset && root.dataset.activeApiType) || "EXTERNAL");
         listCtrl.ensureView();
         listCtrl.ensureLoader();
         clearForm();

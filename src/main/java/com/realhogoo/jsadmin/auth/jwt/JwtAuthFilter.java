@@ -23,6 +23,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.net.URI;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
@@ -35,7 +36,10 @@ public class JwtAuthFilter implements Filter {
 
     private static final Set<String> PERMIT = new HashSet<String>(Arrays.asList(
         "/login.json",
+        "/auth/ping.json",
         "/auth/refresh.json",
+        "/health/live.json",
+        "/health/ready.json",
         "/health/status.json",
         "/menu/tree.json",
         "/home/intro.json",
@@ -75,9 +79,15 @@ public class JwtAuthFilter implements Filter {
             return;
         }
 
-        String token = resolveToken(req);
+        String authorizationToken = resolveBearerToken(req);
+        String cookieToken = normalizeToken(AuthCookieSupport.readCookie(req, AuthCookieSupport.ACCESS_TOKEN_COOKIE));
+        String token = authorizationToken.isEmpty() ? cookieToken : authorizationToken;
         if (token.isEmpty()) {
             writeUnauthorized(req, resp);
+            return;
+        }
+        if (authorizationToken.isEmpty() && cookieToken != null && isCrossSiteRequest(req)) {
+            writeJson(resp, 403, ApiResponse.fail(ApiCode.FORBIDDEN, "cross-site cookie request blocked", req));
             return;
         }
 
@@ -172,8 +182,13 @@ public class JwtAuthFilter implements Filter {
     }
 
     private void tryBindAuthContext(HttpServletRequest req) {
-        String token = resolveToken(req);
+        String authorizationToken = resolveBearerToken(req);
+        String cookieToken = normalizeToken(AuthCookieSupport.readCookie(req, AuthCookieSupport.ACCESS_TOKEN_COOKIE));
+        String token = authorizationToken.isEmpty() ? cookieToken : authorizationToken;
         if (token.isEmpty()) {
+            return;
+        }
+        if (authorizationToken.isEmpty() && cookieToken != null && isCrossSiteRequest(req)) {
             return;
         }
 
@@ -216,7 +231,7 @@ public class JwtAuthFilter implements Filter {
         return (ctx != null && !ctx.isEmpty()) ? uri.substring(ctx.length()) : uri;
     }
 
-    private String resolveToken(HttpServletRequest request) {
+    private String resolveBearerToken(HttpServletRequest request) {
         String auth = request.getHeader("Authorization");
         if (auth != null && !auth.isBlank() && auth.startsWith("Bearer ")) {
             String token = auth.substring("Bearer ".length()).trim();
@@ -224,8 +239,79 @@ public class JwtAuthFilter implements Filter {
                 return token;
             }
         }
+        return "";
+    }
 
-        String cookieToken = AuthCookieSupport.readCookie(request, AuthCookieSupport.ACCESS_TOKEN_COOKIE);
-        return cookieToken == null ? "" : cookieToken;
+    private String normalizeToken(String token) {
+        return token == null ? "" : token.trim();
+    }
+
+    private boolean isCrossSiteRequest(HttpServletRequest request) {
+        String secFetchSite = request.getHeader("Sec-Fetch-Site");
+        if (secFetchSite != null) {
+            String normalized = secFetchSite.trim().toLowerCase();
+            if ("cross-site".equals(normalized)) {
+                return true;
+            }
+            if ("same-origin".equals(normalized) || "same-site".equals(normalized) || "none".equals(normalized)) {
+                return false;
+            }
+        }
+        return !isSameOrigin(request, request.getHeader("Origin")) || !isSameOrigin(request, request.getHeader("Referer"));
+    }
+
+    private boolean isSameOrigin(HttpServletRequest request, String source) {
+        URI uri;
+        if (source == null || source.trim().isEmpty()) {
+            return true;
+        }
+        try {
+            uri = URI.create(source.trim());
+        } catch (Exception exception) {
+            return false;
+        }
+        String sourceScheme = uri.getScheme();
+        String sourceHost = uri.getHost();
+        int sourcePort = uri.getPort();
+        String requestScheme = forwardedScheme(request);
+        String requestHost = forwardedHost(request);
+        int requestPort = forwardedPort(request);
+        if (sourceScheme == null || sourceHost == null) {
+            return false;
+        }
+        return sourceScheme.equalsIgnoreCase(requestScheme)
+            && sourceHost.equalsIgnoreCase(requestHost)
+            && normalizePort(sourcePort, sourceScheme) == normalizePort(requestPort, requestScheme);
+    }
+
+    private String forwardedScheme(HttpServletRequest request) {
+        String value = request.getHeader("X-Forwarded-Proto");
+        return value == null || value.trim().isEmpty() ? request.getScheme() : value.trim();
+    }
+
+    private String forwardedHost(HttpServletRequest request) {
+        String value = request.getHeader("X-Forwarded-Host");
+        if (value == null || value.trim().isEmpty()) {
+            return request.getServerName();
+        }
+        return value.split(",")[0].trim().split(":")[0].trim();
+    }
+
+    private int forwardedPort(HttpServletRequest request) {
+        String forwardedPort = request.getHeader("X-Forwarded-Port");
+        if (forwardedPort != null && !forwardedPort.trim().isEmpty()) {
+            try {
+                return Integer.parseInt(forwardedPort.trim());
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return request.getServerPort();
+    }
+
+    private int normalizePort(int port, String scheme) {
+        if (port > 0) {
+            return port;
+        }
+        return "https".equalsIgnoreCase(scheme) ? 443 : 80;
     }
 }

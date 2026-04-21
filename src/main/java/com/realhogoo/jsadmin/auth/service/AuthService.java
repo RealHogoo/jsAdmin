@@ -22,6 +22,14 @@ public interface AuthService {
 
     void deleteUserException(Long userSeq, Long menuSeq);
 
+    List<Map<String, Object>> getGroupServicePermList(Long authGroupSeq);
+
+    int saveGroupServicePerm(Long authGroupSeq, List<Map<String, Object>> items, String actor);
+
+    List<Map<String, Object>> getUserServicePermList(Long userSeq);
+
+    void saveUserServiceExceptions(Long userSeq, List<Map<String, Object>> exceptions, String actor);
+
     ApiResponse<Map<String, Object>> login(String userId, String userPw, HttpServletRequest request);
 
     ApiResponse<Map<String, Object>> refresh(String refreshToken, HttpServletRequest request);

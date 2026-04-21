@@ -1,5 +1,6 @@
 package com.realhogoo.jsadmin.serviceregistry.web;
 
+import com.realhogoo.jsadmin.auth.AuthRequestSupport;
 import com.realhogoo.jsadmin.serviceregistry.service.ServiceAdminService;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -32,13 +33,15 @@ public class ServiceAdminController {
 
     @PostMapping("/service/list.json")
     @ResponseBody
-    public Map<String, Object> list(@RequestBody(required = false) Map<String, Object> body) {
+    public Map<String, Object> list(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         return ok(serviceAdminService.getServiceList(body));
     }
 
     @PostMapping("/service/detail.json")
     @ResponseBody
-    public Map<String, Object> detail(@RequestBody(required = false) Map<String, Object> body) {
+    public Map<String, Object> detail(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         Long serviceSeq = toLong(body == null ? null : body.get("service_seq"));
         return ok(serviceAdminService.getServiceDetail(serviceSeq));
     }
@@ -46,6 +49,7 @@ public class ServiceAdminController {
     @PostMapping("/service/save.json")
     @ResponseBody
     public Map<String, Object> save(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         validateLength("service_cd", toNullableString(body == null ? null : body.get("service_cd")), MAX_SERVICE_CODE_LENGTH);
         validateLength("service_nm", toNullableString(body == null ? null : body.get("service_nm")), MAX_SERVICE_NAME_LENGTH);
         validateLength("base_url", toNullableString(body == null ? null : body.get("base_url")), MAX_URL_LENGTH);

@@ -23,6 +23,7 @@
             <span class="meta">&#xc120;&#xd0dd; &#xadf8;&#xb8f9;: <b id="selectedGroupSeq">-</b></span>
             <a href="javascript:void(0)" class="btn" data-perm-lvl="1" id="btnGroupReload">&#xadf8;&#xb8f9; &#xc870;&#xd68c;</a>
             <a href="javascript:void(0)" class="btn" data-perm-lvl="5" id="btnGroupSave">&#xc800;&#xc7a5;</a>
+            <a href="javascript:void(0)" class="btn" data-perm-lvl="5" id="btnGroupServiceSave">&#xc11c;&#xbe44;&#xc2a4; &#xad8c;&#xd55c; &#xc800;&#xc7a5;</a>
         </div>
 
         <div class="grid-2col">
@@ -42,20 +43,46 @@
                 </div>
             </div>
 
-            <div class="panel panel-list">
-                <div class="panel-title">&#xba54;&#xb274; &#xad8c;&#xd55c;</div>
-                <div class="grid-scroll" id="menuPermWrap">
-                    <table class="tbl">
-                        <thead>
-                        <tr>
-                            <th style="width:30px;">No.</th>
-                            <th>&#xba54;&#xb274;</th>
-                            <th style="width:120px;">&#xad8c;&#xd55c;</th>
-                            <th style="width:100px;">&#xc0ac;&#xc6a9;&#xc5ec;&#xbd80;</th>
-                        </tr>
-                        </thead>
-                        <tbody id="menuPermBody"></tbody>
-                    </table>
+            <div>
+                <div class="page-tabs" data-subtab-group="group-detail">
+                    <a href="javascript:void(0)" class="page-tab is-active" data-subtab="group-menu">&#xba54;&#xb274; &#xad8c;&#xd55c;</a>
+                    <a href="javascript:void(0)" class="page-tab" data-subtab="group-service">&#xc11c;&#xbe44;&#xc2a4; &#xad8c;&#xd55c;</a>
+                </div>
+                <div class="subtab-pane" data-subtab-pane="group-menu" style="margin-top:12px;">
+                    <div class="panel panel-list">
+                        <div class="panel-title">&#xba54;&#xb274; &#xad8c;&#xd55c;</div>
+                        <div class="grid-scroll" id="menuPermWrap">
+                            <table class="tbl">
+                                <thead>
+                                <tr>
+                                    <th style="width:30px;">No.</th>
+                                    <th>&#xba54;&#xb274;</th>
+                                    <th style="width:120px;">&#xad8c;&#xd55c;</th>
+                                    <th style="width:100px;">&#xc0ac;&#xc6a9;&#xc5ec;&#xbd80;</th>
+                                </tr>
+                                </thead>
+                                <tbody id="menuPermBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="subtab-pane" data-subtab-pane="group-service" style="display:none; margin-top:12px;">
+                    <div class="panel panel-list">
+                        <div class="panel-title">&#xc11c;&#xbe44;&#xc2a4; &#xad8c;&#xd55c;</div>
+                        <div class="grid-scroll" id="servicePermWrap">
+                            <table class="tbl">
+                                <thead>
+                                <tr>
+                                    <th style="width:30px;">No.</th>
+                                    <th>&#xc11c;&#xbe44;&#xc2a4;</th>
+                                    <th>&#xad8c;&#xd55c; &#xcf54;&#xb4dc;</th>
+                                    <th style="width:100px;">&#xc0ac;&#xc6a9;&#xc5ec;&#xbd80;</th>
+                                </tr>
+                                </thead>
+                                <tbody id="servicePermBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -67,6 +94,7 @@
             <span class="meta">&#xc120;&#xd0dd; &#xc0ac;&#xc6a9;&#xc790;: <b id="selectedUserSeq">-</b></span>
             <a href="javascript:void(0)" class="btn" data-perm-lvl="1" id="btnUserSearch">&#xc0ac;&#xc6a9;&#xc790; &#xc870;&#xd68c;</a>
             <a href="javascript:void(0)" class="btn" data-perm-lvl="5" id="btnUserExceptionSave">&#xc608;&#xc678; &#xc800;&#xc7a5;</a>
+            <a href="javascript:void(0)" class="btn" data-perm-lvl="5" id="btnUserServiceExceptionSave">&#xc11c;&#xbe44;&#xc2a4; &#xc608;&#xc678; &#xc800;&#xc7a5;</a>
         </div>
 
         <div class="grid-2col">
@@ -86,20 +114,47 @@
                 </div>
             </div>
 
-            <div class="panel panel-list">
-                <div class="panel-title">&#xc608;&#xc678; &#xad8c;&#xd55c; &#xba54;&#xb274;</div>
-                <div class="grid-scroll" id="userExceptionWrap">
-                    <table class="tbl">
-                        <thead>
-                        <tr>
-                            <th style="width:30px;">No.</th>
-                            <th>&#xba54;&#xb274;</th>
-                            <th style="width:110px;">&#xae30;&#xbcf8; &#xad8c;&#xd55c;</th>
-                            <th style="width:120px;">&#xc608;&#xc678; &#xad8c;&#xd55c;</th>
-                        </tr>
-                        </thead>
-                        <tbody id="userExceptionBody"></tbody>
-                    </table>
+            <div>
+                <div class="page-tabs" data-subtab-group="user-detail">
+                    <a href="javascript:void(0)" class="page-tab is-active" data-subtab="user-menu">&#xc608;&#xc678; &#xba54;&#xb274;</a>
+                    <a href="javascript:void(0)" class="page-tab" data-subtab="user-service">&#xc11c;&#xbe44;&#xc2a4; &#xc608;&#xc678;</a>
+                </div>
+                <div class="subtab-pane" data-subtab-pane="user-menu" style="margin-top:12px;">
+                    <div class="panel panel-list">
+                        <div class="panel-title">&#xc608;&#xc678; &#xad8c;&#xd55c; &#xba54;&#xb274;</div>
+                        <div class="grid-scroll" id="userExceptionWrap">
+                            <table class="tbl">
+                                <thead>
+                                <tr>
+                                    <th style="width:30px;">No.</th>
+                                    <th>&#xba54;&#xb274;</th>
+                                    <th style="width:110px;">&#xae30;&#xbcf8; &#xad8c;&#xd55c;</th>
+                                    <th style="width:120px;">&#xc608;&#xc678; &#xad8c;&#xd55c;</th>
+                                </tr>
+                                </thead>
+                                <tbody id="userExceptionBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="subtab-pane" data-subtab-pane="user-service" style="display:none; margin-top:12px;">
+                    <div class="panel panel-list">
+                        <div class="panel-title">&#xc11c;&#xbe44;&#xc2a4; &#xc608;&#xc678; &#xad8c;&#xd55c;</div>
+                        <div class="grid-scroll" id="userServiceExceptionWrap">
+                            <table class="tbl">
+                                <thead>
+                                <tr>
+                                    <th style="width:30px;">No.</th>
+                                    <th>&#xc11c;&#xbe44;&#xc2a4;</th>
+                                    <th>&#xad8c;&#xd55c; &#xcf54;&#xb4dc;</th>
+                                    <th style="width:110px;">&#xae30;&#xbcf8; &#xad8c;&#xd55c;</th>
+                                    <th style="width:120px;">&#xc608;&#xc678; &#xad8c;&#xd55c;</th>
+                                </tr>
+                                </thead>
+                                <tbody id="userServiceExceptionBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

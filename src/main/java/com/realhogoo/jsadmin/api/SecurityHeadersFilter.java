@@ -14,11 +14,15 @@ public class SecurityHeadersFilter implements Filter {
     private static final String CONTENT_SECURITY_POLICY =
         "default-src 'self'; " +
         "script-src 'self' 'unsafe-inline'; " +
+        "connect-src 'self'; " +
         "style-src 'self' 'unsafe-inline'; " +
         "img-src 'self' data:; " +
         "font-src 'self' data:; " +
         "object-src 'none'; " +
         "base-uri 'self'; " +
+        "form-action 'self'; " +
+        "frame-src 'none'; " +
+        "manifest-src 'self'; " +
         "frame-ancestors 'none'";
 
     @Override
@@ -33,9 +37,15 @@ public class SecurityHeadersFilter implements Filter {
             HttpServletResponse resp = (HttpServletResponse) response;
             resp.setHeader("X-Content-Type-Options", "nosniff");
             resp.setHeader("X-Frame-Options", "DENY");
+            resp.setHeader("X-Permitted-Cross-Domain-Policies", "none");
             resp.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
             resp.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+            resp.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+            resp.setHeader("Cross-Origin-Resource-Policy", "same-origin");
             resp.setHeader("Content-Security-Policy", CONTENT_SECURITY_POLICY);
+            if (request.isSecure()) {
+                resp.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+            }
         }
 
         chain.doFilter(request, response);

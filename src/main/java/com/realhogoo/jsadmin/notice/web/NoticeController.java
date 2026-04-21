@@ -1,5 +1,6 @@
 package com.realhogoo.jsadmin.notice.web;
 
+import com.realhogoo.jsadmin.auth.AuthRequestSupport;
 import com.realhogoo.jsadmin.notice.service.NoticeService;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -52,6 +53,7 @@ public class NoticeController {
     @PostMapping("/notice/save.json")
     @ResponseBody
     public Map<String, Object> save(@RequestBody Map<String, Object> param, HttpServletRequest req) {
+        AuthRequestSupport.ensureAdmin(req);
         String userId = req.getAttribute("user_id") == null ? null : String.valueOf(req.getAttribute("user_id"));
         try {
             validateRequired(param, "title");
@@ -68,6 +70,7 @@ public class NoticeController {
     @PostMapping("/notice/delete.json")
     @ResponseBody
     public Map<String, Object> delete(@RequestBody Map<String, Object> param, HttpServletRequest req) {
+        AuthRequestSupport.ensureAdmin(req);
         String userId = req.getAttribute("user_id") == null ? null : String.valueOf(req.getAttribute("user_id"));
         Long notiSeq = toLong(param == null ? null : param.get("noti_seq"));
         try {

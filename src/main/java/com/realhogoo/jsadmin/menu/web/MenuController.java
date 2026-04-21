@@ -1,5 +1,6 @@
 package com.realhogoo.jsadmin.menu.web;
 
+import com.realhogoo.jsadmin.auth.AuthRequestSupport;
 import com.realhogoo.jsadmin.menu.dto.MenuNode;
 import com.realhogoo.jsadmin.menu.service.MenuService;
 import org.springframework.stereotype.Controller;
@@ -50,7 +51,8 @@ public class MenuController {
 
     @PostMapping("/menu/list.json")
     @ResponseBody
-    public Map<String, Object> list(@RequestBody(required = false) Map<String, Object> body) {
+    public Map<String, Object> list(@RequestBody(required = false) Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         List<Map<String, Object>> list = menuService.selectMenuListAll(body);
 
         Map<String, Object> res = new HashMap<>();
@@ -63,7 +65,8 @@ public class MenuController {
 
     @PostMapping("/menu/detail.json")
     @ResponseBody
-    public Map<String, Object> detail(@RequestParam("menu_seq") Long menuSeq) {
+    public Map<String, Object> detail(@RequestParam("menu_seq") Long menuSeq, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         Map<String, Object> data = menuService.selectMenuDetail(menuSeq);
 
         Map<String, Object> res = new HashMap<>();
@@ -77,6 +80,7 @@ public class MenuController {
     @PostMapping("/menu/save.json")
     @ResponseBody
     public Map<String, Object> save(@RequestBody Map<String, Object> param, HttpServletRequest req) {
+        AuthRequestSupport.ensureAdmin(req);
         String userId = String.valueOf(req.getAttribute("user_id"));
 
         Map<String, Object> res = new HashMap<>();
@@ -103,6 +107,7 @@ public class MenuController {
     @PostMapping("/menu/delete.json")
     @ResponseBody
     public Map<String, Object> delete(@RequestBody Map<String, Object> param, HttpServletRequest req) {
+        AuthRequestSupport.ensureAdmin(req);
         String userId = String.valueOf(req.getAttribute("user_id"));
         Object menuSeqObj = param == null ? null : param.get("menu_seq");
         Long menuSeq = menuSeqObj == null ? null : Long.valueOf(String.valueOf(menuSeqObj));

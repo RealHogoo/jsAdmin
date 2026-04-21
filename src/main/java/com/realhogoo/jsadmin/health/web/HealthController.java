@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.realhogoo.jsadmin.health.mapper.HealthMapper;
 import com.realhogoo.jsadmin.health.mapper.ServiceRegistryMapper;
+import com.realhogoo.jsadmin.serviceregistry.service.ServiceEndpointPolicy;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
 import org.springframework.stereotype.Controller;
@@ -41,16 +42,19 @@ public class HealthController {
     private final DataSource dataSource;
     private final HealthMapper healthMapper;
     private final ServiceRegistryMapper serviceRegistryMapper;
+    private final ServiceEndpointPolicy serviceEndpointPolicy;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public HealthController(
         DataSource dataSource,
         HealthMapper healthMapper,
-        ServiceRegistryMapper serviceRegistryMapper
+        ServiceRegistryMapper serviceRegistryMapper,
+        ServiceEndpointPolicy serviceEndpointPolicy
     ) {
         this.dataSource = dataSource;
         this.healthMapper = healthMapper;
         this.serviceRegistryMapper = serviceRegistryMapper;
+        this.serviceEndpointPolicy = serviceEndpointPolicy;
     }
 
     @RequestMapping(value = {"/health/main.do", "/dashboard/health.do"}, method = RequestMethod.POST)
@@ -66,28 +70,28 @@ public class HealthController {
 
     @ResponseBody
     @RequestMapping(value = "/health/status.json", method = RequestMethod.POST)
-    public Map<String, Object> status(@RequestBody(required = false) Map<String, Object> body) {
-        return ok(healthDetail(requestedService(body)));
+    public Map<String, Object> status(@RequestBody(required = false) String body) {
+        return ok(healthDetail(requestedService(parseBody(body))));
     }
 
     @ResponseBody
     @RequestMapping(value = "/health/db.json", method = RequestMethod.POST)
-    public Map<String, Object> db(@RequestBody(required = false) Map<String, Object> body) {
-        Map<String, Object> service = requestedService(body);
+    public Map<String, Object> db(@RequestBody(required = false) String body) {
+        Map<String, Object> service = requestedService(parseBody(body));
         return ok(isLocalService(service) ? dbStatus() : remoteDatabaseStatus(service));
     }
 
     @ResponseBody
     @RequestMapping(value = "/health/server.json", method = RequestMethod.POST)
-    public Map<String, Object> server(@RequestBody(required = false) Map<String, Object> body) {
-        Map<String, Object> service = requestedService(body);
+    public Map<String, Object> server(@RequestBody(required = false) String body) {
+        Map<String, Object> service = requestedService(parseBody(body));
         return ok(isLocalService(service) ? serverStatus() : remoteServerStatus(service));
     }
 
     @ResponseBody
     @RequestMapping(value = "/health/live.json", method = RequestMethod.POST)
-    public Map<String, Object> live(@RequestBody(required = false) Map<String, Object> body) {
-        Map<String, Object> service = requestedService(body);
+    public Map<String, Object> live(@RequestBody(required = false) String body) {
+        Map<String, Object> service = requestedService(parseBody(body));
         if (isLocalService(service)) {
             Map<String, Object> data = new HashMap<String, Object>();
             data.put("service", "admin-service");
@@ -100,8 +104,8 @@ public class HealthController {
 
     @ResponseBody
     @RequestMapping(value = "/health/ready.json", method = RequestMethod.POST)
-    public Map<String, Object> ready(@RequestBody(required = false) Map<String, Object> body) {
-        Map<String, Object> service = requestedService(body);
+    public Map<String, Object> ready(@RequestBody(required = false) String body) {
+        Map<String, Object> service = requestedService(parseBody(body));
         if (isLocalService(service)) {
             Map<String, Object> db = dbStatus();
             Map<String, Object> data = new HashMap<String, Object>();
@@ -116,8 +120,8 @@ public class HealthController {
 
     @ResponseBody
     @RequestMapping(value = "/health/detail.json", method = RequestMethod.POST)
-    public Map<String, Object> detail(@RequestBody(required = false) Map<String, Object> body) {
-        return ok(healthDetail(requestedService(body)));
+    public Map<String, Object> detail(@RequestBody(required = false) String body) {
+        return ok(healthDetail(requestedService(parseBody(body))));
     }
 
     private Map<String, Object> requestedService(Map<String, Object> body) {
@@ -129,6 +133,17 @@ public class HealthController {
             throw new IllegalArgumentException("service_cd is invalid");
         }
         return service;
+    }
+
+    private Map<String, Object> parseBody(String body) {
+        if (body == null || body.trim().isEmpty()) {
+            return Collections.emptyMap();
+        }
+        try {
+            return objectMapper.readValue(body, MAP_TYPE);
+        } catch (Exception exception) {
+            throw new IllegalArgumentException("request body must be valid JSON");
+        }
     }
 
     private Map<String, Object> dbStatus() {
@@ -318,7 +333,12 @@ public class HealthController {
     private Map<String, Object> remoteBasicStatus(Map<String, Object> service, String mode) {
         long startedAt = System.currentTimeMillis();
         try {
-            HttpURLConnection connection = openPost(stringValue(service.get("base_url")) + endpointPath(service, mode), timeoutMs(service));
+            String endpoint = serviceEndpointPolicy.resolveAllowedEndpoint(
+                stringValue(service.get("base_url")),
+                endpointPath(service, mode),
+                mode + "_path"
+            );
+            HttpURLConnection connection = openPost(endpoint, timeoutMs(service));
             connection.connect();
             int statusCode = connection.getResponseCode();
             long latencyMs = System.currentTimeMillis() - startedAt;

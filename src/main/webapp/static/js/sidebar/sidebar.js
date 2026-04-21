@@ -14,7 +14,7 @@
     var MenuIconCatalog = global.MenuIconCatalog;
 
     function hasToken() {
-        return !!UX.strOrNull(UX.localGet("JWT", ""));
+        return !!(global.app && typeof global.app.getAuthState === "function" && global.app.getAuthState().user);
     }
 
     function toSpaUrl(url) {

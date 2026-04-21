@@ -1,6 +1,7 @@
 package com.realhogoo.jsadmin.auth.web;
 
 import com.realhogoo.jsadmin.api.ApiResponse;
+import com.realhogoo.jsadmin.auth.AuthRequestSupport;
 import com.realhogoo.jsadmin.auth.service.AuthService;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,6 +39,7 @@ public class AuthController {
         @RequestBody(required = false) Map<String, Object> body,
         HttpServletRequest request
     ) {
+        AuthRequestSupport.ensureAdmin(request);
         if (body == null) body = new HashMap<String, Object>();
         validateLength("keyword", toStringValue(body.get("keyword")), MAX_KEYWORD_LENGTH);
         return ApiResponse.ok(authService.getAuthGroupList(body), request);
@@ -46,6 +48,7 @@ public class AuthController {
     @PostMapping("/group/menu/list.json")
     @ResponseBody
     public ApiResponse<List<Map<String, Object>>> groupMenuList(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         Long authGroupSeq = toLong(firstNonNull(body, "auth_group_seq", "authGroupSeq"));
         return ApiResponse.ok(authService.getGroupMenuPermList(authGroupSeq), request);
     }
@@ -53,6 +56,7 @@ public class AuthController {
     @PostMapping("/group/menu/save.json")
     @ResponseBody
     public ApiResponse<Map<String, Integer>> groupMenuSave(@RequestBody Map<String, Object> body, HttpServletRequest req) {
+        AuthRequestSupport.ensureAdmin(req);
         Long authGroupSeq = toLong(firstNonNull(body, "auth_group_seq", "authGroupSeq"));
 
         @SuppressWarnings("unchecked")
@@ -66,9 +70,33 @@ public class AuthController {
         return ApiResponse.ok(Collections.singletonMap("saved", saved), req);
     }
 
+    @PostMapping("/group/service/list.json")
+    @ResponseBody
+    public ApiResponse<List<Map<String, Object>>> groupServiceList(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
+        Long authGroupSeq = toLong(firstNonNull(body, "auth_group_seq", "authGroupSeq"));
+        return ApiResponse.ok(authService.getGroupServicePermList(authGroupSeq), request);
+    }
+
+    @PostMapping("/group/service/save.json")
+    @ResponseBody
+    public ApiResponse<Map<String, Integer>> groupServiceSave(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
+        Long authGroupSeq = toLong(firstNonNull(body, "auth_group_seq", "authGroupSeq"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> items = (List<Map<String, Object>>) firstNonNull(body, "items", "rows");
+        if (items == null) {
+            throw new IllegalArgumentException("items(rows) is required");
+        }
+        String actor = AuthRequestSupport.userId(request);
+        int saved = authService.saveGroupServicePerm(authGroupSeq, items, actor);
+        return ApiResponse.ok(Collections.singletonMap("saved", saved), request);
+    }
+
     @PostMapping("/user/search.json")
     @ResponseBody
     public ApiResponse<List<Map<String, Object>>> searchUsers(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         validateLength("keyword", toStringValue(body == null ? null : body.get("keyword")), MAX_KEYWORD_LENGTH);
         return ApiResponse.ok(authService.searchUsers(body), request);
     }
@@ -76,6 +104,7 @@ public class AuthController {
     @PostMapping("/user/menuPermList.json")
     @ResponseBody
     public ApiResponse<List<Map<String, Object>>> userMenuPermList(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         Long userSeq = toLong(body.get("user_seq"));
         return ApiResponse.ok(authService.getUserMenuPermList(userSeq), request);
     }
@@ -83,6 +112,7 @@ public class AuthController {
     @PostMapping("/user/exception/save.json")
     @ResponseBody
     public ApiResponse<Map<String, Integer>> saveExceptions(@RequestBody Map<String, Object> body, HttpServletRequest req) {
+        AuthRequestSupport.ensureAdmin(req);
         Long userSeq = toLong(body.get("user_seq"));
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> exceptions = (List<Map<String, Object>>) body.get("exceptions");
@@ -92,9 +122,30 @@ public class AuthController {
         return ApiResponse.ok(Collections.singletonMap("saved", exceptions == null ? 0 : exceptions.size()), req);
     }
 
+    @PostMapping("/user/servicePermList.json")
+    @ResponseBody
+    public ApiResponse<List<Map<String, Object>>> userServicePermList(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
+        Long userSeq = toLong(body.get("user_seq"));
+        return ApiResponse.ok(authService.getUserServicePermList(userSeq), request);
+    }
+
+    @PostMapping("/user/serviceException/save.json")
+    @ResponseBody
+    public ApiResponse<Map<String, Integer>> saveServiceExceptions(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
+        Long userSeq = toLong(body.get("user_seq"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> exceptions = (List<Map<String, Object>>) body.get("exceptions");
+        String actor = AuthRequestSupport.userId(request);
+        authService.saveUserServiceExceptions(userSeq, exceptions, actor);
+        return ApiResponse.ok(Collections.singletonMap("saved", exceptions == null ? 0 : exceptions.size()), request);
+    }
+
     @PostMapping("/user/exception/delete.json")
     @ResponseBody
     public ApiResponse<Map<String, Integer>> deleteException(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         Long userSeq = toLong(body.get("user_seq"));
         Long menuSeq = toLong(body.get("menu_seq"));
         authService.deleteUserException(userSeq, menuSeq);
@@ -114,22 +165,25 @@ public class AuthController {
         }
         validateLength("refresh_token", refreshToken, MAX_REFRESH_TOKEN_LENGTH);
         ApiResponse<Map<String, Object>> result = authService.refresh(refreshToken, request);
+        applyNoStore(response);
         if (result != null && result.isOk() && result.getData() != null) {
             AuthCookieSupport.writeAuthCookies(
+                request,
                 response,
                 toStringValue(result.getData().get("token")),
                 toStringValue(result.getData().get("refresh_token")),
                 toStringValue(result.getData().get("session_id"))
             );
         } else {
-            AuthCookieSupport.clearAuthCookies(response);
+            AuthCookieSupport.clearAuthCookies(request, response);
         }
         return result;
     }
 
     @PostMapping("/me.json")
     @ResponseBody
-    public ApiResponse<Map<String, Object>> me(HttpServletRequest request) {
+    public ApiResponse<Map<String, Object>> me(HttpServletRequest request, HttpServletResponse response) {
+        applyNoStore(response);
         String userId = toStringValue(request.getAttribute("user_id"));
         String sessionId = toStringValue(request.getAttribute("session_id"));
         @SuppressWarnings("unchecked")
@@ -161,5 +215,11 @@ public class AuthController {
         if (value != null && value.length() > maxLength) {
             throw new IllegalArgumentException(field + " length must be " + maxLength + " or less");
         }
+    }
+
+    private void applyNoStore(HttpServletResponse response) {
+        response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+        response.setHeader("Pragma", "no-cache");
+        response.setHeader("Expires", "0");
     }
 }

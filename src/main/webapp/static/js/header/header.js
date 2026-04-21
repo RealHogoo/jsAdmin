@@ -6,12 +6,9 @@
     var LABEL_LOGOUT = "\uB85C\uADF8\uC544\uC6C3";
 
     function getLoginUser() {
-        try {
-            var raw = UX.localGet("LOGIN_USER", "");
-            return raw ? JSON.parse(raw) : null;
-        } catch (e) {
-            return null;
-        }
+        return global.app && typeof global.app.getAuthState === "function"
+            ? global.app.getAuthState().user
+            : null;
     }
 
     function hasLoginState() {
@@ -92,9 +89,6 @@
 
         if (global.app && typeof global.app.clearAuthState === "function") {
             global.app.clearAuthState();
-        } else {
-            UX.localRemove(["JWT", "REFRESH_TOKEN", "LOGIN_USER", "LOGIN_SESSION_ID"]);
-            global.document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
         }
 
         if (global.jsAdminSpa && typeof global.jsAdminSpa.load === "function") {

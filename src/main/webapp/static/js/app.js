@@ -4,6 +4,10 @@
     var UX = global.UX || {};
     var app = global.app || {};
     var SPA = global.jsAdminSpa || {};
+    var authState = {
+        user: null,
+        session_id: ""
+    };
     var loadingDepth = 0;
     var refreshPromise = null;
 
@@ -77,38 +81,32 @@
     }
 
     function authHeaders() {
-        var headers = {
+        return {
             "Content-Type": "application/json; charset=UTF-8",
             "Accept": "application/json"
         };
-        var token = UX.localGet ? UX.localGet("JWT", "") : "";
-        if (token) {
-            headers.Authorization = "Bearer " + token;
-        }
-        return headers;
     }
 
     function storeAuthState(data) {
         var payload = data || {};
-        if (!UX.localSet) return;
-
-        if (payload.token !== undefined) {
-            UX.localSet("JWT", payload.token || "");
-        }
-        if (payload.refresh_token !== undefined) {
-            UX.localSet("REFRESH_TOKEN", payload.refresh_token || "");
-        }
-        if (payload.session_id !== undefined) {
-            UX.localSet("LOGIN_SESSION_ID", payload.session_id || "");
-        }
-        UX.localSet("LOGIN_USER", JSON.stringify(payload.user || {}));
+        authState.session_id = payload.session_id || authState.session_id || "";
+        authState.user = payload.user || authState.user || null;
     }
 
     function clearAuthState() {
+        authState.user = null;
+        authState.session_id = "";
         if (UX.localRemove) {
             UX.localRemove(["JWT", "REFRESH_TOKEN", "LOGIN_USER", "LOGIN_SESSION_ID"]);
         }
         document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+    }
+
+    function getAuthState() {
+        return {
+            user: authState.user,
+            session_id: authState.session_id || ""
+        };
     }
 
     async function executeScripts(rootEl) {
@@ -171,7 +169,6 @@
     }
 
     async function refreshAuth() {
-        var refreshToken = UX.localGet ? UX.localGet("REFRESH_TOKEN", "") : "";
         if (refreshPromise) {
             return refreshPromise;
         }
@@ -182,7 +179,7 @@
                 "Content-Type": "application/json; charset=UTF-8",
                 "Accept": "application/json"
             },
-            body: JSON.stringify(refreshToken ? { refresh_token: refreshToken } : {}),
+            body: JSON.stringify({}),
             credentials: "same-origin"
         }).then(async function (response) {
             var text = await response.text();
@@ -307,9 +304,7 @@
             }
 
             storeAuthState({
-                token: UX.localGet ? UX.localGet("JWT", "") : "",
-                refresh_token: UX.localGet ? UX.localGet("REFRESH_TOKEN", "") : "",
-                session_id: body.data.session_id || (UX.localGet ? UX.localGet("LOGIN_SESSION_ID", "") : ""),
+                session_id: body.data.session_id || "",
                 user: {
                     user_id: body.data.user_id || "",
                     user_nm: body.data.user_nm || "",
@@ -547,6 +542,7 @@
     app.syncAuthProfile = syncAuthProfile;
     app.clearAuthState = clearAuthState;
     app.storeAuthState = storeAuthState;
+    app.getAuthState = getAuthState;
     app.refreshAuth = refreshAuth;
     app.bindPage = bindPage;
     app.createChunkListController = createChunkListController;

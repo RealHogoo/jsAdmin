@@ -1,5 +1,6 @@
 package com.realhogoo.jsadmin.user.web;
 
+import com.realhogoo.jsadmin.auth.AuthRequestSupport;
 import com.realhogoo.jsadmin.user.service.UserService;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,19 +30,21 @@ public class UserController {
 
     @PostMapping("/user/list.json")
     @ResponseBody
-    public Map<String, Object> list(@RequestBody(required = false) Map<String, Object> param) {
+    public Map<String, Object> list(@RequestBody(required = false) Map<String, Object> param, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         return ok(userService.getUserList(param));
     }
 
     @PostMapping("/user/options.json")
     @ResponseBody
-    public Map<String, Object> options(@RequestBody(required = false) Map<String, Object> param) {
+    public Map<String, Object> options(@RequestBody(required = false) Map<String, Object> param, HttpServletRequest request) {
         return ok(userService.getUserOptions(param));
     }
 
     @PostMapping("/user/detail.json")
     @ResponseBody
-    public Map<String, Object> detail(@RequestBody Map<String, Object> body) {
+    public Map<String, Object> detail(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         Long userSeq = toLong(body == null ? null : body.get("user_seq"));
         return ok(userService.getUserDetail(userSeq));
     }
@@ -49,6 +52,7 @@ public class UserController {
     @PostMapping("/user/save.json")
     @ResponseBody
     public Map<String, Object> save(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         String loginId = toNullableString(body == null ? null : body.get("login_id"));
         String userNm = toNullableString(body == null ? null : body.get("user_nm"));
         if (loginId == null) {
@@ -67,6 +71,7 @@ public class UserController {
     @PostMapping("/user/delete.json")
     @ResponseBody
     public Map<String, Object> delete(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         String actor = request.getAttribute("user_id") == null ? null : String.valueOf(request.getAttribute("user_id"));
         Long userSeq = toLong(body == null ? null : body.get("user_seq"));
         return ok(Collections.singletonMap("deleted", userService.deactivateUser(userSeq, actor)));
@@ -75,6 +80,7 @@ public class UserController {
     @PostMapping("/user/unlock.json")
     @ResponseBody
     public Map<String, Object> unlock(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         String actor = request.getAttribute("user_id") == null ? null : String.valueOf(request.getAttribute("user_id"));
         Long userSeq = toLong(body == null ? null : body.get("user_seq"));
         return ok(Collections.singletonMap("unlocked", userService.unlockUser(userSeq, actor)));
@@ -83,6 +89,7 @@ public class UserController {
     @PostMapping("/user/resetPassword.json")
     @ResponseBody
     public Map<String, Object> resetPassword(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         String actor = request.getAttribute("user_id") == null ? null : String.valueOf(request.getAttribute("user_id"));
         Long userSeq = toLong(body == null ? null : body.get("user_seq"));
         return ok(userService.resetPassword(userSeq, actor));

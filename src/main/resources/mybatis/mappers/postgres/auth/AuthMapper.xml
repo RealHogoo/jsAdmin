@@ -169,6 +169,104 @@
         ORDER BY mt.sort_path
     </select>
 
+    <select id="selectGroupServicePermList" parameterType="long" resultType="map">
+        SELECT
+            spd.service_perm_seq,
+            sm.service_seq,
+            sm.service_cd,
+            sm.service_nm,
+            spd.perm_cd,
+            spd.perm_nm,
+            spd.perm_desc,
+            spd.sort_ord,
+            COALESCE(asp.use_yn, 'N') AS map_use_yn
+        FROM adm_service_perm_def spd
+        JOIN adm_service_mst sm
+          ON sm.service_seq = spd.service_seq
+        LEFT JOIN adm_auth_service_perm asp
+          ON asp.auth_group_seq = #{authGroupSeq}
+         AND asp.service_perm_seq = spd.service_perm_seq
+        WHERE spd.use_yn = 'Y'
+          AND sm.use_yn = 'Y'
+        ORDER BY sm.sort_ord, sm.service_seq, spd.sort_ord, spd.service_perm_seq
+    </select>
+
+    <update id="upsertGroupServicePerm" parameterType="map">
+        INSERT INTO adm_auth_service_perm (
+            auth_group_seq, service_perm_seq, use_yn, created_at, created_by, updated_at, updated_by
+        ) VALUES (
+            #{auth_group_seq}, #{service_perm_seq}, #{use_yn},
+            CURRENT_TIMESTAMP, #{created_by}, CURRENT_TIMESTAMP, #{updated_by}
+        )
+        ON CONFLICT (auth_group_seq, service_perm_seq) DO UPDATE
+           SET use_yn = EXCLUDED.use_yn,
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = EXCLUDED.updated_by
+    </update>
+
+    <select id="selectUserServicePermList" parameterType="long" resultType="map">
+        WITH user_groups AS (
+            SELECT agu.auth_group_seq
+              FROM adm_auth_group_user agu
+             WHERE agu.user_seq = #{userSeq}
+               AND agu.use_yn = 'Y'
+            UNION
+            SELECT agd.auth_group_seq
+              FROM adm_auth_group_dept agd
+              JOIN adm_user_mst u
+                ON u.user_seq = #{userSeq}
+               AND u.dept_seq = agd.dept_seq
+             WHERE agd.use_yn = 'Y'
+        ),
+        base_perm AS (
+            SELECT asp.service_perm_seq, MAX(CASE WHEN asp.use_yn = 'Y' THEN 1 ELSE 0 END) AS base_access
+              FROM adm_auth_service_perm asp
+              JOIN user_groups ug
+                ON ug.auth_group_seq = asp.auth_group_seq
+             GROUP BY asp.service_perm_seq
+        )
+        SELECT
+            spd.service_perm_seq,
+            sm.service_seq,
+            sm.service_cd,
+            sm.service_nm,
+            spd.perm_cd,
+            spd.perm_nm,
+            spd.perm_desc,
+            spd.sort_ord,
+            COALESCE(bp.base_access, 0) AS base_access,
+            ause.access_yn AS ex_access_yn
+        FROM adm_service_perm_def spd
+        JOIN adm_service_mst sm
+          ON sm.service_seq = spd.service_seq
+        LEFT JOIN base_perm bp
+          ON bp.service_perm_seq = spd.service_perm_seq
+        LEFT JOIN adm_auth_user_service_perm ause
+          ON ause.user_seq = #{userSeq}
+         AND ause.service_perm_seq = spd.service_perm_seq
+        WHERE spd.use_yn = 'Y'
+          AND sm.use_yn = 'Y'
+        ORDER BY sm.sort_ord, sm.service_seq, spd.sort_ord, spd.service_perm_seq
+    </select>
+
+    <delete id="deleteAllUserServiceException" parameterType="long">
+        DELETE FROM adm_auth_user_service_perm
+         WHERE user_seq = #{userSeq}
+    </delete>
+
+    <update id="upsertUserServiceException" parameterType="map">
+        INSERT INTO adm_auth_user_service_perm (
+            user_seq, service_perm_seq, access_yn, created_at, created_by, updated_at, updated_by
+        ) VALUES (
+            #{user_seq}, #{service_perm_seq}, #{access_yn},
+            CURRENT_TIMESTAMP, #{created_by}, CURRENT_TIMESTAMP, #{updated_by}
+        )
+        ON CONFLICT (user_seq, service_perm_seq) DO UPDATE
+           SET access_yn = EXCLUDED.access_yn,
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = EXCLUDED.updated_by
+    </update>
+
     <delete id="deleteAllUserException" parameterType="long">
         DELETE FROM adm_auth_user
          WHERE user_seq = #{userSeq}
@@ -310,6 +408,53 @@
           FROM user_groups
          WHERE auth_group_cd IS NOT NULL
          ORDER BY auth_group_cd
+    </select>
+
+    <select id="selectResolvedServicePermissions" resultType="map">
+        WITH user_groups AS (
+            SELECT agu.auth_group_seq
+              FROM adm_auth_group_user agu
+             WHERE agu.user_seq = #{userSeq}
+               AND agu.use_yn = 'Y'
+            UNION
+            SELECT agd.auth_group_seq
+              FROM adm_auth_group_dept agd
+              JOIN adm_user_mst u
+                ON u.user_seq = #{userSeq}
+               AND u.dept_seq = agd.dept_seq
+             WHERE agd.use_yn = 'Y'
+        ),
+        base_perm AS (
+            SELECT asp.service_perm_seq
+              FROM adm_auth_service_perm asp
+              JOIN user_groups ug
+                ON ug.auth_group_seq = asp.auth_group_seq
+             WHERE asp.use_yn = 'Y'
+             GROUP BY asp.service_perm_seq
+        ),
+        user_ex AS (
+            SELECT service_perm_seq, access_yn
+              FROM adm_auth_user_service_perm
+             WHERE user_seq = #{userSeq}
+        )
+        SELECT
+            sm.service_cd,
+            spd.perm_cd
+        FROM adm_service_perm_def spd
+        JOIN adm_service_mst sm
+          ON sm.service_seq = spd.service_seq
+        LEFT JOIN base_perm bp
+          ON bp.service_perm_seq = spd.service_perm_seq
+        LEFT JOIN user_ex ue
+          ON ue.service_perm_seq = spd.service_perm_seq
+        WHERE spd.use_yn = 'Y'
+          AND sm.use_yn = 'Y'
+          AND (
+                ue.access_yn = 'Y'
+                OR (ue.access_yn IS NULL AND bp.service_perm_seq IS NOT NULL)
+              )
+          AND COALESCE(ue.access_yn, 'Y') != 'X'
+        ORDER BY sm.sort_ord, sm.service_seq, spd.sort_ord, spd.service_perm_seq
     </select>
 
 </mapper>

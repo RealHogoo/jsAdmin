@@ -1,6 +1,7 @@
 package com.realhogoo.jsadmin.access.web;
 
 import com.realhogoo.jsadmin.access.service.AccessService;
+import com.realhogoo.jsadmin.auth.AuthRequestSupport;
 import com.realhogoo.jsadmin.auth.service.AuthService;
 import com.realhogoo.jsadmin.auth.web.AuthCookieSupport;
 import org.springframework.stereotype.Controller;
@@ -38,14 +39,16 @@ public class AccessController {
 
     @PostMapping("/access/session/list.json")
     @ResponseBody
-    public Map<String, Object> sessionList(@RequestBody(required = false) Map<String, Object> param) {
+    public Map<String, Object> sessionList(@RequestBody(required = false) Map<String, Object> param, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         validateAccessSearch(param, false);
         return ok(accessService.getLoginSessionList(param));
     }
 
     @PostMapping("/access/history/list.json")
     @ResponseBody
-    public Map<String, Object> historyList(@RequestBody(required = false) Map<String, Object> param) {
+    public Map<String, Object> historyList(@RequestBody(required = false) Map<String, Object> param, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         validateAccessSearch(param, true);
         return ok(accessService.getLoginHistoryList(param));
     }
@@ -53,6 +56,7 @@ public class AccessController {
     @PostMapping("/access/session/expire.json")
     @ResponseBody
     public Map<String, Object> expireSession(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         String sessionId = stringValue(body == null ? null : body.get("session_id"));
         validateLength("session_id", sessionId, MAX_SESSION_ID_LENGTH);
         String actor = stringValue(request.getAttribute("user_id"));
@@ -63,6 +67,7 @@ public class AccessController {
     @PostMapping("/access/session/expireUser.json")
     @ResponseBody
     public Map<String, Object> expireUserSessions(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         String loginId = stringValue(body == null ? null : body.get("login_id"));
         validateLength("login_id", loginId, MAX_LOGIN_ID_LENGTH);
         String actor = stringValue(request.getAttribute("user_id"));
@@ -77,7 +82,10 @@ public class AccessController {
         String actor = stringValue(request.getAttribute("user_id"));
         int expired = accessService.logout(sessionId, actor, request);
         authService.revokeRefreshTokensBySessionId(sessionId, actor);
-        AuthCookieSupport.clearAuthCookies(response);
+        response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+        response.setHeader("Pragma", "no-cache");
+        response.setHeader("Expires", "0");
+        AuthCookieSupport.clearAuthCookies(request, response);
         return ok(Collections.singletonMap("logout", expired));
     }
 

@@ -15,7 +15,9 @@
     }
 
     function currentSessionId() {
-        return UX.localGet("LOGIN_SESSION_ID", "");
+        return global.app && typeof global.app.getAuthState === "function"
+            ? (global.app.getAuthState().session_id || "")
+            : "";
     }
 
     function resetViews() {
@@ -253,8 +255,9 @@
 
         app.callJson("/access/session/expire.json", { session_id: sessionId }, function () {
             if (sessionId === currentSessionId()) {
-                UX.localRemove(["JWT", "LOGIN_USER", "LOGIN_SESSION_ID"]);
-                document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+                if (app && typeof app.clearAuthState === "function") {
+                    app.clearAuthState();
+                }
                 app.loadPage("/login.do");
                 return;
             }
@@ -269,10 +272,11 @@
 
         app.callJson("/access/session/expireUser.json", { login_id: loginId }, function () {
             try {
-                var parsed = JSON.parse(UX.localGet("LOGIN_USER", "{}"));
+                var parsed = app && typeof app.getAuthState === "function" ? app.getAuthState().user : null;
                 if (parsed && parsed.user_id === loginId) {
-                    UX.localRemove(["JWT", "LOGIN_USER", "LOGIN_SESSION_ID"]);
-                    document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+                    if (app && typeof app.clearAuthState === "function") {
+                        app.clearAuthState();
+                    }
                     app.loadPage("/login.do");
                     return;
                 }

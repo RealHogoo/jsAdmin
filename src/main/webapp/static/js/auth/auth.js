@@ -3,11 +3,14 @@
 
     var UX = global.UX;
     var app = global.app;
-
     var userTabLoaded = false;
 
     function root() {
         return UX.qs("#authRoot");
+    }
+
+    function page() {
+        return root();
     }
 
     function toNum(value, fallback) {
@@ -25,29 +28,29 @@
     }
 
     function setSelected(targetType, seq, label) {
-        var page = root();
-        if (!page) return;
+        var el = page();
         var dataKey = targetType === "group" ? "selectedGroupSeq" : "selectedUserSeq";
         var textKey = targetType === "group" ? "#selectedGroupSeq" : "#selectedUserSeq";
-        page.dataset[dataKey] = seq ? String(seq) : "";
-        UX.setText(textKey, label || (seq ? String(seq) : "-"), page);
+        if (!el) return;
+        el.dataset[dataKey] = seq ? String(seq) : "";
+        UX.setText(textKey, label || (seq ? String(seq) : "-"), el);
     }
 
     function selectedSeq(targetType) {
-        var page = root();
-        if (!page || !page.dataset) return null;
+        var el = page();
         var dataKey = targetType === "group" ? "selectedGroupSeq" : "selectedUserSeq";
-        return UX.numOrNull(page.dataset[dataKey]);
+        if (!el || !el.dataset) return null;
+        return UX.numOrNull(el.dataset[dataKey]);
     }
 
     function makeSelect(options, value, className) {
         var select = document.createElement("select");
         select.className = className;
         options.forEach(function (option) {
-            var el = document.createElement("option");
-            el.value = option.value;
-            el.textContent = option.label;
-            select.appendChild(el);
+            var item = document.createElement("option");
+            item.value = option.value;
+            item.textContent = option.label;
+            select.appendChild(item);
         });
         select.value = String(value);
         return select;
@@ -58,14 +61,21 @@
         tr.classList.add("is-dirty");
     }
 
+    function emptyTable(selector, colspan, message) {
+        var tbody = UX.qs(selector, page());
+        if (tbody) {
+            tbody.innerHTML = "<tr><td colspan='" + colspan + "'>" + UX.esc(message) + "</td></tr>";
+        }
+    }
+
     function renderGroupList(list) {
-        var tbody = UX.qs("#groupListBody", root());
-        var menuBody = UX.qs("#menuPermBody", root());
-        if (!tbody || !menuBody) return;
+        var tbody = UX.qs("#groupListBody", page());
+        if (!tbody) return;
 
         if (!list.length) {
-            tbody.innerHTML = "<tr><td colspan='3'>데이터가 없습니다.</td></tr>";
-            menuBody.innerHTML = "";
+            tbody.innerHTML = "<tr><td colspan='3'>No data</td></tr>";
+            emptyTable("#menuPermBody", 4, "No data");
+            emptyTable("#servicePermBody", 4, "No data");
             setSelected("group", null, "-");
             return;
         }
@@ -74,18 +84,20 @@
             return "<tr data-auth-group-seq='" + UX.esc(row.auth_group_seq) + "'>"
                 + "<td>" + UX.esc(index + 1) + "</td>"
                 + "<td>" + UX.esc(row.auth_group_nm) + "</td>"
-                + "<td>" + UX.esc((row.use_yn || "Y") === "Y" ? "사용" : "미사용") + "</td>"
+                + "<td>" + UX.esc((row.use_yn || "Y") === "Y" ? "Y" : "N") + "</td>"
                 + "</tr>";
         }).join("");
 
         UX.qsa("tr[data-auth-group-seq]", tbody).forEach(function (tr) {
             tr.addEventListener("click", function () {
-                UX.qsa("tr", tbody).forEach(function (row) { row.classList.remove("is-selected"); });
+                UX.qsa("tr", tbody).forEach(function (row) {
+                    row.classList.remove("is-selected");
+                });
                 tr.classList.add("is-selected");
                 var seq = Number(tr.getAttribute("data-auth-group-seq"));
-                var groupName = UX.normalizeText(tr.children[1] && tr.children[1].textContent) || String(seq);
-                setSelected("group", seq, groupName);
+                setSelected("group", seq, UX.normalizeText(tr.children[1].textContent) || String(seq));
                 loadGroupMenus(seq);
+                loadGroupServices(seq);
             });
         });
 
@@ -94,8 +106,7 @@
     }
 
     function loadGroups() {
-        var tbody = UX.qs("#groupListBody", root());
-        if (tbody) tbody.innerHTML = "<tr><td colspan='3'>조회 중입니다.</td></tr>";
+        emptyTable("#groupListBody", 3, "Loading...");
         return app.callJson("/auth/group/list.json", {}, function (list) {
             renderGroupList(Array.isArray(list) ? list : []);
         });
@@ -103,14 +114,14 @@
 
     function applyFolderToDescendants(folderTr, tbody, perm, useYn) {
         var rows = UX.qsa("tr", tbody);
-        var folderLvl = toNum(folderTr.dataset.treeLvl, 1);
+        var folderLevel = toNum(folderTr.dataset.treeLvl, 1);
         var startIdx = rows.indexOf(folderTr);
         if (startIdx < 0) return;
 
         for (var i = startIdx + 1; i < rows.length; i++) {
             var tr = rows[i];
             var level = toNum(tr.dataset.treeLvl, 1);
-            if (level <= folderLvl) break;
+            if (level <= folderLevel) break;
             UX.qs(".permLvl", tr).value = String(perm);
             UX.qs(".useYn", tr).value = String(useYn);
             markDirty(tr);
@@ -118,10 +129,11 @@
     }
 
     function renderGroupMenus(list) {
-        var tbody = UX.qs("#menuPermBody", root());
+        var tbody = UX.qs("#menuPermBody", page());
         if (!tbody) return;
+
         if (!list.length) {
-            tbody.innerHTML = "<tr><td colspan='4'>데이터가 없습니다.</td></tr>";
+            tbody.innerHTML = "<tr><td colspan='4'>No data</td></tr>";
             return;
         }
 
@@ -135,24 +147,21 @@
 
             tr.innerHTML =
                 "<td>" + UX.esc(index + 1) + "</td>" +
-                "<td class='menuNm'>" + UX.esc(indentName(row.menu_nm, row.tree_lvl)) + "</td>" +
+                "<td>" + UX.esc(indentName(row.menu_nm, row.tree_lvl)) + "</td>" +
                 "<td class='permCell'></td>" +
                 "<td class='useCell'></td>";
 
             var permSel = makeSelect([
-                { value: "0", label: "없음" },
-                { value: "1", label: "1(조회)" },
-                { value: "5", label: "5(등록/수정)" },
-                { value: "10", label: "10(삭제)" }
+                { value: "0", label: "0" },
+                { value: "1", label: "1" },
+                { value: "5", label: "5" },
+                { value: "10", label: "10" }
             ], [0, 1, 5, 10].indexOf(toNum(row.perm_lvl, 0)) >= 0 ? toNum(row.perm_lvl, 0) : 0, "permLvl");
 
             var useSel = makeSelect([
-                { value: "Y", label: "사용" },
-                { value: "N", label: "미사용" }
+                { value: "Y", label: "Y" },
+                { value: "N", label: "N" }
             ], row.map_use_yn === "Y" ? "Y" : "N", "useYn");
-
-            UX.qs(".permCell", tr).appendChild(permSel);
-            UX.qs(".useCell", tr).appendChild(useSel);
 
             permSel.addEventListener("change", function () {
                 markDirty(tr);
@@ -167,21 +176,62 @@
                 }
             });
 
+            UX.qs(".permCell", tr).appendChild(permSel);
+            UX.qs(".useCell", tr).appendChild(useSel);
             tbody.appendChild(tr);
         });
     }
 
     function loadGroupMenus(authGroupSeq) {
-        var tbody = UX.qs("#menuPermBody", root());
-        if (tbody) tbody.innerHTML = "<tr><td colspan='4'>조회 중입니다.</td></tr>";
+        emptyTable("#menuPermBody", 4, "Loading...");
         return app.callJson("/auth/group/menu/list.json", { auth_group_seq: authGroupSeq }, function (list) {
             renderGroupMenus(Array.isArray(list) ? list : []);
         });
     }
 
+    function renderGroupServices(list) {
+        var tbody = UX.qs("#servicePermBody", page());
+        if (!tbody) return;
+
+        if (!list.length) {
+            tbody.innerHTML = "<tr><td colspan='4'>No data</td></tr>";
+            return;
+        }
+
+        tbody.innerHTML = "";
+        list.forEach(function (row, index) {
+            var tr = document.createElement("tr");
+            tr.dataset.servicePermSeq = String(row.service_perm_seq);
+            tr.innerHTML =
+                "<td>" + UX.esc(index + 1) + "</td>" +
+                "<td>" + UX.esc(row.service_nm || row.service_cd || "-") + "</td>" +
+                "<td>" + UX.esc(row.perm_nm || row.perm_cd || "-") + "</td>" +
+                "<td class='useCell'></td>";
+
+            var useSel = makeSelect([
+                { value: "Y", label: "Y" },
+                { value: "N", label: "N" }
+            ], row.map_use_yn === "Y" ? "Y" : "N", "serviceUseYn");
+
+            useSel.addEventListener("change", function () {
+                markDirty(tr);
+            });
+
+            UX.qs(".useCell", tr).appendChild(useSel);
+            tbody.appendChild(tr);
+        });
+    }
+
+    function loadGroupServices(authGroupSeq) {
+        emptyTable("#servicePermBody", 4, "Loading...");
+        return app.callJson("/auth/group/service/list.json", { auth_group_seq: authGroupSeq }, function (list) {
+            renderGroupServices(Array.isArray(list) ? list : []);
+        });
+    }
+
     function saveGroupMenus() {
         var authGroupSeq = selectedSeq("group");
-        var tbody = UX.qs("#menuPermBody", root());
+        var tbody = UX.qs("#menuPermBody", page());
         if (!authGroupSeq || !tbody) return;
 
         var items = UX.qsa("tr", tbody).filter(function (tr) {
@@ -195,7 +245,7 @@
         });
 
         if (!items.length) {
-            alert("변경된 항목이 없습니다.");
+            alert("No changes");
             return;
         }
 
@@ -204,14 +254,38 @@
         });
     }
 
+    function saveGroupServices() {
+        var authGroupSeq = selectedSeq("group");
+        var tbody = UX.qs("#servicePermBody", page());
+        if (!authGroupSeq || !tbody) return;
+
+        var items = UX.qsa("tr", tbody).filter(function (tr) {
+            return tr.dataset.dirty === "1";
+        }).map(function (tr) {
+            return {
+                service_perm_seq: Number(tr.dataset.servicePermSeq),
+                use_yn: UX.qs(".serviceUseYn", tr).value === "Y" ? "Y" : "N"
+            };
+        });
+
+        if (!items.length) {
+            alert("No changes");
+            return;
+        }
+
+        app.callJson("/auth/group/service/save.json", { auth_group_seq: authGroupSeq, items: items }, function () {
+            loadGroupServices(authGroupSeq);
+        });
+    }
+
     function renderUserList(list) {
-        var tbody = UX.qs("#userListBody", root());
-        var exBody = UX.qs("#userExceptionBody", root());
-        if (!tbody || !exBody) return;
+        var tbody = UX.qs("#userListBody", page());
+        if (!tbody) return;
 
         if (!list.length) {
-            tbody.innerHTML = "<tr><td colspan='3'>데이터가 없습니다.</td></tr>";
-            exBody.innerHTML = "";
+            tbody.innerHTML = "<tr><td colspan='3'>No data</td></tr>";
+            emptyTable("#userExceptionBody", 4, "No data");
+            emptyTable("#userServiceExceptionBody", 5, "No data");
             setSelected("user", null, "-");
             return;
         }
@@ -226,12 +300,14 @@
 
         UX.qsa("tr[data-user-seq]", tbody).forEach(function (tr) {
             tr.addEventListener("click", function () {
-                UX.qsa("tr", tbody).forEach(function (row) { row.classList.remove("is-selected"); });
+                UX.qsa("tr", tbody).forEach(function (row) {
+                    row.classList.remove("is-selected");
+                });
                 tr.classList.add("is-selected");
                 var seq = Number(tr.getAttribute("data-user-seq"));
-                var userName = UX.normalizeText((tr.children[2] && tr.children[2].textContent) || (tr.children[1] && tr.children[1].textContent)) || String(seq);
-                setSelected("user", seq, userName);
-                loadUserMenuPermList(seq);
+                setSelected("user", seq, UX.normalizeText(tr.children[2].textContent) || String(seq));
+                loadUserMenuPerms(seq);
+                loadUserServicePerms(seq);
             });
         });
 
@@ -240,11 +316,9 @@
     }
 
     function searchUsers() {
-        var tbody = UX.qs("#userListBody", root());
-        if (tbody) tbody.innerHTML = "<tr><td colspan='3'>조회 중입니다.</td></tr>";
-
+        emptyTable("#userListBody", 3, "Loading...");
         return app.callJson("/auth/user/search.json", {
-            keyword: UX.getValue("#userKeyword", root())
+            keyword: UX.getValue("#userKeyword", page())
         }, function (list) {
             renderUserList(Array.isArray(list) ? list : []);
         });
@@ -258,11 +332,12 @@
         return "0";
     }
 
-    function renderUserExceptions(list) {
-        var tbody = UX.qs("#userExceptionBody", root());
+    function renderUserMenuPerms(list) {
+        var tbody = UX.qs("#userExceptionBody", page());
         if (!tbody) return;
+
         if (!list.length) {
-            tbody.innerHTML = "<tr><td colspan='4'>데이터가 없습니다.</td></tr>";
+            tbody.innerHTML = "<tr><td colspan='4'>No data</td></tr>";
             return;
         }
 
@@ -272,49 +347,93 @@
             var isFolder = isFolderRow(row);
             var state = (row.ex_access_yn === "Y" || row.ex_access_yn === "X") ? row.ex_access_yn : "N";
             tr.dataset.menuSeq = String(row.menu_seq);
-            tr.dataset.treeLvl = String(row.tree_lvl || 1);
             tr.dataset.isFolder = isFolder ? "1" : "0";
 
             tr.innerHTML =
                 "<td>" + UX.esc(index + 1) + "</td>" +
                 "<td>" + UX.esc(indentName(row.menu_nm, row.tree_lvl)) + "</td>" +
                 "<td>" + UX.esc(basePermLabel(row.base_perm_lvl)) + "</td>" +
-                "<td class='exStateCell'></td>";
+                "<td class='stateCell'></td>";
 
             var stateSel = makeSelect([
-                { value: "N", label: "설정 없음" },
-                { value: "Y", label: "허용" },
-                { value: "X", label: "차단" }
+                { value: "N", label: "Inherited" },
+                { value: "Y", label: "Allow" },
+                { value: "X", label: "Deny" }
             ], isFolder ? "N" : state, "exStateSel");
 
             if (isFolder) stateSel.disabled = true;
-            stateSel.addEventListener("change", function () { markDirty(tr); });
-            UX.qs(".exStateCell", tr).appendChild(stateSel);
+            stateSel.addEventListener("change", function () {
+                markDirty(tr);
+            });
+
+            UX.qs(".stateCell", tr).appendChild(stateSel);
             tbody.appendChild(tr);
         });
     }
 
-    function loadUserMenuPermList(userSeq) {
-        var tbody = UX.qs("#userExceptionBody", root());
-        if (tbody) tbody.innerHTML = "<tr><td colspan='4'>조회 중입니다.</td></tr>";
+    function loadUserMenuPerms(userSeq) {
+        emptyTable("#userExceptionBody", 4, "Loading...");
         return app.callJson("/auth/user/menuPermList.json", { user_seq: userSeq }, function (list) {
-            renderUserExceptions(Array.isArray(list) ? list : []);
+            renderUserMenuPerms(Array.isArray(list) ? list : []);
         });
     }
 
-    function saveUserExceptions() {
+    function renderUserServicePerms(list) {
+        var tbody = UX.qs("#userServiceExceptionBody", page());
+        if (!tbody) return;
+
+        if (!list.length) {
+            tbody.innerHTML = "<tr><td colspan='5'>No data</td></tr>";
+            return;
+        }
+
+        tbody.innerHTML = "";
+        list.forEach(function (row, index) {
+            var tr = document.createElement("tr");
+            var state = (row.ex_access_yn === "Y" || row.ex_access_yn === "X") ? row.ex_access_yn : "N";
+            tr.dataset.servicePermSeq = String(row.service_perm_seq);
+            tr.innerHTML =
+                "<td>" + UX.esc(index + 1) + "</td>" +
+                "<td>" + UX.esc(row.service_nm || row.service_cd || "-") + "</td>" +
+                "<td>" + UX.esc(row.perm_nm || row.perm_cd || "-") + "</td>" +
+                "<td>" + UX.esc(Number(row.base_access || 0) > 0 ? "Allow" : "None") + "</td>" +
+                "<td class='stateCell'></td>";
+
+            var stateSel = makeSelect([
+                { value: "N", label: "Inherited" },
+                { value: "Y", label: "Allow" },
+                { value: "X", label: "Deny" }
+            ], state, "serviceExStateSel");
+
+            stateSel.addEventListener("change", function () {
+                markDirty(tr);
+            });
+
+            UX.qs(".stateCell", tr).appendChild(stateSel);
+            tbody.appendChild(tr);
+        });
+    }
+
+    function loadUserServicePerms(userSeq) {
+        emptyTable("#userServiceExceptionBody", 5, "Loading...");
+        return app.callJson("/auth/user/servicePermList.json", { user_seq: userSeq }, function (list) {
+            renderUserServicePerms(Array.isArray(list) ? list : []);
+        });
+    }
+
+    function saveUserMenuExceptions() {
         var userSeq = selectedSeq("user");
-        var tbody = UX.qs("#userExceptionBody", root());
+        var tbody = UX.qs("#userExceptionBody", page());
         if (!userSeq || !tbody) return;
 
         var exceptions = UX.qsa("tr", tbody).filter(function (tr) {
             return tr.dataset.isFolder !== "1";
         }).map(function (tr) {
-            var sel = UX.qs(".exStateSel", tr);
-            return sel ? {
+            var select = UX.qs(".exStateSel", tr);
+            return select ? {
                 menu_seq: Number(tr.dataset.menuSeq),
-                access_yn: sel.value,
-                perm_lvl: sel.value === "Y" ? 1 : 0
+                access_yn: select.value,
+                perm_lvl: select.value === "Y" ? 1 : 0
             } : null;
         }).filter(function (row) {
             return row && (row.access_yn === "Y" || row.access_yn === "X");
@@ -324,11 +443,34 @@
             user_seq: userSeq,
             exceptions: exceptions
         }, function () {
-            loadUserMenuPermList(userSeq);
+            loadUserMenuPerms(userSeq);
             document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
             if (typeof global.SIDEBAR_INIT === "function") {
                 global.SIDEBAR_INIT();
             }
+        });
+    }
+
+    function saveUserServiceExceptions() {
+        var userSeq = selectedSeq("user");
+        var tbody = UX.qs("#userServiceExceptionBody", page());
+        if (!userSeq || !tbody) return;
+
+        var exceptions = UX.qsa("tr", tbody).map(function (tr) {
+            var select = UX.qs(".serviceExStateSel", tr);
+            return select ? {
+                service_perm_seq: Number(tr.dataset.servicePermSeq),
+                access_yn: select.value
+            } : null;
+        }).filter(function (row) {
+            return row && (row.access_yn === "Y" || row.access_yn === "X");
+        });
+
+        app.callJson("/auth/user/serviceException/save.json", {
+            user_seq: userSeq,
+            exceptions: exceptions
+        }, function () {
+            loadUserServicePerms(userSeq);
         });
     }
 
@@ -338,38 +480,62 @@
         searchUsers();
     }
 
-    function bindTabs(page) {
-        UX.qsa(".tab", page).forEach(function (tab) {
-            tab.addEventListener("click", function () {
-                var target = tab.dataset.tab;
-                UX.qsa(".tab", page).forEach(function (el) { el.classList.remove("is-active"); });
-                tab.classList.add("is-active");
-                UX.qsa(".tab-pane", page).forEach(function (pane) {
-                    pane.style.display = pane.dataset.pane === target ? "" : "none";
+    function bindSubTabs(el) {
+        UX.qsa("[data-subtab-group]", el).forEach(function (group) {
+            UX.qsa("[data-subtab]", group).forEach(function (tab) {
+                tab.addEventListener("click", function () {
+                    var target = tab.dataset.subtab;
+                    UX.qsa("[data-subtab]", group).forEach(function (item) {
+                        item.classList.remove("is-active");
+                    });
+                    tab.classList.add("is-active");
+                    var scope = group.parentElement || el;
+                    UX.qsa("[data-subtab-pane]", scope).forEach(function (pane) {
+                        pane.style.display = pane.dataset.subtabPane === target ? "" : "none";
+                    });
                 });
-                if (target === "B") ensureUserTabLoaded();
             });
         });
     }
 
-    function bind(page) {
-        UX.bindOnce(UX.qs("#btnGroupReload", page), "click", function () { loadGroups(); });
-        UX.bindOnce(UX.qs("#btnGroupSave", page), "click", saveGroupMenus);
-        UX.bindOnce(UX.qs("#btnUserSearch", page), "click", searchUsers);
-        UX.bindOnce(UX.qs("#btnUserExceptionSave", page), "click", saveUserExceptions);
+    function bindTabs(el) {
+        UX.qsa(".tab", el).forEach(function (tab) {
+            tab.addEventListener("click", function () {
+                var target = tab.dataset.tab;
+                UX.qsa(".tab", el).forEach(function (item) {
+                    item.classList.remove("is-active");
+                });
+                tab.classList.add("is-active");
+                UX.qsa(".tab-pane", el).forEach(function (pane) {
+                    pane.style.display = pane.dataset.pane === target ? "" : "none";
+                });
+                if (target === "B") {
+                    ensureUserTabLoaded();
+                }
+            });
+        });
+    }
 
-        var kwInput = UX.qs("#userKeyword", page);
-        app.bindEnterAction(kwInput, searchUsers);
+    function bind(el) {
+        UX.bindOnce(UX.qs("#btnGroupReload", el), "click", loadGroups);
+        UX.bindOnce(UX.qs("#btnGroupSave", el), "click", saveGroupMenus);
+        UX.bindOnce(UX.qs("#btnGroupServiceSave", el), "click", saveGroupServices);
+        UX.bindOnce(UX.qs("#btnUserSearch", el), "click", searchUsers);
+        UX.bindOnce(UX.qs("#btnUserExceptionSave", el), "click", saveUserMenuExceptions);
+        UX.bindOnce(UX.qs("#btnUserServiceExceptionSave", el), "click", saveUserServiceExceptions);
+        app.bindEnterAction(UX.qs("#userKeyword", el), searchUsers);
     }
 
     function init() {
-        var page = root();
-        if (!page) return;
+        var el = page();
+        if (!el) return;
         userTabLoaded = false;
-        bindTabs(page);
-        bind(page);
-        app.applyPermission(page);
+        bindTabs(el);
+        bindSubTabs(el);
+        bind(el);
+        app.applyPermission(el);
         loadGroups();
     }
-    app.bindPage("__AUTH_PAGE_BOUND_V3__", "/auth/main.do", init);
+
+    app.bindPage("__AUTH_PAGE_BOUND_V4__", "/auth/main.do", init);
 })(window);

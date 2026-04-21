@@ -14,6 +14,7 @@ import com.realhogoo.jsadmin.menu.service.MenuService;
 import com.realhogoo.jsadmin.menu.web.MenuController;
 import com.realhogoo.jsadmin.notice.service.NoticeService;
 import com.realhogoo.jsadmin.notice.web.NoticeController;
+import com.realhogoo.jsadmin.serviceregistry.service.ServiceEndpointPolicy;
 import com.realhogoo.jsadmin.user.service.UserService;
 import com.realhogoo.jsadmin.user.web.UserController;
 import org.junit.jupiter.api.BeforeEach;
@@ -57,6 +58,7 @@ class WebLayerSmokeTest {
         DataSource dataSource = mock(DataSource.class);
         HealthMapper healthMapper = mock(HealthMapper.class);
         ServiceRegistryMapper serviceRegistryMapper = mock(ServiceRegistryMapper.class);
+        ServiceEndpointPolicy serviceEndpointPolicy = mock(ServiceEndpointPolicy.class);
 
         when(authService.login(anyString(), anyString(), any())).thenReturn(ApiResponse.ok(Collections.emptyMap(), "TRACE-1"));
         when(authService.me(anyString(), any(), anyString()))
@@ -88,7 +90,7 @@ class WebLayerSmokeTest {
                 new MenuController(menuService),
                 new UserController(userService),
                 new NoticeController(noticeService),
-                new HealthController(dataSource, healthMapper, serviceRegistryMapper),
+                new HealthController(dataSource, healthMapper, serviceRegistryMapper, serviceEndpointPolicy),
                 new MainController()
             )
             .setControllerAdvice(new GlobalExceptionHandler())
@@ -136,6 +138,7 @@ class WebLayerSmokeTest {
     @Test
     void userListRespondsWithoutServerError() throws Exception {
         mockMvc.perform(post("/user/list.json")
+                .with(authenticatedUser())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{}"))
             .andExpect(status().isOk())

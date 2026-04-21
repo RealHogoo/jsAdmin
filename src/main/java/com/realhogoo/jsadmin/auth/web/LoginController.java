@@ -33,23 +33,31 @@ public class LoginController {
         String userId = body.get("user_id") == null ? null : String.valueOf(body.get("user_id"));
         String userPw = body.get("user_pw") == null ? null : String.valueOf(body.get("user_pw"));
         if (userId == null || userId.trim().isEmpty() || userPw == null) {
-            return ApiResponse.fail("BAD_REQUEST", "?袁⑹뵠???癒?뮉 ??쑬?甕곕뜇?뉒몴??類ㅼ뵥??雅뚯눘苑??", null, request);
+            return ApiResponse.fail("BAD_REQUEST", "\uC544\uC774\uB514\uC640 \uBE44\uBC00\uBC88\uD638\uB97C \uC785\uB825\uD558\uC138\uC694.", null, request);
         }
         validateLength("user_id", userId.trim(), MAX_LOGIN_ID_LENGTH);
         validateLength("user_pw", userPw, MAX_PASSWORD_LENGTH);
 
         ApiResponse<Map<String, Object>> result = authService.login(userId.trim(), userPw, request);
+        applyNoStore(response);
         if (result != null && result.isOk() && result.getData() != null) {
             AuthCookieSupport.writeAuthCookies(
+                request,
                 response,
                 stringValue(result.getData().get("token")),
                 stringValue(result.getData().get("refresh_token")),
                 stringValue(result.getData().get("session_id"))
             );
         } else {
-            AuthCookieSupport.clearAuthCookies(response);
+            AuthCookieSupport.clearAuthCookies(request, response);
         }
         return result;
+    }
+
+    private void applyNoStore(HttpServletResponse response) {
+        response.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0");
+        response.setHeader("Pragma", "no-cache");
+        response.setHeader("Expires", "0");
     }
 
     private void validateLength(String field, String value, int maxLength) {

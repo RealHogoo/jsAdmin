@@ -12,9 +12,11 @@ import java.util.Map;
 public class ServiceAdminServiceImpl implements ServiceAdminService {
 
     private final ServiceAdminMapper serviceAdminMapper;
+    private final ServiceEndpointPolicy serviceEndpointPolicy;
 
-    public ServiceAdminServiceImpl(ServiceAdminMapper serviceAdminMapper) {
+    public ServiceAdminServiceImpl(ServiceAdminMapper serviceAdminMapper, ServiceEndpointPolicy serviceEndpointPolicy) {
         this.serviceAdminMapper = serviceAdminMapper;
+        this.serviceEndpointPolicy = serviceEndpointPolicy;
     }
 
     @Override
@@ -56,10 +58,10 @@ public class ServiceAdminServiceImpl implements ServiceAdminService {
         payload.put("service_seq", serviceSeq);
         payload.put("service_cd", serviceCd);
         payload.put("service_nm", serviceNm);
-        payload.put("base_url", baseUrl);
-        payload.put("status_path", defaultText(payload.get("status_path"), "/health/status.json"));
-        payload.put("live_path", defaultText(payload.get("live_path"), "/health/live.json"));
-        payload.put("ready_path", defaultText(payload.get("ready_path"), "/health/ready.json"));
+        payload.put("base_url", serviceEndpointPolicy.normalizeBaseUrl(baseUrl));
+        payload.put("status_path", serviceEndpointPolicy.normalizeHealthPath(defaultText(payload.get("status_path"), "/health/status.json"), "status_path"));
+        payload.put("live_path", serviceEndpointPolicy.normalizeHealthPath(defaultText(payload.get("live_path"), "/health/live.json"), "live_path"));
+        payload.put("ready_path", serviceEndpointPolicy.normalizeHealthPath(defaultText(payload.get("ready_path"), "/health/ready.json"), "ready_path"));
         payload.put("timeout_ms", defaultNumber(payload.get("timeout_ms"), 3000));
         payload.put("use_yn", defaultText(payload.get("use_yn"), "Y"));
         payload.put("sort_ord", defaultNumber(payload.get("sort_ord"), 0));
