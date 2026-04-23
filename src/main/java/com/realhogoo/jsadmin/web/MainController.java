@@ -6,6 +6,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.view.RedirectView;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -20,10 +21,15 @@ import java.util.Map;
 @Controller
 public class MainController {
 
-    @GetMapping("/main.do")
-    public String main(Model model) {
+    @GetMapping("/")
+    public String index(Model model) {
         model.addAttribute("initialPage", "/home.do");
         return "dashboard/app";
+    }
+
+    @GetMapping("/main.do")
+    public RedirectView main() {
+        return new RedirectView("/", true);
     }
 
     @GetMapping("/login-page.do")

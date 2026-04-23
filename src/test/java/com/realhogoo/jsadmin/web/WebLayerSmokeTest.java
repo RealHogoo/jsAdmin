@@ -177,10 +177,17 @@ class WebLayerSmokeTest {
     }
 
     @Test
-    void mainPageResolvesDashboardView() throws Exception {
-        mockMvc.perform(get("/main.do"))
+    void rootPageResolvesDashboardView() throws Exception {
+        mockMvc.perform(get("/"))
             .andExpect(status().isOk())
             .andExpect(view().name("dashboard/app"));
+    }
+
+    @Test
+    void mainPageRedirectsToRoot() throws Exception {
+        mockMvc.perform(get("/main.do"))
+            .andExpect(status().is3xxRedirection())
+            .andExpect(header().string("Location", "/"));
     }
 
     @Test

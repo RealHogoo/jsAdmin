@@ -170,7 +170,7 @@
                 } else if (global.app && typeof global.app.loadPage === "function") {
                     global.app.loadPage("/home.do");
                 } else {
-                    location.href = (global.CTX || "") + "/main.do";
+                    location.href = (global.CTX || "") + "/";
                 }
             })
             .catch(function (e) {

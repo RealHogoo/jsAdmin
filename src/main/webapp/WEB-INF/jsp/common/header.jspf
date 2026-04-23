@@ -1,7 +1,7 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 
 <div class="app-header">
-    <a href="/main.do" data-spa="/main.do" id="brandHome" class="app-header-brand">jsAdmin</a>
+    <a href="/" id="brandHome" class="app-header-brand">jsAdmin</a>
 
     <div class="header-actions app-header-actions">
         <span id="authUserLabel" class="muted"></span>

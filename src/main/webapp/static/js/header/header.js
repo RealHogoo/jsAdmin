@@ -58,7 +58,7 @@
 
     async function syncAuthState(url) {
         var targetUrl = String(url || "").trim();
-        var onHome = targetUrl === "/home.do" || targetUrl === "/main.do" || !targetUrl;
+        var onHome = targetUrl === "/home.do" || targetUrl === "/" || !targetUrl;
 
         if (!onHome) {
             updateAuthButton();
@@ -98,10 +98,10 @@
 
     async function goMain() {
         if (global.jsAdminSpa && typeof global.jsAdminSpa.load === "function") {
-            await global.jsAdminSpa.load("/main.do");
+            await global.jsAdminSpa.load("/home.do");
             return;
         }
-        global.location.href = "/main.do";
+        global.location.href = "/";
     }
 
     function bindBrandClick() {
