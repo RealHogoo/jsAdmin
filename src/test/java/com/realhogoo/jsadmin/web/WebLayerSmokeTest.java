@@ -93,7 +93,7 @@ class WebLayerSmokeTest {
                 new UserController(userService),
                 new NoticeController(noticeService),
                 new HealthController(dataSource, healthMapper, serviceRegistryMapper, serviceEndpointPolicy),
-                new MainController()
+                new MainController("https://adm.js65.myds.me")
             )
             .setControllerAdvice(new GlobalExceptionHandler())
             .addFilters(new SecurityHeadersFilter())

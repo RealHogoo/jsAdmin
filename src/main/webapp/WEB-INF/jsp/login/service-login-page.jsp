@@ -17,6 +17,7 @@
 
     <script>
         window.CTX = "${pageContext.request.contextPath}";
+        window.PUBLIC_BASE_URL = "${publicBaseUrl}";
     </script>
     <script src="${pageContext.request.contextPath}/static/js/ux.js?v=${assetVersion}"></script>
     <script src="${pageContext.request.contextPath}/static/js/login/login.js?v=${assetVersion}"></script>

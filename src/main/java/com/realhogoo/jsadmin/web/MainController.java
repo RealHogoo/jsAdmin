@@ -1,10 +1,11 @@
 package com.realhogoo.jsadmin.web;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.view.RedirectView;
 
@@ -21,9 +22,16 @@ import java.util.Map;
 @Controller
 public class MainController {
 
+    private final String publicBaseUrl;
+
+    public MainController(@Value("${app.public-base-url:http://localhost:8081}") String publicBaseUrl) {
+        this.publicBaseUrl = normalizeBaseUrl(publicBaseUrl);
+    }
+
     @GetMapping("/")
     public String index(Model model) {
         model.addAttribute("initialPage", "/home.do");
+        model.addAttribute("publicBaseUrl", publicBaseUrl);
         return "dashboard/app";
     }
 
@@ -35,6 +43,7 @@ public class MainController {
     @GetMapping("/login-page.do")
     public String loginPage(Model model) {
         model.addAttribute("initialPage", "/login.do");
+        model.addAttribute("publicBaseUrl", publicBaseUrl);
         return "dashboard/app";
     }
 
@@ -44,6 +53,7 @@ public class MainController {
         Model model
     ) {
         model.addAttribute("serviceName", normalizeServiceName(serviceName));
+        model.addAttribute("publicBaseUrl", publicBaseUrl);
         return "login/service-login-page";
     }
 
@@ -100,13 +110,19 @@ public class MainController {
     }
 
     private boolean isLikelyGarbled(String s) {
-        if (s == null || s.isEmpty()) return true;
+        if (s == null || s.isEmpty()) {
+            return true;
+        }
         int qCount = 0;
         int repCount = 0;
         for (int i = 0; i < s.length(); i++) {
             char ch = s.charAt(i);
-            if (ch == '?') qCount++;
-            if (ch == '\uFFFD') repCount++;
+            if (ch == '?') {
+                qCount++;
+            }
+            if (ch == '\uFFFD') {
+                repCount++;
+            }
         }
         return qCount > 20 || repCount > 0;
     }
@@ -122,7 +138,9 @@ public class MainController {
 
         for (String raw : lines) {
             String line = raw == null ? "" : raw.trim();
-            if (line.isEmpty()) continue;
+            if (line.isEmpty()) {
+                continue;
+            }
 
             if (line.startsWith("# ") && !titleResolved) {
                 title = line.substring(2).trim();
@@ -169,8 +187,19 @@ public class MainController {
 
     private String normalizeServiceName(String serviceName) {
         if (serviceName == null || serviceName.trim().isEmpty()) {
-            return "연계 서비스";
+            return "Service";
         }
         return serviceName.trim();
+    }
+
+    private String normalizeBaseUrl(String baseUrl) {
+        if (baseUrl == null) {
+            return "";
+        }
+        String normalized = baseUrl.trim();
+        while (normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
     }
 }

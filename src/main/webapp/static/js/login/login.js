@@ -3,6 +3,7 @@
 
     var UX = global.UX;
     var returnUrl = null;
+    var publicBaseUrl = normalizeBaseUrl(global.PUBLIC_BASE_URL || "");
 
     var countdownTimer = null;
     var retryUntilMs = 0;
@@ -113,6 +114,33 @@
         });
     }
 
+    function normalizeBaseUrl(value) {
+        var normalized = (value || "").trim();
+        while (normalized.length > 1 && normalized.charAt(normalized.length - 1) === "/") {
+            normalized = normalized.substring(0, normalized.length - 1);
+        }
+        return normalized;
+    }
+
+    function resolveDefaultTarget() {
+        return publicBaseUrl ? (publicBaseUrl + "/") : ((global.CTX || "") + "/");
+    }
+
+    function isAllowedAbsoluteReturnUrl(value) {
+        try {
+            var parsed = new URL(value, global.location.origin);
+            if (!/^https?:$/i.test(parsed.protocol)) {
+                return false;
+            }
+            if (parsed.username || parsed.password) {
+                return false;
+            }
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
     function resolveReturnUrl() {
         try {
             var params = new URLSearchParams(global.location.search || "");
@@ -122,7 +150,7 @@
             if (!decoded) return null;
             if (/^https?:\/\//i.test(decoded)) {
                 var parsed = new URL(decoded, global.location.origin);
-                if (parsed.hostname !== global.location.hostname) {
+                if (!isAllowedAbsoluteReturnUrl(parsed.toString())) {
                     return null;
                 }
                 return parsed.toString();
@@ -167,10 +195,8 @@
 
                 if (returnUrl) {
                     location.href = returnUrl;
-                } else if (global.app && typeof global.app.loadPage === "function") {
-                    global.app.loadPage("/home.do");
                 } else {
-                    location.href = (global.CTX || "") + "/";
+                    location.href = resolveDefaultTarget();
                 }
             })
             .catch(function (e) {
