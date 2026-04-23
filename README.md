@@ -83,6 +83,8 @@
 
 ```powershell
 $env:APP_ENV="dev"
+$env:SERVICE_ID="admin-service"
+$env:PUBLIC_BASE_URL="http://localhost:8081"
 $env:APP_DB_VENDOR="postgres"
 $env:DB_URL="jdbc:postgresql://localhost:5432/admin"
 $env:DB_USERNAME="postgres"
@@ -94,6 +96,7 @@ $env:JWT_SECRET="change-this-to-a-long-random-secret"
 `JWT_SECRET`는 32자 이상 강한 값이어야 합니다.
 
 운영 배포 시에는 `APP_ENV=prod` 같은 형태로 환경 구분값을 함께 주입하는 것을 권장합니다.
+서비스 식별과 외부 링크 기준값으로는 `SERVICE_ID`, `PUBLIC_BASE_URL`을 함께 두는 구성을 권장합니다.
 
 ## SQL
 
