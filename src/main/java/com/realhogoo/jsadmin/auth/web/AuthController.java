@@ -33,6 +33,23 @@ public class AuthController {
         return "fragments/auth/main";
     }
 
+    @PostMapping("/group/save.json")
+    @ResponseBody
+    public ApiResponse<Map<String, Object>> groupSave(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
+        Long authGroupSeq = authService.saveAuthGroup(body, AuthRequestSupport.userId(request));
+        return ApiResponse.ok(Collections.<String, Object>singletonMap("auth_group_seq", authGroupSeq), request);
+    }
+
+    @PostMapping("/group/delete.json")
+    @ResponseBody
+    public ApiResponse<Map<String, Object>> groupDelete(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
+        Long authGroupSeq = toLong(firstNonNull(body, "auth_group_seq", "authGroupSeq"));
+        int deleted = authService.deleteAuthGroup(authGroupSeq, AuthRequestSupport.userId(request));
+        return ApiResponse.ok(Collections.<String, Object>singletonMap("deleted", deleted), request);
+    }
+
     @PostMapping("/group/list.json")
     @ResponseBody
     public ApiResponse<List<Map<String, Object>>> groupList(

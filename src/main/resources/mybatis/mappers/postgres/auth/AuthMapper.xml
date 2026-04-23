@@ -15,6 +15,38 @@
         ORDER BY ag.auth_group_seq
     </select>
 
+    <insert id="insertAuthGroup" parameterType="map">
+        <selectKey keyProperty="auth_group_seq" resultType="long" order="BEFORE">
+            SELECT nextval('adm_auth_group_seq')
+        </selectKey>
+        INSERT INTO adm_auth_group (
+            auth_group_seq, auth_group_cd, auth_group_nm, auth_group_desc, use_yn,
+            created_at, created_by, updated_at, updated_by
+        ) VALUES (
+            #{auth_group_seq}, #{auth_group_cd}, #{auth_group_nm}, #{auth_group_desc}, #{use_yn},
+            CURRENT_TIMESTAMP, #{created_by}, CURRENT_TIMESTAMP, #{updated_by}
+        )
+    </insert>
+
+    <update id="updateAuthGroup" parameterType="map">
+        UPDATE adm_auth_group
+           SET auth_group_cd = #{auth_group_cd},
+               auth_group_nm = #{auth_group_nm},
+               auth_group_desc = #{auth_group_desc},
+               use_yn = #{use_yn},
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updated_by}
+         WHERE auth_group_seq = #{auth_group_seq}
+    </update>
+
+    <update id="disableAuthGroup">
+        UPDATE adm_auth_group
+           SET use_yn = 'N',
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updatedBy}
+         WHERE auth_group_seq = #{authGroupSeq}
+    </update>
+
     <select id="selectGroupMenuPermList" parameterType="long" resultType="map">
         WITH RECURSIVE menu_tree AS (
             SELECT

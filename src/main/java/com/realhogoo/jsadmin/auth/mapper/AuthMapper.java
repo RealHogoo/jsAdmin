@@ -11,6 +11,12 @@ import java.util.Map;
 public interface AuthMapper {
     List<Map<String, Object>> selectAuthGroupList(Map<String, Object> param);
 
+    int insertAuthGroup(Map<String, Object> param);
+
+    int updateAuthGroup(Map<String, Object> param);
+
+    int disableAuthGroup(@Param("authGroupSeq") Long authGroupSeq, @Param("updatedBy") String updatedBy);
+
     List<Map<String, Object>> selectGroupMenuPermList(@Param("authGroupSeq") Long authGroupSeq);
 
     int disableAllGroupMenuPerm(Map<String, Object> param);

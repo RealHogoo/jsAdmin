@@ -29,6 +29,9 @@ import java.util.UUID;
 public class AuthServiceImpl implements AuthService {
     private static final long ONE_MINUTE_MS = 60_000L;
     private static final long TEN_MINUTES_MS = 600_000L;
+    private static final int MAX_AUTH_GROUP_CODE_LENGTH = 100;
+    private static final int MAX_AUTH_GROUP_NAME_LENGTH = 100;
+    private static final int MAX_AUTH_GROUP_DESC_LENGTH = 500;
     private static final int MAX_LOGIN_ID_LENGTH = 100;
     private static final int MAX_PASSWORD_LENGTH = 1000;
     private static final int MAX_REFRESH_TOKEN_LENGTH = 128;
@@ -64,6 +67,62 @@ public class AuthServiceImpl implements AuthService {
     public List<Map<String, Object>> getAuthGroupList(Map<String, Object> param) {
         if (param == null) param = new HashMap<String, Object>();
         return authMapper.selectAuthGroupList(param);
+    }
+
+    @Override
+    @Transactional
+    public Long saveAuthGroup(Map<String, Object> param, String actor) {
+        if (param == null) {
+            throw new IllegalArgumentException("group data is required");
+        }
+
+        Long authGroupSeq = toLong(firstNonNull(param, "auth_group_seq", "authGroupSeq"));
+        String authGroupCd = toNullableStr(firstNonNull(param, "auth_group_cd", "authGroupCd"));
+        String authGroupNm = toNullableStr(firstNonNull(param, "auth_group_nm", "authGroupNm"));
+        String authGroupDesc = toNullableStr(firstNonNull(param, "auth_group_desc", "authGroupDesc"));
+        String useYn = toStr(firstNonNull(param, "use_yn", "useYn"), "Y");
+        String safeActor = (actor == null || actor.trim().isEmpty()) ? "SYSTEM" : actor.trim();
+
+        if (authGroupCd == null) {
+            throw new IllegalArgumentException("auth_group_cd is required");
+        }
+        if (authGroupNm == null) {
+            throw new IllegalArgumentException("auth_group_nm is required");
+        }
+
+        authGroupCd = authGroupCd.trim().toUpperCase(Locale.ROOT);
+        authGroupNm = authGroupNm.trim();
+        authGroupDesc = authGroupDesc == null ? null : authGroupDesc.trim();
+        validateLength("auth_group_cd", authGroupCd, MAX_AUTH_GROUP_CODE_LENGTH);
+        validateLength("auth_group_nm", authGroupNm, MAX_AUTH_GROUP_NAME_LENGTH);
+        validateLength("auth_group_desc", authGroupDesc, MAX_AUTH_GROUP_DESC_LENGTH);
+
+        Map<String, Object> payload = new HashMap<String, Object>();
+        payload.put("auth_group_cd", authGroupCd);
+        payload.put("auth_group_nm", authGroupNm);
+        payload.put("auth_group_desc", authGroupDesc);
+        payload.put("use_yn", "N".equalsIgnoreCase(useYn) ? "N" : "Y");
+        payload.put("updated_by", safeActor);
+        payload.put("created_by", safeActor);
+
+        if (authGroupSeq == null) {
+            authMapper.insertAuthGroup(payload);
+            return toLong(payload.get("auth_group_seq"));
+        }
+
+        payload.put("auth_group_seq", authGroupSeq);
+        authMapper.updateAuthGroup(payload);
+        return authGroupSeq;
+    }
+
+    @Override
+    @Transactional
+    public int deleteAuthGroup(Long authGroupSeq, String actor) {
+        if (authGroupSeq == null) {
+            throw new IllegalArgumentException("auth_group_seq is required");
+        }
+        String safeActor = (actor == null || actor.trim().isEmpty()) ? "SYSTEM" : actor.trim();
+        return authMapper.disableAuthGroup(authGroupSeq, safeActor);
     }
 
     @Override

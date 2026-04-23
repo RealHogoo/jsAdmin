@@ -10,6 +10,10 @@ public interface AuthService {
 
     List<Map<String, Object>> getAuthGroupList(Map<String, Object> param);
 
+    Long saveAuthGroup(Map<String, Object> param, String actor);
+
+    int deleteAuthGroup(Long authGroupSeq, String actor);
+
     List<Map<String, Object>> getGroupMenuPermList(Long authGroupSeq);
 
     int saveGroupMenuPerm(Long authGroupSeq, List<Map<String, Object>> items, String actor);

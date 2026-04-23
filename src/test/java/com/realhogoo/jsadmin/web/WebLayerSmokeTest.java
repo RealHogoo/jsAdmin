@@ -63,6 +63,8 @@ class WebLayerSmokeTest {
         when(authService.login(anyString(), anyString(), any())).thenReturn(ApiResponse.ok(Collections.emptyMap(), "TRACE-1"));
         when(authService.me(anyString(), any(), anyString()))
             .thenReturn(Map.of("user_id", "ADMIN", "user_nm", "ADMIN USER"));
+        when(authService.saveAuthGroup(any(), anyString())).thenReturn(10001L);
+        when(authService.deleteAuthGroup(any(), anyString())).thenReturn(1);
         when(menuService.getMenuTree(anyString())).thenReturn(List.of(sampleMenuNode()));
         when(userService.getUserList(any())).thenReturn(List.of(Map.of("login_id", "ADMIN", "user_nm", "ADMIN USER")));
         when(noticeService.selectNoticeList(any())).thenReturn(List.of(Map.of("noti_seq", 1L, "title", "Sample notice")));
@@ -186,6 +188,28 @@ class WebLayerSmokeTest {
         mockMvc.perform(post("/user/main.do"))
             .andExpect(status().isOk())
             .andExpect(view().name("fragments/user/main"));
+    }
+
+    @Test
+    void authGroupSaveRespondsWithoutServerError() throws Exception {
+        mockMvc.perform(post("/auth/group/save.json")
+                .with(authenticatedUser())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"auth_group_cd\":\"OPS\",\"auth_group_nm\":\"운영권한\",\"use_yn\":\"Y\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.ok").value(true))
+            .andExpect(jsonPath("$.data.auth_group_seq").value(10001));
+    }
+
+    @Test
+    void authGroupDeleteRespondsWithoutServerError() throws Exception {
+        mockMvc.perform(post("/auth/group/delete.json")
+                .with(authenticatedUser())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"auth_group_seq\":10001}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.ok").value(true))
+            .andExpect(jsonPath("$.data.deleted").value(1));
     }
 
     private static RequestPostProcessor authenticatedUser() {

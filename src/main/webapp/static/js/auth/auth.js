@@ -4,6 +4,7 @@
     var UX = global.UX;
     var app = global.app;
     var userTabLoaded = false;
+    var groupRows = {};
 
     function root() {
         return UX.qs("#authRoot");
@@ -43,6 +44,23 @@
         return UX.numOrNull(el.dataset[dataKey]);
     }
 
+    function groupFormValue(selector) {
+        return UX.getValue(selector, page());
+    }
+
+    function fillGroupForm(row) {
+        UX.setValue("#group_auth_group_seq", row && row.auth_group_seq ? row.auth_group_seq : "", page());
+        UX.setValue("#group_auth_group_cd", row && row.auth_group_cd ? row.auth_group_cd : "", page());
+        UX.setValue("#group_auth_group_nm", row && row.auth_group_nm ? row.auth_group_nm : "", page());
+        UX.setValue("#group_auth_group_desc", row && row.auth_group_desc ? row.auth_group_desc : "", page());
+        UX.setValue("#group_use_yn", row && row.use_yn === "N" ? "N" : "Y", page());
+    }
+
+    function selectedGroupRow() {
+        var seq = selectedSeq("group");
+        return seq ? groupRows[String(seq)] : null;
+    }
+
     function makeSelect(options, value, className) {
         var select = document.createElement("select");
         select.className = className;
@@ -71,18 +89,25 @@
     function renderGroupList(list) {
         var tbody = UX.qs("#groupListBody", page());
         if (!tbody) return;
+        groupRows = {};
 
         if (!list.length) {
-            tbody.innerHTML = "<tr><td colspan='3'>No data</td></tr>";
+            tbody.innerHTML = "<tr><td colspan='4'>No data</td></tr>";
             emptyTable("#menuPermBody", 4, "No data");
             emptyTable("#servicePermBody", 4, "No data");
             setSelected("group", null, "-");
+            fillGroupForm(null);
             return;
         }
+
+        list.forEach(function (row) {
+            groupRows[String(row.auth_group_seq)] = row;
+        });
 
         tbody.innerHTML = list.map(function (row, index) {
             return "<tr data-auth-group-seq='" + UX.esc(row.auth_group_seq) + "'>"
                 + "<td>" + UX.esc(index + 1) + "</td>"
+                + "<td>" + UX.esc(row.auth_group_cd || "-") + "</td>"
                 + "<td>" + UX.esc(row.auth_group_nm) + "</td>"
                 + "<td>" + UX.esc((row.use_yn || "Y") === "Y" ? "Y" : "N") + "</td>"
                 + "</tr>";
@@ -95,7 +120,9 @@
                 });
                 tr.classList.add("is-selected");
                 var seq = Number(tr.getAttribute("data-auth-group-seq"));
-                setSelected("group", seq, UX.normalizeText(tr.children[1].textContent) || String(seq));
+                var selected = groupRows[String(seq)] || null;
+                setSelected("group", seq, UX.normalizeText(tr.children[2].textContent) || String(seq));
+                fillGroupForm(selected);
                 loadGroupMenus(seq);
                 loadGroupServices(seq);
             });
@@ -106,9 +133,61 @@
     }
 
     function loadGroups() {
-        emptyTable("#groupListBody", 3, "Loading...");
+        emptyTable("#groupListBody", 4, "Loading...");
         return app.callJson("/auth/group/list.json", {}, function (list) {
             renderGroupList(Array.isArray(list) ? list : []);
+        });
+    }
+
+    function resetGroupEditor() {
+        fillGroupForm({
+            auth_group_seq: "",
+            auth_group_cd: "",
+            auth_group_nm: "",
+            auth_group_desc: "",
+            use_yn: "Y"
+        });
+        setSelected("group", null, "신규");
+        emptyTable("#menuPermBody", 4, "그룹 저장 후 권한을 설정하세요.");
+        emptyTable("#servicePermBody", 4, "그룹 저장 후 권한을 설정하세요.");
+    }
+
+    function saveGroupMeta() {
+        var payload = {
+            auth_group_seq: UX.numOrNull(groupFormValue("#group_auth_group_seq")),
+            auth_group_cd: UX.normalizeText(groupFormValue("#group_auth_group_cd")),
+            auth_group_nm: UX.normalizeText(groupFormValue("#group_auth_group_nm")),
+            auth_group_desc: UX.normalizeText(groupFormValue("#group_auth_group_desc")),
+            use_yn: groupFormValue("#group_use_yn") === "N" ? "N" : "Y"
+        };
+
+        if (!payload.auth_group_cd) return global.alert("그룹 코드는 필수입니다.");
+        if (!payload.auth_group_nm) return global.alert("그룹명은 필수입니다.");
+
+        app.callJson("/auth/group/save.json", payload, function (data) {
+            var nextSeq = data && data.auth_group_seq ? Number(data.auth_group_seq) : null;
+            global.alert("저장 완료");
+            loadGroups().then(function () {
+                if (!nextSeq) return;
+                var tbody = UX.qs("#groupListBody", page());
+                var target = tbody ? tbody.querySelector("tr[data-auth-group-seq='" + nextSeq + "']") : null;
+                if (target) target.click();
+            });
+        }, function (e) {
+            global.alert("저장 실패: " + (e && e.message ? e.message : e));
+        });
+    }
+
+    function deleteGroup() {
+        var row = selectedGroupRow();
+        if (!row || !row.auth_group_seq) return global.alert("삭제할 그룹을 선택하세요.");
+        if (!global.confirm((row.auth_group_nm || "선택한 그룹") + "을 미사용 처리하시겠습니까?")) return;
+
+        app.callJson("/auth/group/delete.json", { auth_group_seq: row.auth_group_seq }, function () {
+            global.alert("삭제 완료");
+            loadGroups();
+        }, function (e) {
+            global.alert("삭제 실패: " + (e && e.message ? e.message : e));
         });
     }
 
@@ -517,6 +596,9 @@
     }
 
     function bind(el) {
+        UX.bindOnce(UX.qs("#btnGroupNew", el), "click", resetGroupEditor);
+        UX.bindOnce(UX.qs("#btnGroupMetaSave", el), "click", saveGroupMeta);
+        UX.bindOnce(UX.qs("#btnGroupDelete", el), "click", deleteGroup);
         UX.bindOnce(UX.qs("#btnGroupReload", el), "click", loadGroups);
         UX.bindOnce(UX.qs("#btnGroupSave", el), "click", saveGroupMenus);
         UX.bindOnce(UX.qs("#btnGroupServiceSave", el), "click", saveGroupServices);
@@ -534,6 +616,7 @@
         bindSubTabs(el);
         bind(el);
         app.applyPermission(el);
+        fillGroupForm(null);
         loadGroups();
     }
 

@@ -23,6 +23,52 @@
         ORDER BY ag.auth_group_seq
     </select>
 
+    <insert id="insertAuthGroup" parameterType="map">
+        <selectKey keyProperty="auth_group_seq" resultType="long" order="BEFORE">
+            SELECT ADM_AUTH_GROUP_SEQ.NEXTVAL FROM DUAL
+        </selectKey>
+        INSERT INTO ADM_AUTH_GROUP (
+            AUTH_GROUP_SEQ,
+            AUTH_GROUP_CD,
+            AUTH_GROUP_NM,
+            AUTH_GROUP_DESC,
+            USE_YN,
+            CREATED_AT,
+            CREATED_BY,
+            UPDATED_AT,
+            UPDATED_BY
+        ) VALUES (
+            #{auth_group_seq},
+            #{auth_group_cd},
+            #{auth_group_nm},
+            #{auth_group_desc},
+            #{use_yn},
+            SYSTIMESTAMP,
+            #{created_by},
+            SYSTIMESTAMP,
+            #{updated_by}
+        )
+    </insert>
+
+    <update id="updateAuthGroup" parameterType="map">
+        UPDATE ADM_AUTH_GROUP
+           SET AUTH_GROUP_CD = #{auth_group_cd},
+               AUTH_GROUP_NM = #{auth_group_nm},
+               AUTH_GROUP_DESC = #{auth_group_desc},
+               USE_YN = #{use_yn},
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = #{updated_by}
+         WHERE AUTH_GROUP_SEQ = #{auth_group_seq}
+    </update>
+
+    <update id="disableAuthGroup">
+        UPDATE ADM_AUTH_GROUP
+           SET USE_YN = 'N',
+               UPDATED_AT = SYSTIMESTAMP,
+               UPDATED_BY = #{updatedBy}
+         WHERE AUTH_GROUP_SEQ = #{authGroupSeq}
+    </update>
+
     <select id="selectGroupMenuPermList" parameterType="long" resultType="map">
         SELECT
             m.menu_seq,
