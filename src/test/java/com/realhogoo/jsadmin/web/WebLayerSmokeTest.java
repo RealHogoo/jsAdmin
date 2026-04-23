@@ -103,10 +103,14 @@ class WebLayerSmokeTest {
     @Test
     void loginEndpointRespondsWithoutServerError() throws Exception {
         mockMvc.perform(post("/login.json")
+                .header("X-Forwarded-Host", "adm.js65.myds.me")
+                .header("X-Forwarded-Proto", "https")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"user_id\":\"ADMIN\",\"user_pw\":\"1111\"}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.ok").value(true));
+            .andExpect(jsonPath("$.ok").value(true))
+            .andExpect(header().stringValues("Set-Cookie",
+                org.hamcrest.Matchers.hasItem(org.hamcrest.Matchers.containsString("Domain=js65.myds.me"))));
     }
 
     @Test
