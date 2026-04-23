@@ -23,7 +23,9 @@
 - 로그인, 로그아웃, 토큰 갱신
 - 내 정보 조회
 - 권한 그룹 조회
+- 권한 그룹 생성/수정/미사용 처리
 - 그룹 메뉴 권한 저장
+- 그룹 서비스 권한 저장
 - 사용자 예외 권한 저장
 
 ## 주요 API
@@ -34,7 +36,11 @@
 - `/auth/me.json`
 - `/auth/refresh.json`
 - `/auth/group/list.json`
+- `/auth/group/save.json`
+- `/auth/group/delete.json`
 - `/auth/group/menu/list.json`
 - `/auth/group/menu/save.json`
+- `/auth/group/service/list.json`
+- `/auth/group/service/save.json`
 - `/auth/user/search.json`
 - `/auth/user/exception/save.json`

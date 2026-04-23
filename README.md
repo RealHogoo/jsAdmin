@@ -30,8 +30,13 @@
   - `POST /logout.json`
 - 사용자/권한
   - `POST /user/list.json`
-  - `POST /auth/list.json`
+  - `POST /auth/group/list.json`
+  - `POST /auth/group/save.json`
+  - `POST /auth/group/delete.json`
+  - `POST /auth/group/menu/list.json`
+  - `POST /auth/group/menu/save.json`
   - `POST /auth/group/service/list.json`
+  - `POST /auth/group/service/save.json`
   - `POST /auth/user/servicePermList.json`
 - 운영 관리
   - `POST /code/list.json`
@@ -77,6 +82,7 @@
 필수 또는 권장 환경 변수:
 
 ```powershell
+$env:APP_ENV="dev"
 $env:APP_DB_VENDOR="postgres"
 $env:DB_URL="jdbc:postgresql://localhost:5432/admin"
 $env:DB_USERNAME="postgres"
@@ -86,6 +92,8 @@ $env:JWT_SECRET="change-this-to-a-long-random-secret"
 ```
 
 `JWT_SECRET`는 32자 이상 강한 값이어야 합니다.
+
+운영 배포 시에는 `APP_ENV=prod` 같은 형태로 환경 구분값을 함께 주입하는 것을 권장합니다.
 
 ## SQL
 

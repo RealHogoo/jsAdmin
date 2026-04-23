@@ -2,6 +2,7 @@
 
 ## 필수 설정
 
+- `APP_ENV`: 실행 환경 구분값 (`dev`, `prod` 등)
 - `APP_DB_VENDOR`: `oracle` 또는 `postgres`
 - `SERVER_PORT`: 서비스 포트
 - `JWT_SECRET`: JWT 서명 키
@@ -23,6 +24,7 @@
 
 권장 환경변수:
 
+- `APP_ENV`
 - `DB_DRIVER`
 - `DB_URL`
 - `DB_USERNAME`
@@ -38,6 +40,7 @@ Oracle:
 
 ```powershell
 $env:APP_DB_VENDOR="oracle"
+$env:APP_ENV="dev"
 $env:JWT_SECRET="change-this-secret"
 $env:DB_URL="jdbc:log4jdbc:oracle:thin:@localhost:1521/admin"
 $env:DB_USERNAME="ADMIN_DEV"
@@ -49,6 +52,7 @@ PostgreSQL:
 
 ```powershell
 $env:APP_DB_VENDOR="postgres"
+$env:APP_ENV="dev"
 $env:JWT_SECRET="change-this-secret"
 .\gradlew.bat bootRun
 ```
@@ -64,6 +68,7 @@ $env:JWT_SECRET="change-this-secret"
 ## 배포 체크리스트
 
 - `JWT_SECRET`를 운영 환경변수로 주입했는지 확인
+- `APP_ENV`가 운영 배포값(`prod` 등)으로 설정됐는지 확인
 - `APP_DB_VENDOR`를 올바르게 선택했는지 확인
 - `AUTH_SUPER_LOGIN_ID`와 실제 계정이 일치하는지 확인
 - DB 접속정보를 최종 검증했는지 확인
