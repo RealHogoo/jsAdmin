@@ -104,6 +104,24 @@ body.app-shell {
     padding: 12px;
     border-top: 1px solid #ddd;
     background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.app-footer-spacer {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.app-footer-release {
+    flex: 0 0 auto;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #64748b;
 }
 
 .app-loading-bar {
