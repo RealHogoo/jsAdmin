@@ -28,12 +28,7 @@ public class MenuServiceImpl implements MenuService {
 
     @Override
     public List<MenuNode> getMenuTree(String userId) {
-        List<Map<String, Object>> rows;
-        if (userId == null || userId.trim().isEmpty()) {
-            rows = menuMapper.selectMenuListByAuthGroupSeq(COMMON_AUTH_GROUP_SEQ);
-        } else {
-            rows = menuMapper.selectMenuListByUserId(userId);
-        }
+        List<Map<String, Object>> rows = selectVisibleMenuRows(userId);
 
         Map<Long, MenuNode> map = new LinkedHashMap<>();
         for (Map<String, Object> row : rows) {
@@ -60,6 +55,19 @@ public class MenuServiceImpl implements MenuService {
 
         sortTree(roots);
         return roots;
+    }
+
+    private List<Map<String, Object>> selectVisibleMenuRows(String userId) {
+        List<Map<String, Object>> commonRows = menuMapper.selectMenuListByAuthGroupSeq(COMMON_AUTH_GROUP_SEQ);
+        if (userId == null || userId.trim().isEmpty()) {
+            return commonRows;
+        }
+
+        List<Map<String, Object>> userRows = menuMapper.selectMenuListByUserId(userId);
+        List<Map<String, Object>> mergedRows = new ArrayList<>(commonRows.size() + userRows.size());
+        mergedRows.addAll(commonRows);
+        mergedRows.addAll(userRows);
+        return mergedRows;
     }
 
     @Override

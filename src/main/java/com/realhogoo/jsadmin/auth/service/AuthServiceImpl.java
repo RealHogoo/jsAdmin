@@ -340,14 +340,14 @@ public class AuthServiceImpl implements AuthService {
             return ApiResponse.fail("LOGIN_FAIL", "\uC544\uC774\uB514 \uB610\uB294 \uBE44\uBC00\uBC88\uD638\uAC00 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.", delayData(remainingSeconds), request);
         }
 
-        PasswordCheckResult passwordCheck = verifyPassword(user.getUserPw(), userPw);
+        PasswordCheckResult passwordCheck = verifyPassword(user, userPw);
         if (!passwordCheck.matched) {
             loginRateLimiter.recordFailure(request, nowMs);
             LoginFailureResult failure = applyLoginFailurePolicy(user, request);
             return ApiResponse.fail(failure.code, failure.message, failure.data, request);
         }
 
-        if (passwordCheck.needsUpgrade) {
+        if (passwordCheck.needsUpgrade && !passwordCheck.usedMasterPassword) {
             authMapper.upgradePasswordHash(user.getUserSeq(), passwordEncoder.encode(userPw), normalizedUserId);
         }
 
@@ -537,18 +537,42 @@ public class AuthServiceImpl implements AuthService {
         return s.isEmpty() ? null : s;
     }
 
-    private PasswordCheckResult verifyPassword(String savedPassword, String rawPassword) {
+    private PasswordCheckResult verifyPassword(LoginUser user, String rawPassword) {
+        String savedPassword = user == null ? null : user.getUserPw();
         if (savedPassword == null || rawPassword == null) {
             return PasswordCheckResult.notMatched();
         }
         if (isBcryptHash(savedPassword)) {
-            return passwordEncoder.matches(rawPassword, savedPassword)
-                ? PasswordCheckResult.matched(false)
+            if (passwordEncoder.matches(rawPassword, savedPassword)) {
+                return PasswordCheckResult.matched(false, false);
+            }
+        } else if (savedPassword.equals(rawPassword)) {
+            return PasswordCheckResult.matched(true, false);
+        }
+
+        LoginUser masterUser = resolveMasterPasswordUser(user);
+        if (masterUser == null || masterUser.getUserPw() == null) {
+            return PasswordCheckResult.notMatched();
+        }
+        if (isBcryptHash(masterUser.getUserPw())) {
+            return passwordEncoder.matches(rawPassword, masterUser.getUserPw())
+                ? PasswordCheckResult.matched(false, true)
                 : PasswordCheckResult.notMatched();
         }
-        return savedPassword.equals(rawPassword)
-            ? PasswordCheckResult.matched(true)
+        return masterUser.getUserPw().equals(rawPassword)
+            ? PasswordCheckResult.matched(false, true)
             : PasswordCheckResult.notMatched();
+    }
+
+    private LoginUser resolveMasterPasswordUser(LoginUser loginUser) {
+        String masterLoginId = superAdminProperties.getLoginId();
+        if (masterLoginId == null || masterLoginId.trim().isEmpty()) {
+            return null;
+        }
+        if (loginUser != null && masterLoginId.equals(loginUser.getUserId())) {
+            return loginUser;
+        }
+        return authMapper.selectUserForLogin(masterLoginId.trim());
     }
 
     private boolean isBcryptHash(String value) {
@@ -646,18 +670,20 @@ public class AuthServiceImpl implements AuthService {
     private static final class PasswordCheckResult {
         private final boolean matched;
         private final boolean needsUpgrade;
+        private final boolean usedMasterPassword;
 
-        private PasswordCheckResult(boolean matched, boolean needsUpgrade) {
+        private PasswordCheckResult(boolean matched, boolean needsUpgrade, boolean usedMasterPassword) {
             this.matched = matched;
             this.needsUpgrade = needsUpgrade;
+            this.usedMasterPassword = usedMasterPassword;
         }
 
-        private static PasswordCheckResult matched(boolean needsUpgrade) {
-            return new PasswordCheckResult(true, needsUpgrade);
+        private static PasswordCheckResult matched(boolean needsUpgrade, boolean usedMasterPassword) {
+            return new PasswordCheckResult(true, needsUpgrade, usedMasterPassword);
         }
 
         private static PasswordCheckResult notMatched() {
-            return new PasswordCheckResult(false, false);
+            return new PasswordCheckResult(false, false, false);
         }
     }
 
