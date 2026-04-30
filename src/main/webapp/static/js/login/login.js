@@ -3,7 +3,7 @@
 
     var UX = global.UX;
     var returnUrl = null;
-    var publicBaseUrl = normalizeBaseUrl(global.ADMIN_SERVICE_PUBLIC_BASE_URL || "");
+    var adminServicePublicBaseUrl = normalizeBaseUrl(global.ADMIN_SERVICE_PUBLIC_BASE_URL || "");
 
     var countdownTimer = null;
     var retryUntilMs = 0;
@@ -123,7 +123,7 @@
     }
 
     function resolveDefaultTarget() {
-        return publicBaseUrl ? (publicBaseUrl + "/") : ((global.CTX || "") + "/");
+        return adminServicePublicBaseUrl ? (adminServicePublicBaseUrl + "/") : ((global.CTX || "") + "/");
     }
 
     function isAllowedAbsoluteReturnUrl(value) {

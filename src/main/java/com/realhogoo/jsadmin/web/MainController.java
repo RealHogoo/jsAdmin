@@ -22,16 +22,16 @@ import java.util.Map;
 @Controller
 public class MainController {
 
-    private final String publicBaseUrl;
+    private final String adminServicePublicBaseUrl;
 
-    public MainController(@Value("${app.public-base-url:http://localhost:8081}") String publicBaseUrl) {
-        this.publicBaseUrl = normalizeBaseUrl(publicBaseUrl);
+    public MainController(@Value("${app.public-base-url:http://localhost:8081}") String adminServicePublicBaseUrl) {
+        this.adminServicePublicBaseUrl = normalizeBaseUrl(adminServicePublicBaseUrl);
     }
 
     @GetMapping("/")
     public String index(Model model) {
         model.addAttribute("initialPage", "/home.do");
-        model.addAttribute("publicBaseUrl", publicBaseUrl);
+        model.addAttribute("adminServicePublicBaseUrl", adminServicePublicBaseUrl);
         return "dashboard/app";
     }
 
@@ -43,7 +43,7 @@ public class MainController {
     @GetMapping("/login-page.do")
     public String loginPage(Model model) {
         model.addAttribute("initialPage", "/login.do");
-        model.addAttribute("publicBaseUrl", publicBaseUrl);
+        model.addAttribute("adminServicePublicBaseUrl", adminServicePublicBaseUrl);
         return "dashboard/app";
     }
 
@@ -53,7 +53,7 @@ public class MainController {
         Model model
     ) {
         model.addAttribute("serviceName", normalizeServiceName(serviceName));
-        model.addAttribute("publicBaseUrl", publicBaseUrl);
+        model.addAttribute("adminServicePublicBaseUrl", adminServicePublicBaseUrl);
         return "login/service-login-page";
     }
 
