@@ -202,6 +202,20 @@ class WebLayerSmokeTest {
     }
 
     @Test
+    void authGroupMainPageResolvesFragmentView() throws Exception {
+        mockMvc.perform(post("/auth/group/main.do"))
+            .andExpect(status().isOk())
+            .andExpect(view().name("fragments/auth/group-main"));
+    }
+
+    @Test
+    void authUserMainPageResolvesFragmentView() throws Exception {
+        mockMvc.perform(post("/auth/user/main.do"))
+            .andExpect(status().isOk())
+            .andExpect(view().name("fragments/auth/main"));
+    }
+
+    @Test
     void authGroupSaveRespondsWithoutServerError() throws Exception {
         mockMvc.perform(post("/auth/group/save.json")
                 .with(authenticatedUser())

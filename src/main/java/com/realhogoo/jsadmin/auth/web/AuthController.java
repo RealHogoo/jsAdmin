@@ -33,6 +33,16 @@ public class AuthController {
         return "fragments/auth/main";
     }
 
+    @PostMapping("/group/main.do")
+    public String groupMain() {
+        return "fragments/auth/group-main";
+    }
+
+    @PostMapping("/user/main.do")
+    public String userMain() {
+        return "fragments/auth/main";
+    }
+
     @PostMapping("/group/save.json")
     @ResponseBody
     public ApiResponse<Map<String, Object>> groupSave(@RequestBody Map<String, Object> body, HttpServletRequest request) {

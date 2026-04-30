@@ -7,11 +7,16 @@
     var groupRows = {};
 
     function root() {
-        return UX.qs("#authRoot");
+        return UX.qs("#authRoot") || UX.qs("#authGroupRoot");
     }
 
     function page() {
         return root();
+    }
+
+    function pageMode() {
+        if (UX.qs("#authGroupRoot")) return "group";
+        return "permission";
     }
 
     function toNum(value, fallback) {
@@ -56,6 +61,19 @@
         UX.setValue("#group_use_yn", row && row.use_yn === "N" ? "N" : "Y", page());
     }
 
+    function fillGroupSummary(row) {
+        UX.setValue("#authGroupSeqView", row && row.auth_group_seq ? row.auth_group_seq : "", page());
+        UX.setValue("#authGroupCdView", row && row.auth_group_cd ? row.auth_group_cd : "", page());
+        UX.setValue("#authGroupNmView", row && row.auth_group_nm ? row.auth_group_nm : "", page());
+        UX.setValue("#authGroupUseYnView", row && row.use_yn ? row.use_yn : "", page());
+    }
+
+    function fillUserSummary(row) {
+        UX.setValue("#authUserSeqView", row && row.user_seq ? row.user_seq : "", page());
+        UX.setValue("#authUserLoginIdView", row && row.login_id ? row.login_id : "", page());
+        UX.setValue("#authUserNmView", row && row.user_nm ? row.user_nm : "", page());
+    }
+
     function selectedGroupRow() {
         var seq = selectedSeq("group");
         return seq ? groupRows[String(seq)] : null;
@@ -96,7 +114,8 @@
             emptyTable("#menuPermBody", 4, "No data");
             emptyTable("#servicePermBody", 4, "No data");
             setSelected("group", null, "-");
-            fillGroupForm(null);
+            if (UX.qs("#groupForm", page())) fillGroupForm(null);
+            fillGroupSummary(null);
             return;
         }
 
@@ -122,9 +141,10 @@
                 var seq = Number(tr.getAttribute("data-auth-group-seq"));
                 var selected = groupRows[String(seq)] || null;
                 setSelected("group", seq, UX.normalizeText(tr.children[2].textContent) || String(seq));
-                fillGroupForm(selected);
-                loadGroupMenus(seq);
-                loadGroupServices(seq);
+                if (UX.qs("#groupForm", page())) fillGroupForm(selected);
+                fillGroupSummary(selected);
+                if (UX.qs("#menuPermBody", page())) loadGroupMenus(seq);
+                if (UX.qs("#servicePermBody", page())) loadGroupServices(seq);
             });
         });
 
@@ -366,6 +386,7 @@
             emptyTable("#userExceptionBody", 4, "No data");
             emptyTable("#userServiceExceptionBody", 5, "No data");
             setSelected("user", null, "-");
+            fillUserSummary(null);
             return;
         }
 
@@ -384,7 +405,11 @@
                 });
                 tr.classList.add("is-selected");
                 var seq = Number(tr.getAttribute("data-user-seq"));
+                var selected = list.filter(function (row) {
+                    return Number(row.user_seq) === seq;
+                })[0] || null;
                 setSelected("user", seq, UX.normalizeText(tr.children[2].textContent) || String(seq));
+                fillUserSummary(selected);
                 loadUserMenuPerms(seq);
                 loadUserServicePerms(seq);
             });
@@ -595,13 +620,20 @@
         });
     }
 
-    function bind(el) {
+    function bindGroupMeta(el) {
         UX.bindOnce(UX.qs("#btnGroupNew", el), "click", resetGroupEditor);
         UX.bindOnce(UX.qs("#btnGroupMetaSave", el), "click", saveGroupMeta);
         UX.bindOnce(UX.qs("#btnGroupDelete", el), "click", deleteGroup);
         UX.bindOnce(UX.qs("#btnGroupReload", el), "click", loadGroups);
+    }
+
+    function bindGroupPermission(el) {
+        UX.bindOnce(UX.qs("#btnGroupReload", el), "click", loadGroups);
         UX.bindOnce(UX.qs("#btnGroupSave", el), "click", saveGroupMenus);
         UX.bindOnce(UX.qs("#btnGroupServiceSave", el), "click", saveGroupServices);
+    }
+
+    function bindUserPermission(el) {
         UX.bindOnce(UX.qs("#btnUserSearch", el), "click", searchUsers);
         UX.bindOnce(UX.qs("#btnUserExceptionSave", el), "click", saveUserMenuExceptions);
         UX.bindOnce(UX.qs("#btnUserServiceExceptionSave", el), "click", saveUserServiceExceptions);
@@ -611,14 +643,24 @@
     function init() {
         var el = page();
         if (!el) return;
+        var mode = pageMode();
         userTabLoaded = false;
-        bindTabs(el);
         bindSubTabs(el);
-        bind(el);
         app.applyPermission(el);
-        fillGroupForm(null);
+
+        if (mode === "group") {
+            bindGroupMeta(el);
+            fillGroupForm(null);
+            loadGroups();
+            return;
+        }
+
+        bindTabs(el);
+        bindGroupPermission(el);
+        bindUserPermission(el);
         loadGroups();
     }
 
     app.bindPage("__AUTH_PAGE_BOUND_V4__", "/auth/main.do", init);
+    app.bindPage("__AUTH_GROUP_PAGE_BOUND_V1__", "/auth/group/main.do", init);
 })(window);

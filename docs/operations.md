@@ -4,7 +4,7 @@
 
 - `APP_ENV`
 - `APP_DB_VENDOR`
-- `PUBLIC_BASE_URL`
+- `ADMIN_SERVICE_PUBLIC_BASE_URL`
 - `JWT_SECRET`
 - `JWT_EXP_SECONDS`
 - `ASSET_VERSION`
@@ -18,7 +18,7 @@
 ```powershell
 $env:APP_DB_VENDOR="postgres"
 $env:APP_ENV="dev"
-$env:PUBLIC_BASE_URL="http://localhost:8081"
+$env:ADMIN_SERVICE_PUBLIC_BASE_URL="http://localhost:8081"
 $env:JWT_SECRET="change-this-secret"
 $env:DB_URL="jdbc:postgresql://localhost:5432/admin"
 $env:DB_USERNAME="postgres"

@@ -3,7 +3,7 @@
 
     var UX = global.UX;
     var returnUrl = null;
-    var publicBaseUrl = normalizeBaseUrl(global.PUBLIC_BASE_URL || "");
+    var publicBaseUrl = normalizeBaseUrl(global.ADMIN_SERVICE_PUBLIC_BASE_URL || "");
 
     var countdownTimer = null;
     var retryUntilMs = 0;

@@ -14,6 +14,7 @@
                 <a href="javascript:void(0)" class="btn" data-spa="/mypage/main.do">&#47560;&#51060;&#54168;&#51060;&#51648;</a>
                 <a href="javascript:void(0)" class="btn" data-spa="/access/main.do">&#51217;&#44540;&#44288;&#47532;</a>
                 <a href="javascript:void(0)" class="btn" data-spa="/user/main.do">&#49324;&#50857;&#51088;&#44288;&#47532;</a>
+                <a href="javascript:void(0)" class="btn" data-spa="/auth/group/main.do">&#xadf8;&#xb8f9;&#xad00;&#xb9ac;</a>
                 <a href="javascript:void(0)" class="btn" data-spa="/auth/main.do">&#44428;&#54620;&#44288;&#47532;</a>
             </div>
         </section>

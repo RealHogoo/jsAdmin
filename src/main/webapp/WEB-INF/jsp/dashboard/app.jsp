@@ -42,7 +42,7 @@
 
     <script>
         window.CTX = "${pageContext.request.contextPath}";
-        window.PUBLIC_BASE_URL = "${publicBaseUrl}";
+        window.ADMIN_SERVICE_PUBLIC_BASE_URL = "${publicBaseUrl}";
     </script>
 
     <script src="${pageContext.request.contextPath}/static/js/ux.js?v=${assetVersion}"></script>

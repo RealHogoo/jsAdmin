@@ -77,7 +77,7 @@
 ```powershell
 $env:APP_ENV="dev"
 $env:SERVICE_ID="admin-service"
-$env:PUBLIC_BASE_URL="http://localhost:8081"
+$env:ADMIN_SERVICE_PUBLIC_BASE_URL="http://localhost:8081"
 $env:APP_DB_VENDOR="postgres"
 $env:DB_URL="jdbc:postgresql://localhost:5432/admin"
 $env:DB_USERNAME="postgres"
