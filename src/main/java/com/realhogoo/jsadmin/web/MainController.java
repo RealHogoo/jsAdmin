@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.view.RedirectView;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -29,9 +31,9 @@ public class MainController {
     }
 
     @GetMapping("/")
-    public String index(Model model) {
+    public String index(Model model, HttpServletRequest request) {
         model.addAttribute("initialPage", "/home.do");
-        model.addAttribute("adminServicePublicBaseUrl", adminServicePublicBaseUrl);
+        model.addAttribute("adminServicePublicBaseUrl", effectivePublicBaseUrl(request));
         return "dashboard/app";
     }
 
@@ -41,19 +43,20 @@ public class MainController {
     }
 
     @GetMapping("/login-page.do")
-    public String loginPage(Model model) {
+    public String loginPage(Model model, HttpServletRequest request) {
         model.addAttribute("initialPage", "/login.do");
-        model.addAttribute("adminServicePublicBaseUrl", adminServicePublicBaseUrl);
+        model.addAttribute("adminServicePublicBaseUrl", effectivePublicBaseUrl(request));
         return "dashboard/app";
     }
 
     @GetMapping("/service-login-page.do")
     public String serviceLoginPage(
         @RequestParam(name = "service_nm", required = false) String serviceName,
-        Model model
+        Model model,
+        HttpServletRequest request
     ) {
         model.addAttribute("serviceName", normalizeServiceName(serviceName));
-        model.addAttribute("adminServicePublicBaseUrl", adminServicePublicBaseUrl);
+        model.addAttribute("adminServicePublicBaseUrl", effectivePublicBaseUrl(request));
         return "login/service-login-page";
     }
 
@@ -201,5 +204,121 @@ public class MainController {
             normalized = normalized.substring(0, normalized.length() - 1);
         }
         return normalized;
+    }
+
+    private String effectivePublicBaseUrl(HttpServletRequest request) {
+        String requestBaseUrl = publicRequestBaseUrl(request);
+        if (requestBaseUrl.isEmpty()) {
+            return adminServicePublicBaseUrl;
+        }
+        if (adminServicePublicBaseUrl.isEmpty() || isLocalBaseUrl(adminServicePublicBaseUrl)) {
+            return requestBaseUrl;
+        }
+        return upgradeConfiguredBaseUrl(adminServicePublicBaseUrl, requestBaseUrl);
+    }
+
+    private String publicRequestBaseUrl(HttpServletRequest request) {
+        if (request == null) {
+            return "";
+        }
+        String scheme = firstHeaderValue(request.getHeader("X-Forwarded-Proto"));
+        if (scheme == null || scheme.isEmpty()) {
+            scheme = request.getScheme();
+        }
+        String host = firstHeaderValue(request.getHeader("X-Forwarded-Host"));
+        if (host == null || host.isEmpty()) {
+            host = request.getServerName();
+        }
+        int port = forwardedPort(request, scheme, host);
+        String cleanHost = host;
+        if (host.contains(":")) {
+            cleanHost = host.substring(0, host.lastIndexOf(':'));
+        }
+        if ("http".equalsIgnoreCase(scheme) && isPublicHost(cleanHost) && (port == 80 || port == 8081)) {
+            scheme = "https";
+            port = 443;
+        }
+        return scheme.toLowerCase() + "://" + cleanHost + (isDefaultPort(scheme, port) ? "" : ":" + port);
+    }
+
+    private int forwardedPort(HttpServletRequest request, String scheme, String host) {
+        String value = firstHeaderValue(request.getHeader("X-Forwarded-Port"));
+        if (value != null) {
+            try {
+                return normalizePort(Integer.parseInt(value), scheme);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        if (host != null && host.contains(":")) {
+            try {
+                return normalizePort(Integer.parseInt(host.substring(host.lastIndexOf(':') + 1)), scheme);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return normalizePort(request.getServerPort(), scheme);
+    }
+
+    private String upgradeConfiguredBaseUrl(String configuredBaseUrl, String requestBaseUrl) {
+        try {
+            URI configured = URI.create(configuredBaseUrl);
+            URI request = URI.create(requestBaseUrl);
+            if ("https".equalsIgnoreCase(request.getScheme())
+                && "http".equalsIgnoreCase(configured.getScheme())
+                && configured.getHost() != null
+                && configured.getHost().equalsIgnoreCase(request.getHost())) {
+                return requestBaseUrl;
+            }
+        } catch (Exception ignored) {
+        }
+        return configuredBaseUrl;
+    }
+
+    private String firstHeaderValue(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return value.split(",")[0].trim();
+    }
+
+    private int normalizePort(int port, String scheme) {
+        if ("https".equalsIgnoreCase(scheme) && port == 80) {
+            return 443;
+        }
+        if (port > 0) {
+            return port;
+        }
+        return "https".equalsIgnoreCase(scheme) ? 443 : 80;
+    }
+
+    private boolean isDefaultPort(String scheme, int port) {
+        return ("https".equalsIgnoreCase(scheme) && port == 443)
+            || ("http".equalsIgnoreCase(scheme) && port == 80);
+    }
+
+    private boolean isLocalBaseUrl(String baseUrl) {
+        try {
+            URI uri = URI.create(baseUrl);
+            return isLocalHost(uri.getHost());
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private boolean isLocalHost(String host) {
+        if (host == null) {
+            return false;
+        }
+        return "localhost".equalsIgnoreCase(host)
+            || "127.0.0.1".equals(host)
+            || "::1".equals(host);
+    }
+
+    private boolean isPublicHost(String host) {
+        if (host == null || isLocalHost(host)) {
+            return false;
+        }
+        return !host.startsWith("10.")
+            && !host.startsWith("192.168.")
+            && !host.matches("^172\\.(1[6-9]|2\\d|3[0-1])\\..*");
     }
 }

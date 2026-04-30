@@ -123,7 +123,7 @@
     }
 
     function resolveDefaultTarget() {
-        return adminServicePublicBaseUrl ? (adminServicePublicBaseUrl + "/") : ((global.CTX || "") + "/");
+        return adminServicePublicBaseUrl ? normalizeRedirectUrl(adminServicePublicBaseUrl + "/") : ((global.CTX || "") + "/");
     }
 
     function isAllowedAbsoluteReturnUrl(value) {
@@ -153,7 +153,7 @@
                 if (!isAllowedAbsoluteReturnUrl(parsed.toString())) {
                     return null;
                 }
-                return parsed.toString();
+                return normalizeRedirectUrl(parsed.toString());
             }
             if (decoded.charAt(0) === "/") {
                 return decoded;
@@ -162,6 +162,33 @@
         } catch (e) {
             return null;
         }
+    }
+
+    function normalizeRedirectUrl(value) {
+        if (!value || global.location.protocol !== "https:") {
+            return value;
+        }
+        try {
+            var parsed = new URL(value, global.location.origin);
+            if (parsed.protocol === "http:" && isPublicHost(parsed.hostname)) {
+                parsed.protocol = "https:";
+                if (parsed.port === "80") {
+                    parsed.port = "";
+                }
+                return parsed.toString();
+            }
+        } catch (e) {
+            return value;
+        }
+        return value;
+    }
+
+    function isPublicHost(hostname) {
+        var host = (hostname || "").toLowerCase();
+        if (!host || host === "localhost" || host === "127.0.0.1" || host === "::1") return false;
+        if (/^10\./.test(host) || /^192\.168\./.test(host)) return false;
+        if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) return false;
+        return true;
     }
 
     function doLogin() {

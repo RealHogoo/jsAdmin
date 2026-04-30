@@ -38,6 +38,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
@@ -185,6 +186,22 @@ class WebLayerSmokeTest {
         mockMvc.perform(get("/"))
             .andExpect(status().isOk())
             .andExpect(view().name("dashboard/app"));
+    }
+
+    @Test
+    void serviceLoginPageUsesForwardedHttpsPublicBaseUrl() throws Exception {
+        MockMvc forwardedMockMvc = MockMvcBuilders
+            .standaloneSetup(new MainController("http://localhost:8081"))
+            .addFilters(new SecurityHeadersFilter())
+            .build();
+
+        forwardedMockMvc.perform(get("/service-login-page.do")
+                .header("X-Forwarded-Proto", "https")
+                .header("X-Forwarded-Host", "adm.js65.myds.me")
+                .header("X-Forwarded-Port", "80"))
+            .andExpect(status().isOk())
+            .andExpect(view().name("login/service-login-page"))
+            .andExpect(model().attribute("adminServicePublicBaseUrl", "https://adm.js65.myds.me"));
     }
 
     @Test
