@@ -68,7 +68,7 @@ public class JwtAuthFilter implements Filter {
         HttpServletResponse resp = (HttpServletResponse) response;
 
         if (!"POST".equalsIgnoreCase(req.getMethod())) {
-            writeJson(resp, 405, ApiResponse.fail(ApiCode.METHOD_NOT_ALLOWED, "POST only", req));
+            writeJson(resp, 405, ApiResponse.fail(ApiCode.METHOD_NOT_ALLOWED, "\ud5c8\uc6a9\ub418\uc9c0 \uc54a\uc740 \uc694\uccad \ubc29\uc2dd\uc785\ub2c8\ub2e4.", req));
             return;
         }
 
@@ -87,7 +87,7 @@ public class JwtAuthFilter implements Filter {
             return;
         }
         if (authorizationToken.isEmpty() && cookieToken != null && isCrossSiteRequest(req)) {
-            writeJson(resp, 403, ApiResponse.fail(ApiCode.FORBIDDEN, "cross-site cookie request blocked", req));
+            writeJson(resp, 403, ApiResponse.fail(ApiCode.FORBIDDEN, "\uc778\uc99d \ucfe0\ud0a4\ub97c \uc0ac\uc6a9\ud560 \uc218 \uc5c6\ub294 \uc694\uccad\uc785\ub2c8\ub2e4.", req));
             return;
         }
 
@@ -178,7 +178,7 @@ public class JwtAuthFilter implements Filter {
     }
 
     private void writeUnauthorized(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-        writeJson(resp, 401, ApiResponse.fail(ApiCode.UNAUTHORIZED, "login required", req));
+        writeJson(resp, 401, ApiResponse.fail(ApiCode.UNAUTHORIZED, "\ub85c\uadf8\uc778\uc774 \ud544\uc694\ud569\ub2c8\ub2e4.", req));
     }
 
     private void tryBindAuthContext(HttpServletRequest req) {

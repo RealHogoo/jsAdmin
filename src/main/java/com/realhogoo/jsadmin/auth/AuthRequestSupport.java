@@ -29,7 +29,7 @@ public final class AuthRequestSupport {
 
     public static void ensureAdmin(HttpServletRequest request) {
         if (!isAdmin(request)) {
-            throw ApiException.forbidden("admin role is required");
+            throw ApiException.forbidden("\uad8c\ud55c\uc774 \uc5c6\uc2b5\ub2c8\ub2e4. \uad00\ub9ac\uc790 \uad8c\ud55c\uc774 \ud544\uc694\ud569\ub2c8\ub2e4.");
         }
     }
 }

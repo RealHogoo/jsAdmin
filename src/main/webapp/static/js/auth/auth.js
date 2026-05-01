@@ -66,6 +66,10 @@
         UX.setValue("#authGroupCdView", row && row.auth_group_cd ? row.auth_group_cd : "", page());
         UX.setValue("#authGroupNmView", row && row.auth_group_nm ? row.auth_group_nm : "", page());
         UX.setValue("#authGroupUseYnView", row && row.use_yn ? row.use_yn : "", page());
+        UX.setValue("#groupUserSeqView", row && row.auth_group_seq ? row.auth_group_seq : "", page());
+        UX.setValue("#groupUserCdView", row && row.auth_group_cd ? row.auth_group_cd : "", page());
+        UX.setValue("#groupUserNmView", row && row.auth_group_nm ? row.auth_group_nm : "", page());
+        UX.setValue("#groupUserUseYnView", row && row.use_yn ? row.use_yn : "", page());
     }
 
     function fillUserSummary(row) {
@@ -105,14 +109,22 @@
     }
 
     function renderGroupList(list) {
-        var tbody = UX.qs("#groupListBody", page());
-        if (!tbody) return;
+        var bodies = ["#groupListBody", "#groupUserGroupListBody"].map(function (selector) {
+            return UX.qs(selector, page());
+        }).filter(function (tbody) {
+            return !!tbody;
+        });
+        if (!bodies.length) return;
         groupRows = {};
 
         if (!list.length) {
-            tbody.innerHTML = "<tr><td colspan='4'>No data</td></tr>";
+            bodies.forEach(function (tbody) {
+                tbody.innerHTML = "<tr><td colspan='" + (tbody.id === "groupUserGroupListBody" ? "3" : "4") + "'>No data</td></tr>";
+            });
             emptyTable("#menuPermBody", 4, "No data");
             emptyTable("#servicePermBody", 4, "No data");
+            emptyTable("#groupUserBody", 4, "No data");
+            emptyTable("#groupUserCandidateBody", 2, "그룹을 먼저 선택하세요.");
             setSelected("group", null, "-");
             if (UX.qs("#groupForm", page())) fillGroupForm(null);
             fillGroupSummary(null);
@@ -123,37 +135,44 @@
             groupRows[String(row.auth_group_seq)] = row;
         });
 
-        tbody.innerHTML = list.map(function (row, index) {
-            return "<tr data-auth-group-seq='" + UX.esc(row.auth_group_seq) + "'>"
-                + "<td>" + UX.esc(index + 1) + "</td>"
-                + "<td>" + UX.esc(row.auth_group_cd || "-") + "</td>"
-                + "<td>" + UX.esc(row.auth_group_nm) + "</td>"
-                + "<td>" + UX.esc((row.use_yn || "Y") === "Y" ? "Y" : "N") + "</td>"
-                + "</tr>";
-        }).join("");
+        bodies.forEach(function (tbody) {
+            var compact = tbody.id === "groupUserGroupListBody";
+            tbody.innerHTML = list.map(function (row, index) {
+                return "<tr data-auth-group-seq='" + UX.esc(row.auth_group_seq) + "'>"
+                    + "<td>" + UX.esc(index + 1) + "</td>"
+                    + "<td>" + UX.esc(row.auth_group_cd || "-") + "</td>"
+                    + "<td>" + UX.esc(row.auth_group_nm) + "</td>"
+                    + (compact ? "" : "<td>" + UX.esc((row.use_yn || "Y") === "Y" ? "Y" : "N") + "</td>")
+                    + "</tr>";
+            }).join("");
 
-        UX.qsa("tr[data-auth-group-seq]", tbody).forEach(function (tr) {
-            tr.addEventListener("click", function () {
-                UX.qsa("tr", tbody).forEach(function (row) {
-                    row.classList.remove("is-selected");
-                });
-                tr.classList.add("is-selected");
+            UX.qsa("tr[data-auth-group-seq]", tbody).forEach(function (tr) {
+                tr.addEventListener("click", function () {
                 var seq = Number(tr.getAttribute("data-auth-group-seq"));
                 var selected = groupRows[String(seq)] || null;
+                UX.qsa("tr[data-auth-group-seq]", page()).forEach(function (row) {
+                    row.classList.toggle("is-selected", Number(row.getAttribute("data-auth-group-seq")) === seq);
+                });
                 setSelected("group", seq, UX.normalizeText(tr.children[2].textContent) || String(seq));
                 if (UX.qs("#groupForm", page())) fillGroupForm(selected);
                 fillGroupSummary(selected);
                 if (UX.qs("#menuPermBody", page())) loadGroupMenus(seq);
                 if (UX.qs("#servicePermBody", page())) loadGroupServices(seq);
+                if (UX.qs("#groupUserBody", page())) loadGroupUsers(seq);
+                if (UX.qs("#groupUserCandidateBody", page())) {
+                    emptyTable("#groupUserCandidateBody", 2, "검색어 입력 후 조회하세요.");
+                }
+                });
             });
         });
 
-        var first = tbody.querySelector("tr[data-auth-group-seq]");
+        var first = bodies[0].querySelector("tr[data-auth-group-seq]");
         if (first) first.click();
     }
 
     function loadGroups() {
         emptyTable("#groupListBody", 4, "Loading...");
+        emptyTable("#groupUserGroupListBody", 3, "Loading...");
         return app.callJson("/auth/group/list.json", {}, function (list) {
             renderGroupList(Array.isArray(list) ? list : []);
         });
@@ -170,6 +189,8 @@
         setSelected("group", null, "신규");
         emptyTable("#menuPermBody", 4, "그룹 저장 후 권한을 설정하세요.");
         emptyTable("#servicePermBody", 4, "그룹 저장 후 권한을 설정하세요.");
+        emptyTable("#groupUserBody", 4, "그룹 저장 후 사용자를 추가하세요.");
+        emptyTable("#groupUserCandidateBody", 2, "그룹 저장 후 조회하세요.");
     }
 
     function saveGroupMeta() {
@@ -325,6 +346,104 @@
         emptyTable("#servicePermBody", 4, "Loading...");
         return app.callJson("/auth/group/service/list.json", { auth_group_seq: authGroupSeq }, function (list) {
             renderGroupServices(Array.isArray(list) ? list : []);
+        });
+    }
+
+    function renderGroupUsers(list) {
+        var tbody = UX.qs("#groupUserBody", page());
+        if (!tbody) return;
+
+        if (!list.length) {
+            tbody.innerHTML = "<tr><td colspan='4'>No data</td></tr>";
+            return;
+        }
+
+        tbody.innerHTML = list.map(function (row, index) {
+            return "<tr data-user-seq='" + UX.esc(row.user_seq) + "'>"
+                + "<td>" + UX.esc(index + 1) + "</td>"
+                + "<td>" + UX.esc(row.login_id || "-") + "</td>"
+                + "<td>" + UX.esc(row.user_nm || "-") + "</td>"
+                + "<td><a href='javascript:void(0)' class='btn btn-small js-group-user-remove' data-user-seq='" + UX.esc(row.user_seq) + "'>제거</a></td>"
+                + "</tr>";
+        }).join("");
+
+        UX.qsa(".js-group-user-remove", tbody).forEach(function (btn) {
+            btn.addEventListener("click", function (event) {
+                event.preventDefault();
+                removeGroupUser(Number(btn.getAttribute("data-user-seq")));
+            });
+        });
+    }
+
+    function loadGroupUsers(authGroupSeq) {
+        emptyTable("#groupUserBody", 4, "Loading...");
+        return app.callJson("/auth/group/user/list.json", { auth_group_seq: authGroupSeq }, function (list) {
+            renderGroupUsers(Array.isArray(list) ? list : []);
+        });
+    }
+
+    function renderGroupUserCandidates(list) {
+        var tbody = UX.qs("#groupUserCandidateBody", page());
+        if (!tbody) return;
+
+        if (!list.length) {
+            tbody.innerHTML = "<tr><td colspan='2'>No data</td></tr>";
+            return;
+        }
+
+        tbody.innerHTML = list.map(function (row) {
+            return "<tr data-user-seq='" + UX.esc(row.user_seq) + "'>"
+                + "<td><strong>" + UX.esc(row.login_id || "-") + "</strong><br><span>" + UX.esc(row.user_nm || "-") + "</span></td>"
+                + "<td><a href='javascript:void(0)' class='btn btn-small js-group-user-add' data-user-seq='" + UX.esc(row.user_seq) + "'>추가</a></td>"
+                + "</tr>";
+        }).join("");
+
+        UX.qsa(".js-group-user-add", tbody).forEach(function (btn) {
+            btn.addEventListener("click", function (event) {
+                event.preventDefault();
+                addGroupUser(Number(btn.getAttribute("data-user-seq")));
+            });
+        });
+    }
+
+    function searchGroupUserCandidates() {
+        var authGroupSeq = selectedSeq("group");
+        if (!authGroupSeq) {
+            return global.alert("그룹을 먼저 선택하세요.");
+        }
+        emptyTable("#groupUserCandidateBody", 2, "Loading...");
+        return app.callJson("/auth/group/user/candidateList.json", {
+            auth_group_seq: authGroupSeq,
+            keyword: UX.getValue("#groupUserKeyword", page())
+        }, function (list) {
+            renderGroupUserCandidates(Array.isArray(list) ? list : []);
+        });
+    }
+
+    function addGroupUser(userSeq) {
+        var authGroupSeq = selectedSeq("group");
+        if (!authGroupSeq || !userSeq) return;
+
+        app.callJson("/auth/group/user/save.json", {
+            auth_group_seq: authGroupSeq,
+            users: [{ user_seq: userSeq }]
+        }, function () {
+            loadGroupUsers(authGroupSeq);
+            searchGroupUserCandidates();
+        });
+    }
+
+    function removeGroupUser(userSeq) {
+        var authGroupSeq = selectedSeq("group");
+        if (!authGroupSeq || !userSeq) return;
+        if (!global.confirm("선택한 사용자를 그룹에서 제거할까요?")) return;
+
+        app.callJson("/auth/group/user/delete.json", {
+            auth_group_seq: authGroupSeq,
+            user_seq: userSeq
+        }, function () {
+            loadGroupUsers(authGroupSeq);
+            searchGroupUserCandidates();
         });
     }
 
@@ -620,17 +739,36 @@
         });
     }
 
+    function bindGroupMainTabs(el) {
+        UX.qsa("[data-group-tab]", el).forEach(function (tab) {
+            tab.addEventListener("click", function () {
+                var target = tab.dataset.groupTab;
+                UX.qsa("[data-group-tab]", el).forEach(function (item) {
+                    item.classList.remove("is-active");
+                });
+                tab.classList.add("is-active");
+                UX.qsa("[data-group-pane]", el).forEach(function (pane) {
+                    pane.style.display = pane.dataset.groupPane === target ? "" : "none";
+                });
+            });
+        });
+    }
+
     function bindGroupMeta(el) {
         UX.bindOnce(UX.qs("#btnGroupNew", el), "click", resetGroupEditor);
         UX.bindOnce(UX.qs("#btnGroupMetaSave", el), "click", saveGroupMeta);
         UX.bindOnce(UX.qs("#btnGroupDelete", el), "click", deleteGroup);
         UX.bindOnce(UX.qs("#btnGroupReload", el), "click", loadGroups);
+        UX.bindOnce(UX.qs("#btnGroupUserSearch", el), "click", searchGroupUserCandidates);
+        app.bindEnterAction(UX.qs("#groupUserKeyword", el), searchGroupUserCandidates);
     }
 
     function bindGroupPermission(el) {
         UX.bindOnce(UX.qs("#btnGroupReload", el), "click", loadGroups);
         UX.bindOnce(UX.qs("#btnGroupSave", el), "click", saveGroupMenus);
         UX.bindOnce(UX.qs("#btnGroupServiceSave", el), "click", saveGroupServices);
+        UX.bindOnce(UX.qs("#btnGroupUserSearch", el), "click", searchGroupUserCandidates);
+        app.bindEnterAction(UX.qs("#groupUserKeyword", el), searchGroupUserCandidates);
     }
 
     function bindUserPermission(el) {
@@ -649,6 +787,7 @@
         app.applyPermission(el);
 
         if (mode === "group") {
+            bindGroupMainTabs(el);
             bindGroupMeta(el);
             fillGroupForm(null);
             loadGroups();

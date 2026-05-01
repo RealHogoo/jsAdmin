@@ -30,6 +30,14 @@ public interface AuthService {
 
     int saveGroupServicePerm(Long authGroupSeq, List<Map<String, Object>> items, String actor);
 
+    List<Map<String, Object>> getGroupUserList(Long authGroupSeq);
+
+    List<Map<String, Object>> searchGroupUserCandidates(Long authGroupSeq, Map<String, Object> param);
+
+    int saveGroupUsers(Long authGroupSeq, List<Map<String, Object>> users, String actor);
+
+    int removeGroupUser(Long authGroupSeq, Long userSeq, String actor);
+
     List<Map<String, Object>> getUserServicePermList(Long userSeq);
 
     void saveUserServiceExceptions(Long userSeq, List<Map<String, Object>> exceptions, String actor);

@@ -120,6 +120,51 @@ public class AuthController {
         return ApiResponse.ok(Collections.singletonMap("saved", saved), request);
     }
 
+    @PostMapping("/group/user/list.json")
+    @ResponseBody
+    public ApiResponse<List<Map<String, Object>>> groupUserList(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
+        Long authGroupSeq = toLong(firstNonNull(body, "auth_group_seq", "authGroupSeq"));
+        return ApiResponse.ok(authService.getGroupUserList(authGroupSeq), request);
+    }
+
+    @PostMapping("/group/user/candidateList.json")
+    @ResponseBody
+    public ApiResponse<List<Map<String, Object>>> groupUserCandidateList(
+        @RequestBody(required = false) Map<String, Object> body,
+        HttpServletRequest request
+    ) {
+        AuthRequestSupport.ensureAdmin(request);
+        if (body == null) body = new HashMap<String, Object>();
+        Long authGroupSeq = toLong(firstNonNull(body, "auth_group_seq", "authGroupSeq"));
+        validateLength("keyword", toStringValue(body.get("keyword")), MAX_KEYWORD_LENGTH);
+        return ApiResponse.ok(authService.searchGroupUserCandidates(authGroupSeq, body), request);
+    }
+
+    @PostMapping("/group/user/save.json")
+    @ResponseBody
+    public ApiResponse<Map<String, Integer>> groupUserSave(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
+        Long authGroupSeq = toLong(firstNonNull(body, "auth_group_seq", "authGroupSeq"));
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> users = (List<Map<String, Object>>) firstNonNull(body, "users", "items", "rows");
+        if (users == null) {
+            throw new IllegalArgumentException("users(items/rows) is required");
+        }
+        int saved = authService.saveGroupUsers(authGroupSeq, users, AuthRequestSupport.userId(request));
+        return ApiResponse.ok(Collections.singletonMap("saved", saved), request);
+    }
+
+    @PostMapping("/group/user/delete.json")
+    @ResponseBody
+    public ApiResponse<Map<String, Integer>> groupUserDelete(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
+        Long authGroupSeq = toLong(firstNonNull(body, "auth_group_seq", "authGroupSeq"));
+        Long userSeq = toLong(firstNonNull(body, "user_seq", "userSeq"));
+        int deleted = authService.removeGroupUser(authGroupSeq, userSeq, AuthRequestSupport.userId(request));
+        return ApiResponse.ok(Collections.singletonMap("deleted", deleted), request);
+    }
+
     @PostMapping("/user/search.json")
     @ResponseBody
     public ApiResponse<List<Map<String, Object>>> searchUsers(@RequestBody Map<String, Object> body, HttpServletRequest request) {

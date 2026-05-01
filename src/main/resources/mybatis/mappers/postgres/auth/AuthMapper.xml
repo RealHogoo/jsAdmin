@@ -236,6 +236,55 @@
                updated_by = EXCLUDED.updated_by
     </update>
 
+    <select id="selectGroupUserList" parameterType="long" resultType="map">
+        SELECT
+            u.user_seq,
+            u.login_id,
+            u.user_nm,
+            u.use_yn,
+            agu.use_yn AS map_use_yn
+        FROM adm_auth_group_user agu
+        JOIN adm_user_mst u
+          ON u.user_seq = agu.user_seq
+        WHERE agu.auth_group_seq = #{authGroupSeq}
+          AND agu.use_yn = 'Y'
+        ORDER BY u.login_id, u.user_seq
+    </select>
+
+    <select id="selectGroupUserCandidateList" parameterType="map" resultType="map">
+        SELECT
+            u.user_seq,
+            u.login_id,
+            u.user_nm,
+            u.use_yn
+        FROM adm_user_mst u
+        WHERE u.use_yn = 'Y'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM adm_auth_group_user agu
+              WHERE agu.auth_group_seq = #{auth_group_seq}
+                AND agu.user_seq = u.user_seq
+                AND agu.use_yn = 'Y'
+          )
+        <if test="keyword != null and keyword != ''">
+          AND (u.login_id LIKE '%' || #{keyword} || '%' OR u.user_nm LIKE '%' || #{keyword} || '%')
+        </if>
+        ORDER BY u.login_id, u.user_seq
+    </select>
+
+    <update id="upsertGroupUser" parameterType="map">
+        INSERT INTO adm_auth_group_user (
+            auth_group_seq, user_seq, use_yn, created_at, created_by, updated_at, updated_by
+        ) VALUES (
+            #{auth_group_seq}, #{user_seq}, #{use_yn},
+            CURRENT_TIMESTAMP, #{created_by}, CURRENT_TIMESTAMP, #{updated_by}
+        )
+        ON CONFLICT (auth_group_seq, user_seq) DO UPDATE
+           SET use_yn = EXCLUDED.use_yn,
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = EXCLUDED.updated_by
+    </update>
+
     <select id="selectUserServicePermList" parameterType="long" resultType="map">
         WITH user_groups AS (
             SELECT agu.auth_group_seq

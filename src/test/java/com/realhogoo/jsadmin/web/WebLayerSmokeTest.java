@@ -66,6 +66,10 @@ class WebLayerSmokeTest {
             .thenReturn(Map.of("user_id", "ADMIN", "user_nm", "ADMIN USER"));
         when(authService.saveAuthGroup(any(), anyString())).thenReturn(10001L);
         when(authService.deleteAuthGroup(any(), anyString())).thenReturn(1);
+        when(authService.getGroupUserList(any())).thenReturn(List.of(Map.of("user_seq", 1L, "login_id", "tester1", "user_nm", "Tester")));
+        when(authService.searchGroupUserCandidates(any(), any())).thenReturn(List.of(Map.of("user_seq", 2L, "login_id", "tester2", "user_nm", "Tester2")));
+        when(authService.saveGroupUsers(any(), any(), anyString())).thenReturn(1);
+        when(authService.removeGroupUser(any(), any(), anyString())).thenReturn(1);
         when(menuService.getMenuTree(anyString())).thenReturn(List.of(sampleMenuNode()));
         when(userService.getUserList(any())).thenReturn(List.of(Map.of("login_id", "ADMIN", "user_nm", "ADMIN USER")));
         when(noticeService.selectNoticeList(any())).thenReturn(List.of(Map.of("noti_seq", 1L, "title", "Sample notice")));
@@ -249,6 +253,50 @@ class WebLayerSmokeTest {
                 .with(authenticatedUser())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"auth_group_seq\":10001}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.ok").value(true))
+            .andExpect(jsonPath("$.data.deleted").value(1));
+    }
+
+    @Test
+    void authGroupUserListRespondsWithoutServerError() throws Exception {
+        mockMvc.perform(post("/auth/group/user/list.json")
+                .with(authenticatedUser())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"auth_group_seq\":10001}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.ok").value(true))
+            .andExpect(jsonPath("$.data[0].login_id").value("tester1"));
+    }
+
+    @Test
+    void authGroupUserCandidateListRespondsWithoutServerError() throws Exception {
+        mockMvc.perform(post("/auth/group/user/candidateList.json")
+                .with(authenticatedUser())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"auth_group_seq\":10001,\"keyword\":\"tester\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.ok").value(true))
+            .andExpect(jsonPath("$.data[0].login_id").value("tester2"));
+    }
+
+    @Test
+    void authGroupUserSaveRespondsWithoutServerError() throws Exception {
+        mockMvc.perform(post("/auth/group/user/save.json")
+                .with(authenticatedUser())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"auth_group_seq\":10001,\"users\":[{\"user_seq\":2}]}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.ok").value(true))
+            .andExpect(jsonPath("$.data.saved").value(1));
+    }
+
+    @Test
+    void authGroupUserDeleteRespondsWithoutServerError() throws Exception {
+        mockMvc.perform(post("/auth/group/user/delete.json")
+                .with(authenticatedUser())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"auth_group_seq\":10001,\"user_seq\":2}"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.ok").value(true))
             .andExpect(jsonPath("$.data.deleted").value(1));

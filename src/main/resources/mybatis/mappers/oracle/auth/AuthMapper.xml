@@ -207,6 +207,86 @@
         ORDER BY u.user_seq
     </select>
 
+    <select id="selectGroupUserList" parameterType="long" resultType="map">
+        SELECT
+            u.user_seq,
+            u.login_id,
+            u.user_nm,
+            u.use_yn,
+            agu.use_yn AS map_use_yn
+        FROM adm_auth_group_user agu
+        JOIN adm_user_mst u
+          ON u.user_seq = agu.user_seq
+        WHERE agu.auth_group_seq = #{authGroupSeq}
+          AND agu.use_yn = 'Y'
+        ORDER BY u.login_id, u.user_seq
+    </select>
+
+    <select id="selectGroupUserCandidateList" parameterType="map" resultType="map">
+        SELECT
+            u.user_seq,
+            u.login_id,
+            u.user_nm,
+            u.use_yn
+        FROM adm_user_mst u
+        WHERE u.use_yn = 'Y'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM adm_auth_group_user agu
+              WHERE agu.auth_group_seq = #{auth_group_seq}
+                AND agu.user_seq = u.user_seq
+                AND agu.use_yn = 'Y'
+          )
+        <if test="keyword != null and keyword != ''">
+            AND (
+                u.login_id LIKE '%' || #{keyword} || '%'
+                OR u.user_nm LIKE '%' || #{keyword} || '%'
+            )
+        </if>
+        ORDER BY u.login_id, u.user_seq
+    </select>
+
+    <update id="upsertGroupUser" parameterType="map">
+        MERGE INTO adm_auth_group_user t
+        USING (
+            SELECT
+                #{auth_group_seq} AS auth_group_seq,
+                #{user_seq} AS user_seq,
+                #{use_yn} AS use_yn,
+                #{created_by} AS created_by,
+                #{updated_by} AS updated_by
+            FROM dual
+        ) s
+        ON (
+            t.auth_group_seq = s.auth_group_seq
+            AND t.user_seq = s.user_seq
+        )
+        WHEN MATCHED THEN
+            UPDATE SET
+                t.use_yn = s.use_yn,
+                t.updated_at = SYSTIMESTAMP,
+                t.updated_by = s.updated_by
+        WHEN NOT MATCHED THEN
+            INSERT (
+                auth_group_seq,
+                user_seq,
+                use_yn,
+                created_at,
+                created_by,
+                updated_at,
+                updated_by
+            )
+            VALUES (
+                s.auth_group_seq,
+                s.user_seq,
+                s.use_yn,
+                SYSTIMESTAMP,
+                s.created_by,
+                SYSTIMESTAMP,
+                s.updated_by
+            )
+    </update>
+
     <select id="selectUserMenuPermList" parameterType="long" resultType="map">
         WITH
         USER_GROUPS AS (

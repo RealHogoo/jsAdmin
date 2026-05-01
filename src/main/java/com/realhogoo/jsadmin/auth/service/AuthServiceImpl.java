@@ -223,6 +223,72 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    public List<Map<String, Object>> getGroupUserList(Long authGroupSeq) {
+        if (authGroupSeq == null) return Collections.emptyList();
+        return authMapper.selectGroupUserList(authGroupSeq);
+    }
+
+    @Override
+    public List<Map<String, Object>> searchGroupUserCandidates(Long authGroupSeq, Map<String, Object> param) {
+        if (authGroupSeq == null) return Collections.emptyList();
+        Map<String, Object> payload = param == null ? new HashMap<String, Object>() : new HashMap<String, Object>(param);
+        payload.put("auth_group_seq", authGroupSeq);
+        return authMapper.selectGroupUserCandidateList(payload);
+    }
+
+    @Override
+    @Transactional
+    public int saveGroupUsers(Long authGroupSeq, List<Map<String, Object>> users, String actor) {
+        if (authGroupSeq == null) {
+            throw new IllegalArgumentException("auth_group_seq is required");
+        }
+        if (users == null) {
+            throw new IllegalArgumentException("users is required");
+        }
+
+        String safeActor = (actor == null || actor.trim().isEmpty()) ? "SYSTEM" : actor.trim();
+        int saved = 0;
+        for (Map<String, Object> user : users) {
+            if (user == null) {
+                continue;
+            }
+            Long userSeq = toLong(firstNonNull(user, "user_seq", "userSeq"));
+            if (userSeq == null) {
+                continue;
+            }
+            Map<String, Object> payload = new HashMap<String, Object>();
+            payload.put("auth_group_seq", authGroupSeq);
+            payload.put("user_seq", userSeq);
+            payload.put("use_yn", "Y");
+            payload.put("created_by", safeActor);
+            payload.put("updated_by", safeActor);
+            authMapper.upsertGroupUser(payload);
+            saved++;
+        }
+        return saved;
+    }
+
+    @Override
+    @Transactional
+    public int removeGroupUser(Long authGroupSeq, Long userSeq, String actor) {
+        if (authGroupSeq == null) {
+            throw new IllegalArgumentException("auth_group_seq is required");
+        }
+        if (userSeq == null) {
+            throw new IllegalArgumentException("user_seq is required");
+        }
+
+        String safeActor = (actor == null || actor.trim().isEmpty()) ? "SYSTEM" : actor.trim();
+        Map<String, Object> payload = new HashMap<String, Object>();
+        payload.put("auth_group_seq", authGroupSeq);
+        payload.put("user_seq", userSeq);
+        payload.put("use_yn", "N");
+        payload.put("created_by", safeActor);
+        payload.put("updated_by", safeActor);
+        return authMapper.upsertGroupUser(payload);
+    }
+
+    @Override
     public List<Map<String, Object>> getUserServicePermList(Long userSeq) {
         if (userSeq == null) return Collections.emptyList();
         return authMapper.selectUserServicePermList(userSeq);

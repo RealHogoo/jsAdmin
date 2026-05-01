@@ -37,6 +37,12 @@ public interface AuthMapper {
 
     int upsertGroupServicePerm(Map<String, Object> param);
 
+    List<Map<String, Object>> selectGroupUserList(@Param("authGroupSeq") Long authGroupSeq);
+
+    List<Map<String, Object>> selectGroupUserCandidateList(Map<String, Object> param);
+
+    int upsertGroupUser(Map<String, Object> param);
+
     List<Map<String, Object>> selectUserServicePermList(@Param("userSeq") Long userSeq);
 
     int deleteAllUserServiceException(@Param("userSeq") Long userSeq);
