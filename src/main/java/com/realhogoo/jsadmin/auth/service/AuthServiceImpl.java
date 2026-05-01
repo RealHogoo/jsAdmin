@@ -437,14 +437,14 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     public ApiResponse<Map<String, Object>> refresh(String refreshToken, HttpServletRequest request) {
         if (refreshToken == null || refreshToken.trim().isEmpty()) {
-            return ApiResponse.fail("UNAUTHORIZED", "refresh token is required", null, request);
+            return ApiResponse.fail("UNAUTHORIZED", "로그인이 필요합니다.", null, request);
         }
         validateLength("refresh_token", refreshToken.trim(), MAX_REFRESH_TOKEN_LENGTH);
 
         String tokenHash = hashToken(refreshToken);
         Map<String, Object> refreshRow = authMapper.selectActiveRefreshToken(tokenHash);
         if (refreshRow == null || refreshRow.isEmpty()) {
-            return ApiResponse.fail("UNAUTHORIZED", "invalid refresh token", null, request);
+            return ApiResponse.fail("UNAUTHORIZED", "로그인 정보가 유효하지 않습니다. 다시 로그인해주세요.", null, request);
         }
 
         String sessionId = toNullableStr(refreshRow.get("session_id"));

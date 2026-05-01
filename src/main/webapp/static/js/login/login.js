@@ -135,10 +135,54 @@
             if (parsed.username || parsed.password) {
                 return false;
             }
-            return true;
+            return isAllowedReturnHost(parsed.hostname);
         } catch (e) {
             return false;
         }
+    }
+
+    function isAllowedReturnHost(hostname) {
+        var host = normalizeHostname(hostname);
+        if (!host) return false;
+
+        var currentHost = normalizeHostname(global.location.hostname);
+        if (host === currentHost) return true;
+
+        var adminHost = configuredAdminHost();
+        if (adminHost && host === adminHost) return true;
+
+        if (isLocalHost(host) || isLocalHost(currentHost)) {
+            return host === currentHost;
+        }
+
+        var currentBase = siteBaseDomain(currentHost);
+        return !!currentBase && siteBaseDomain(host) === currentBase;
+    }
+
+    function configuredAdminHost() {
+        if (!adminServicePublicBaseUrl) return "";
+        try {
+            return normalizeHostname(new URL(adminServicePublicBaseUrl, global.location.origin).hostname);
+        } catch (e) {
+            return "";
+        }
+    }
+
+    function normalizeHostname(hostname) {
+        return String(hostname || "").trim().toLowerCase().replace(/^\[|\]$/g, "");
+    }
+
+    function isLocalHost(hostname) {
+        var host = normalizeHostname(hostname);
+        return host === "localhost" || host === "127.0.0.1" || host === "::1";
+    }
+
+    function siteBaseDomain(hostname) {
+        var host = normalizeHostname(hostname);
+        if (!host || isLocalHost(host) || /^\d+\.\d+\.\d+\.\d+$/.test(host)) return "";
+        var parts = host.split(".").filter(Boolean);
+        if (parts.length < 3) return host;
+        return parts.slice(parts.length - 3).join(".");
     }
 
     function resolveReturnUrl() {
@@ -154,6 +198,9 @@
                     return null;
                 }
                 return normalizeRedirectUrl(parsed.toString());
+            }
+            if (decoded.indexOf("//") === 0 || decoded.charAt(0) === "\\") {
+                return null;
             }
             if (decoded.charAt(0) === "/") {
                 return decoded;

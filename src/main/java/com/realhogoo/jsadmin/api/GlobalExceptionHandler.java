@@ -21,7 +21,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiResponse<Object>> handleApi(ApiException e, HttpServletRequest req) {
         String tid = traceId(req);
-        log.error("[SERVER_ERROR] traceId={}, uri={}", tid, req.getRequestURI(), e);
+        log.warn("[API_ERROR] traceId={}, uri={}, status={}, code={}, message={}",
+            tid, req.getRequestURI(), e.getStatus().value(), e.getCode(), e.getMessage());
         ApiResponse<Object> body = ApiResponse.fail(e.getCode(), e.getMessage(), tid);
         return ResponseEntity.status(e.getStatus()).body(body);
     }
@@ -46,7 +47,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Object>> handleAny(Exception e, HttpServletRequest req) {
         String tid = traceId(req);
         log.error("[SERVER_ERROR] traceId={}, uri={}", tid, req.getRequestURI(), e);
-        ApiResponse<Object> body = ApiResponse.fail(ApiCode.SERVER_ERROR, "unexpected error", tid);
+        ApiResponse<Object> body = ApiResponse.fail(ApiCode.SERVER_ERROR, ApiCode.SERVER_ERROR.defaultMessage(), tid);
         return ResponseEntity.status(500).body(body);
     }
 }
