@@ -22,6 +22,9 @@ bin/
 logs/
 *.log
 
+# Local database dumps
+docs/sqls/postgres/dump/
+
 # Tomcat runtime dirs
 work/
 temp/

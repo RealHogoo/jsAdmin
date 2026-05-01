@@ -41,6 +41,32 @@
   - `POST /health/ready.json`
   - `POST /health/status.json`
 
+## 운영 프록시와 공개 URL
+
+- `ADMIN_SERVICE_PUBLIC_BASE_URL`은 어드민 서비스의 외부 접속 주소입니다.
+- 운영 기준 예시는 `ADMIN_SERVICE_PUBLIC_BASE_URL=https://adm.js65.myds.me`입니다.
+- 프록시 뒤에서 동작할 때는 `X-Forwarded-Proto`, `X-Forwarded-Host`, `X-Forwarded-Port`를 전달해야 합니다.
+- 로그인 후 `return_url`은 임의 외부 도메인으로 보내지 않고, 현재 도메인 또는 같은 사이트 계열 도메인만 허용합니다.
+
+운영 프록시 필수 헤더:
+
+```nginx
+proxy_set_header Host $host;
+proxy_set_header X-Forwarded-Host $host;
+proxy_set_header X-Forwarded-Proto $scheme;
+proxy_set_header X-Forwarded-Port $server_port;
+proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+```
+
+## 권한 점검 체크리스트
+
+- 비로그인 사용자는 로그인 페이지 외 관리 화면 접근 시 로그인 페이지로 이동합니다.
+- 대시보드와 타임라인 공개 영역은 로그인 여부와 관계없이 조회 가능해야 합니다.
+- 일반 사용자는 권한이 없는 관리 API 호출 시 권한 없음 메시지를 받아야 합니다.
+- 그룹관리에서는 그룹 사용자 매핑을 추가/삭제할 수 있어야 합니다.
+- 권한관리에서는 그룹 권한과 사용자 권한을 각각 저장/조회할 수 있어야 합니다.
+- 스케줄러 권한 변경 후 `schedule-service` 화면에서 즉시 접근 결과가 일치해야 합니다.
+
 ## 릴리즈 표시
 
 - 메인 화면 푸터 오른쪽에 현재 소스의 짧은 Git SHA를 표시합니다.
@@ -87,6 +113,12 @@ $env:JWT_SECRET="change-this-to-a-long-random-secret"
 ```
 
 `JWT_SECRET`은 충분히 긴 값으로 설정하고, 연동 서비스와 동일한 값을 사용해야 합니다.
+
+## 인코딩
+
+- 소스와 문서는 UTF-8 기준입니다.
+- Windows PowerShell에서 한글이 깨져 보이면 `Get-Content -Encoding UTF8 <파일명>`으로 확인합니다.
+- `.editorconfig`로 UTF-8 저장 기준을 고정합니다.
 
 ## 문서
 
