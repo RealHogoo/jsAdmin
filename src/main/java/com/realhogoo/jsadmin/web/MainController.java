@@ -11,6 +11,7 @@ import org.springframework.web.servlet.view.RedirectView;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -221,15 +222,16 @@ public class MainController {
         if (request == null) {
             return "";
         }
-        String scheme = firstHeaderValue(request.getHeader("X-Forwarded-Proto"));
+        boolean trustedForwardedSource = isTrustedForwardedSource(request);
+        String scheme = trustedForwardedSource ? firstHeaderValue(request.getHeader("X-Forwarded-Proto")) : null;
         if (scheme == null || scheme.isEmpty()) {
             scheme = request.getScheme();
         }
-        String host = firstHeaderValue(request.getHeader("X-Forwarded-Host"));
+        String host = trustedForwardedSource ? firstHeaderValue(request.getHeader("X-Forwarded-Host")) : null;
         if (host == null || host.isEmpty()) {
             host = request.getServerName();
         }
-        int port = forwardedPort(request, scheme, host);
+        int port = forwardedPort(request, scheme, host, trustedForwardedSource);
         String cleanHost = host;
         if (host.contains(":")) {
             cleanHost = host.substring(0, host.lastIndexOf(':'));
@@ -241,8 +243,8 @@ public class MainController {
         return scheme.toLowerCase() + "://" + cleanHost + (isDefaultPort(scheme, port) ? "" : ":" + port);
     }
 
-    private int forwardedPort(HttpServletRequest request, String scheme, String host) {
-        String value = firstHeaderValue(request.getHeader("X-Forwarded-Port"));
+    private int forwardedPort(HttpServletRequest request, String scheme, String host, boolean trustedForwardedSource) {
+        String value = trustedForwardedSource ? firstHeaderValue(request.getHeader("X-Forwarded-Port")) : null;
         if (value != null) {
             try {
                 return normalizePort(Integer.parseInt(value), scheme);
@@ -320,5 +322,24 @@ public class MainController {
         return !host.startsWith("10.")
             && !host.startsWith("192.168.")
             && !host.matches("^172\\.(1[6-9]|2\\d|3[0-1])\\..*");
+    }
+
+    private boolean isTrustedForwardedSource(HttpServletRequest request) {
+        if (request == null) {
+            return false;
+        }
+        String configured = System.getProperty("app.trust-forwarded-headers");
+        if (configured == null || configured.trim().isEmpty()) {
+            configured = System.getenv("TRUST_FORWARDED_HEADERS");
+        }
+        if ("true".equalsIgnoreCase(configured)) {
+            return true;
+        }
+        try {
+            InetAddress address = InetAddress.getByName(request.getRemoteAddr());
+            return address.isLoopbackAddress();
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 }
