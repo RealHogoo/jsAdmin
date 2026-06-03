@@ -4,6 +4,7 @@ plugins {
     id "eclipse-wtp"
     id "org.springframework.boot" version "2.7.18"
     id "io.spring.dependency-management" version "1.1.6"
+    id "org.owasp.dependencycheck" version "12.2.1"
 }
 
 group = "com.realhogoo"
@@ -105,4 +106,20 @@ bootJar {
 
 bootWar {
     enabled = true
+}
+
+dependencyCheck {
+    failBuildOnCVSS = 7.0
+    formats = ["HTML", "JSON"]
+    scanConfigurations = ["runtimeClasspath"]
+    if (file("dependency-check-suppressions.xml").exists()) {
+        suppressionFile = file("dependency-check-suppressions.xml").path
+    }
+    analyzers {
+        assemblyEnabled = false
+        nodeAuditEnabled = false
+        retirejs {
+            enabled = false
+        }
+    }
 }

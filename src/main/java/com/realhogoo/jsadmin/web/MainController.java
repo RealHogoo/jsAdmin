@@ -43,6 +43,13 @@ public class MainController {
         return new RedirectView("/", true);
     }
 
+    @GetMapping("/mypage.do")
+    public String myPage(Model model, HttpServletRequest request) {
+        model.addAttribute("initialPage", "/mypage/main.do");
+        model.addAttribute("adminServicePublicBaseUrl", effectivePublicBaseUrl(request));
+        return "dashboard/app";
+    }
+
     @GetMapping("/login-page.do")
     public String loginPage(Model model, HttpServletRequest request) {
         model.addAttribute("initialPage", "/login.do");
