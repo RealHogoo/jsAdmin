@@ -150,6 +150,10 @@
         return String(url || "").toLowerCase().indexOf("/login.json") >= 0;
     }
 
+    function isLoginPageUrl(url) {
+        return String(url || "").toLowerCase().indexOf("/login.do") >= 0;
+    }
+
     async function handleUnauthorized() {
         clearAuthState();
 
@@ -160,12 +164,19 @@
         if (!isLoginFragment) {
             global.__JSADMIN_AUTH_REDIRECTING = true;
             try {
+                alertSessionExpired();
                 await loadPage("/login.do");
             } finally {
                 global.__JSADMIN_AUTH_REDIRECTING = false;
             }
         }
         return null;
+    }
+
+    function alertSessionExpired() {
+        if (global.__JSADMIN_AUTH_ALERTED) return;
+        global.__JSADMIN_AUTH_ALERTED = true;
+        global.alert("로그인 정보가 유효하지 않습니다. 다시 로그인해 주세요.");
     }
 
     async function refreshAuth() {
@@ -214,6 +225,10 @@
         });
 
         var text = await response.text();
+        if (response.status === 401 && !isLoginPageUrl(url)) {
+            await handleUnauthorized();
+            return "";
+        }
         if (!response.ok) {
             throw new Error("HTTP " + response.status + "\n" + text);
         }
@@ -265,7 +280,7 @@
             });
 
             if (response.status === 401) {
-                clearAuthState();
+                await handleUnauthorized();
                 return false;
             }
             if (!response.ok) {
@@ -290,7 +305,7 @@
             });
 
             if (response.status === 401) {
-                clearAuthState();
+                await handleUnauthorized();
                 return null;
             }
             if (!response.ok) {
