@@ -135,12 +135,13 @@ WITH seed(service_cd, perm_cd, perm_nm, perm_desc, sort_ord) AS (
         ('schedule-service', 'DASHBOARD_ACCESS', 'Dashboard Access', 'Allows access to schedule dashboard views', 1),
         ('schedule-service', 'WRITE', 'Write Access', 'Allows create and update actions in schedule service', 2),
         ('schedule-service', 'DELETE', 'Delete Access', 'Allows delete actions in schedule service', 3),
-        ('webhard-service', 'WRITE', 'Write Access', 'Allows create and update actions in webhard service', 1),
-        ('webhard-service', 'DELETE', 'Delete Access', 'Allows delete actions in webhard service', 2),
-        ('webhard-service', 'SHARE', 'Share Access', 'Allows share link actions in webhard service', 3),
-        ('media-service', 'WRITE', 'Write Access', 'Allows media metadata sync and edits', 1),
-        ('media-service', 'SHARE', 'Share Access', 'Reserved for media sharing actions', 2),
-        ('media-service', 'DELETE', 'Delete Access', 'Reserved for media delete actions', 3)
+        ('webhard-service', 'READ', 'Read Access', 'Allows read actions in webhard service', 1),
+        ('webhard-service', 'WRITE', 'Write Access', 'Allows create and update actions in webhard service', 2),
+        ('webhard-service', 'DELETE', 'Delete Access', 'Allows delete actions in webhard service', 3),
+        ('webhard-service', 'SHARE', 'Share Access', 'Allows share link actions in webhard service', 4),
+        ('media-service', 'READ', 'Read Access', 'Allows read actions in media service', 1),
+        ('media-service', 'WRITE', 'Write Access', 'Allows media sync, import, and edit actions', 2),
+        ('media-service', 'DELETE', 'Delete Access', 'Allows delete actions in media service', 3)
 ),
 missing AS (
     SELECT sm.service_seq, seed.perm_cd, seed.perm_nm, seed.perm_desc, seed.sort_ord,
@@ -175,12 +176,13 @@ WITH seed(service_cd, perm_cd, perm_nm, perm_desc, sort_ord) AS (
         ('schedule-service', 'DASHBOARD_ACCESS', 'Dashboard Access', 'Allows access to schedule dashboard views', 1),
         ('schedule-service', 'WRITE', 'Write Access', 'Allows create and update actions in schedule service', 2),
         ('schedule-service', 'DELETE', 'Delete Access', 'Allows delete actions in schedule service', 3),
-        ('webhard-service', 'WRITE', 'Write Access', 'Allows create and update actions in webhard service', 1),
-        ('webhard-service', 'DELETE', 'Delete Access', 'Allows delete actions in webhard service', 2),
-        ('webhard-service', 'SHARE', 'Share Access', 'Allows share link actions in webhard service', 3),
-        ('media-service', 'WRITE', 'Write Access', 'Allows media metadata sync and edits', 1),
-        ('media-service', 'SHARE', 'Share Access', 'Reserved for media sharing actions', 2),
-        ('media-service', 'DELETE', 'Delete Access', 'Reserved for media delete actions', 3)
+        ('webhard-service', 'READ', 'Read Access', 'Allows read actions in webhard service', 1),
+        ('webhard-service', 'WRITE', 'Write Access', 'Allows create and update actions in webhard service', 2),
+        ('webhard-service', 'DELETE', 'Delete Access', 'Allows delete actions in webhard service', 3),
+        ('webhard-service', 'SHARE', 'Share Access', 'Allows share link actions in webhard service', 4),
+        ('media-service', 'READ', 'Read Access', 'Allows read actions in media service', 1),
+        ('media-service', 'WRITE', 'Write Access', 'Allows media sync, import, and edit actions', 2),
+        ('media-service', 'DELETE', 'Delete Access', 'Allows delete actions in media service', 3)
 )
 UPDATE adm_service_perm_def spd
    SET perm_nm = seed.perm_nm,

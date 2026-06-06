@@ -4,11 +4,10 @@ This document describes the service-level permission model added for cross-servi
 
 ## Scope
 
-- Service: `schedule-service`
-- Permission codes:
-  - `DASHBOARD_ACCESS`
-  - `WRITE`
-  - `DELETE`
+- Services and permission codes:
+  - `schedule-service`: `DASHBOARD_ACCESS`, `WRITE`, `DELETE`
+  - `webhard-service`: `READ`, `WRITE`, `DELETE`, `SHARE`
+  - `media-service`: `READ`, `WRITE`, `DELETE`
 
 ## Resolution Order
 
@@ -33,4 +32,6 @@ This document describes the service-level permission model added for cross-servi
 
 ## Seed Data
 
-For fresh environments, `docs/sqls/postgres/baseline/V000__baseline.sql` already includes the service permission tables and seeds the three `schedule-service` permissions.
+For fresh environments, `docs/sqls/postgres/baseline/V000__baseline.sql` includes the service permission tables and seeds `schedule-service`, `webhard-service`, and `media-service` permissions.
+
+For existing environments, run `docs/sqls/postgres/migrations/V009__webhard_media_service_seed.sql` to add the webhard and media service rows and default admin permissions.

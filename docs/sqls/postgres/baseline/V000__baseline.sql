@@ -320,7 +320,9 @@ INSERT INTO adm_service_mst (
     timeout_ms, use_yn, sort_ord, remark, created_by, updated_by
 ) VALUES
     (1, 'admin-service', 'Admin Service', 'http://localhost:8081', '/health/status.json', '/health/live.json', '/health/ready.json', 3000, 'Y', 1, 'Common auth and admin portal', 'SYSTEM', 'SYSTEM'),
-    (2, 'schedule-service', 'Schedule Service', 'http://localhost:8082', '/health/status.json', '/health/live.json', '/health/ready.json', 3000, 'Y', 2, 'Project and task scheduling service', 'SYSTEM', 'SYSTEM');
+    (2, 'schedule-service', 'Schedule Service', 'http://localhost:8082', '/health/status.json', '/health/live.json', '/health/ready.json', 3000, 'Y', 2, 'Project and task scheduling service', 'SYSTEM', 'SYSTEM'),
+    (3, 'webhard-service', 'Webhard Service', 'http://localhost:8083', '/health/status.json', '/health/live.json', '/health/ready.json', 3000, 'Y', 3, 'Webhard file and folder management service', 'SYSTEM', 'SYSTEM'),
+    (4, 'media-service', 'Media Service', 'http://localhost:8084', '/api/health/', '/api/health/', '/api/health/', 3000, 'Y', 4, 'Reference media gallery service', 'SYSTEM', 'SYSTEM');
 
 CREATE TABLE adm_service_perm_def (
     service_perm_seq BIGINT PRIMARY KEY,
@@ -386,11 +388,28 @@ INSERT INTO adm_service_perm_def (
 ) VALUES
     (1, 2, 'DELETE', 'Delete Access', 'Allows delete actions in schedule service', 3, 'Y', 'SYSTEM', 'SYSTEM'),
     (2, 2, 'WRITE', 'Write Access', 'Allows create and update actions in schedule service', 2, 'Y', 'SYSTEM', 'SYSTEM'),
-    (3, 2, 'DASHBOARD_ACCESS', 'Dashboard Access', 'Allows access to schedule dashboard views', 1, 'Y', 'SYSTEM', 'SYSTEM');
+    (3, 2, 'DASHBOARD_ACCESS', 'Dashboard Access', 'Allows access to schedule dashboard views', 1, 'Y', 'SYSTEM', 'SYSTEM'),
+    (4, 3, 'READ', 'Read Access', 'Allows read actions in webhard service', 1, 'Y', 'SYSTEM', 'SYSTEM'),
+    (5, 3, 'WRITE', 'Write Access', 'Allows create and update actions in webhard service', 2, 'Y', 'SYSTEM', 'SYSTEM'),
+    (6, 3, 'DELETE', 'Delete Access', 'Allows delete actions in webhard service', 3, 'Y', 'SYSTEM', 'SYSTEM'),
+    (7, 3, 'SHARE', 'Share Access', 'Allows share link actions in webhard service', 4, 'Y', 'SYSTEM', 'SYSTEM'),
+    (8, 4, 'READ', 'Read Access', 'Allows read actions in media service', 1, 'Y', 'SYSTEM', 'SYSTEM'),
+    (9, 4, 'WRITE', 'Write Access', 'Allows media sync, import, and edit actions', 2, 'Y', 'SYSTEM', 'SYSTEM'),
+    (10, 4, 'DELETE', 'Delete Access', 'Allows delete actions in media service', 3, 'Y', 'SYSTEM', 'SYSTEM');
 
 INSERT INTO adm_auth_service_perm (
     auth_group_seq, service_perm_seq, use_yn, created_by, updated_by
 ) VALUES
     (1, 1, 'Y', 'SYSTEM', 'SYSTEM'),
     (1, 2, 'Y', 'SYSTEM', 'SYSTEM'),
-    (1, 3, 'Y', 'SYSTEM', 'SYSTEM');
+    (1, 3, 'Y', 'SYSTEM', 'SYSTEM'),
+    (1, 4, 'Y', 'SYSTEM', 'SYSTEM'),
+    (1, 5, 'Y', 'SYSTEM', 'SYSTEM'),
+    (1, 6, 'Y', 'SYSTEM', 'SYSTEM'),
+    (1, 7, 'Y', 'SYSTEM', 'SYSTEM'),
+    (1, 8, 'Y', 'SYSTEM', 'SYSTEM'),
+    (1, 9, 'Y', 'SYSTEM', 'SYSTEM'),
+    (1, 10, 'Y', 'SYSTEM', 'SYSTEM');
+
+SELECT setval('adm_service_mst_seq', GREATEST(COALESCE((SELECT MAX(service_seq) FROM adm_service_mst), 0), 1), true);
+SELECT setval('adm_service_perm_def_seq', GREATEST(COALESCE((SELECT MAX(service_perm_seq) FROM adm_service_perm_def), 0), 1), true);
