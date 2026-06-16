@@ -81,16 +81,7 @@ public final class AuthCookieSupport {
             return stripLeadingDot(configured);
         }
 
-        String host = forwardedHost(request);
-        if (host == null || "localhost".equalsIgnoreCase(host) || isIpv4(host)) {
-            return null;
-        }
-
-        int firstDotIndex = host.indexOf('.');
-        if (firstDotIndex < 0 || firstDotIndex == host.length() - 1) {
-            return null;
-        }
-        return host.substring(firstDotIndex + 1);
+        return null;
     }
 
     private static String forwardedHost(HttpServletRequest request) {
@@ -111,10 +102,6 @@ public final class AuthCookieSupport {
             return null;
         }
         return value.split(",")[0].trim();
-    }
-
-    private static boolean isIpv4(String host) {
-        return host.matches("\\d+\\.\\d+\\.\\d+\\.\\d+");
     }
 
     private static String stripLeadingDot(String value) {

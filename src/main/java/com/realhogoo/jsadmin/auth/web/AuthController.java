@@ -231,6 +231,9 @@ public class AuthController {
         HttpServletRequest request,
         HttpServletResponse response
     ) {
+        if (!CsrfOriginSupport.isSameOriginRequest(request)) {
+            return ApiResponse.fail("FORBIDDEN", "허용되지 않은 출처의 토큰 갱신 요청입니다.", null, request);
+        }
         String refreshToken = body == null ? null : toStringValue(firstNonNull(body, "refresh_token", "refreshToken"));
         if (refreshToken == null) {
             refreshToken = AuthCookieSupport.readCookie(request, AuthCookieSupport.REFRESH_TOKEN_COOKIE);

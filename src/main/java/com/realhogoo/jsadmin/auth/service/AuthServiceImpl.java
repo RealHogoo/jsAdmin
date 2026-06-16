@@ -27,8 +27,6 @@ import java.util.UUID;
 
 @Service("authService")
 public class AuthServiceImpl implements AuthService {
-    private static final long ONE_MINUTE_MS = 60_000L;
-    private static final long TEN_MINUTES_MS = 600_000L;
     private static final int MAX_AUTH_GROUP_CODE_LENGTH = 100;
     private static final int MAX_AUTH_GROUP_NAME_LENGTH = 100;
     private static final int MAX_AUTH_GROUP_DESC_LENGTH = 500;
@@ -44,6 +42,11 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final LoginRateLimiter loginRateLimiter;
     private final long refreshExpSeconds;
+    private final int shortDelayAttempts;
+    private final long shortDelayMs;
+    private final int longDelayAttempts;
+    private final long longDelayMs;
+    private final int accountLockAttempts;
 
     public AuthServiceImpl(
         AuthMapper authMapper,
@@ -52,7 +55,12 @@ public class AuthServiceImpl implements AuthService {
         SuperAdminProperties superAdminProperties,
         PasswordEncoder passwordEncoder,
         LoginRateLimiter loginRateLimiter,
-        @Value("${jwt.refresh-exp-seconds:1209600}") long refreshExpSeconds
+        @Value("${jwt.refresh-exp-seconds:1209600}") long refreshExpSeconds,
+        @Value("${auth.login-failure.short-delay-attempts:3}") int shortDelayAttempts,
+        @Value("${auth.login-failure.short-delay-seconds:60}") long shortDelaySeconds,
+        @Value("${auth.login-failure.long-delay-attempts:5}") int longDelayAttempts,
+        @Value("${auth.login-failure.long-delay-seconds:600}") long longDelaySeconds,
+        @Value("${auth.login-failure.account-lock-attempts:7}") int accountLockAttempts
     ) {
         this.authMapper = authMapper;
         this.jwtProvider = jwtProvider;
@@ -61,6 +69,11 @@ public class AuthServiceImpl implements AuthService {
         this.passwordEncoder = passwordEncoder;
         this.loginRateLimiter = loginRateLimiter;
         this.refreshExpSeconds = refreshExpSeconds;
+        this.shortDelayAttempts = Math.max(1, shortDelayAttempts);
+        this.shortDelayMs = Math.max(1L, shortDelaySeconds) * 1000L;
+        this.longDelayAttempts = Math.max(this.shortDelayAttempts, longDelayAttempts);
+        this.longDelayMs = Math.max(1L, longDelaySeconds) * 1000L;
+        this.accountLockAttempts = Math.max(this.longDelayAttempts, accountLockAttempts);
     }
 
     @Override
@@ -654,17 +667,17 @@ public class AuthServiceImpl implements AuthService {
         String message = "\uC544\uC774\uB514 \uB610\uB294 \uBE44\uBC00\uBC88\uD638\uAC00 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.";
         Map<String, Object> data = null;
 
-        if (nextFailCount >= 7) {
+        if (nextFailCount >= accountLockAttempts) {
             lockYn = "Y";
             reason = "ACCOUNT_LOCKED";
-        } else if (nextFailCount >= 5) {
-            lockUntilAt = new Date(System.currentTimeMillis() + TEN_MINUTES_MS);
-            reason = "LOGIN_DELAY_10M";
-            data = delayData(TEN_MINUTES_MS / 1000L);
-        } else if (nextFailCount >= 3) {
-            lockUntilAt = new Date(System.currentTimeMillis() + ONE_MINUTE_MS);
-            reason = "LOGIN_DELAY_1M";
-            data = delayData(ONE_MINUTE_MS / 1000L);
+        } else if (nextFailCount >= longDelayAttempts) {
+            lockUntilAt = new Date(System.currentTimeMillis() + longDelayMs);
+            reason = "LOGIN_DELAY_" + (longDelayMs / 1000L) + "S";
+            data = delayData(longDelayMs / 1000L);
+        } else if (nextFailCount >= shortDelayAttempts) {
+            lockUntilAt = new Date(System.currentTimeMillis() + shortDelayMs);
+            reason = "LOGIN_DELAY_" + (shortDelayMs / 1000L) + "S";
+            data = delayData(shortDelayMs / 1000L);
         }
 
         Map<String, Object> update = new HashMap<String, Object>();

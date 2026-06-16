@@ -42,7 +42,12 @@ class AuthServiceImplTest {
             superAdminProperties,
             passwordEncoder,
             loginRateLimiter,
-            1209600L
+            1209600L,
+            3,
+            60L,
+            5,
+            600L,
+            7
         );
 
         LoginUser normalUser = loginUser(100L, "user1", passwordEncoder.encode("user1-password"));

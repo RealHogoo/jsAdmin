@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.servlet.http.HttpServletRequest;
+import java.net.InetAddress;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Map;
@@ -64,22 +65,40 @@ public class LoginRateLimiter {
         if (request == null) {
             return "unknown";
         }
-        String forwarded = trimToNull(request.getHeader("X-Forwarded-For"), 128);
-        if (forwarded != null) {
-            String[] parts = forwarded.split(",");
-            if (parts.length > 0) {
-                String candidate = trimToNull(parts[0], 45);
-                if (candidate != null) {
-                    return candidate;
+        if (isTrustedForwardedSource(request)) {
+            String forwarded = trimToNull(request.getHeader("X-Forwarded-For"), 128);
+            if (forwarded != null) {
+                String[] parts = forwarded.split(",");
+                if (parts.length > 0) {
+                    String candidate = trimToNull(parts[0], 45);
+                    if (candidate != null) {
+                        return candidate;
+                    }
                 }
             }
-        }
-        String realIp = trimToNull(request.getHeader("X-Real-IP"), 45);
-        if (realIp != null) {
-            return realIp;
+            String realIp = trimToNull(request.getHeader("X-Real-IP"), 45);
+            if (realIp != null) {
+                return realIp;
+            }
         }
         String remoteAddr = trimToNull(request.getRemoteAddr(), 45);
         return remoteAddr == null ? "unknown" : remoteAddr;
+    }
+
+    private boolean isTrustedForwardedSource(HttpServletRequest request) {
+        String configured = trimToNull(System.getProperty("app.trust-forwarded-headers"), 16);
+        if (configured == null) {
+            configured = trimToNull(System.getenv("TRUST_FORWARDED_HEADERS"), 16);
+        }
+        if ("true".equalsIgnoreCase(configured)) {
+            return true;
+        }
+        try {
+            InetAddress address = InetAddress.getByName(request.getRemoteAddr());
+            return address.isLoopbackAddress();
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private String trimToNull(String value, int maxLength) {

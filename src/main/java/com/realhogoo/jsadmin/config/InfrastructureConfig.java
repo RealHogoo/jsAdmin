@@ -74,8 +74,12 @@ public class InfrastructureConfig implements EnvironmentAware {
 
     @Bean
     public JwtProvider jwtProvider() {
+        String secret = requiredProperty("jwt.secret");
+        if (isProductionEnv() && "change-this-to-a-long-random-secret-change-this".equals(secret)) {
+            throw new IllegalStateException("jwt.secret must not use the development default in production");
+        }
         return new JwtProvider(
-            requiredProperty("jwt.secret"),
+            secret,
             environment.getProperty("jwt.issuer", "jsAdmin"),
             Long.parseLong(environment.getProperty("jwt.exp_seconds", "3600"))
         );
@@ -92,7 +96,11 @@ public class InfrastructureConfig implements EnvironmentAware {
         config.setDriverClassName(property(vendorProperties, "jdbc.driverClassName", "db.driver"));
         config.setJdbcUrl(property(vendorProperties, "jdbc.url", "db.url"));
         config.setUsername(property(vendorProperties, "jdbc.username", "db.username"));
-        config.setPassword(property(vendorProperties, "jdbc.password", "db.password"));
+        String dbPassword = property(vendorProperties, "jdbc.password", "db.password");
+        if (isProductionEnv() && ("postgres".equals(dbPassword) || "oracle".equals(dbPassword))) {
+            throw new IllegalStateException("database password must not use the development default in production");
+        }
+        config.setPassword(dbPassword);
         config.setMaximumPoolSize(intProperty(
             vendorProperties,
             common,
@@ -162,6 +170,12 @@ public class InfrastructureConfig implements EnvironmentAware {
             throw new IllegalStateException("Unsupported app.db.vendor: " + vendor);
         }
         return normalized;
+    }
+
+    private boolean isProductionEnv() {
+        String appEnv = environment.getProperty("app.env", "");
+        String normalized = appEnv == null ? "" : appEnv.trim().toLowerCase(Locale.ROOT);
+        return "prod".equals(normalized) || "production".equals(normalized);
     }
 
     private Properties loadProperties(String location) {

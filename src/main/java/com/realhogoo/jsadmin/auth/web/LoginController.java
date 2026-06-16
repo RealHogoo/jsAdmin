@@ -30,6 +30,9 @@ public class LoginController {
         HttpServletRequest request,
         HttpServletResponse response
     ) {
+        if (!CsrfOriginSupport.isSameOriginRequest(request)) {
+            return ApiResponse.fail("FORBIDDEN", "허용되지 않은 출처의 로그인 요청입니다.", null, request);
+        }
         String userId = body.get("user_id") == null ? null : String.valueOf(body.get("user_id"));
         String userPw = body.get("user_pw") == null ? null : String.valueOf(body.get("user_pw"));
         if (userId == null || userId.trim().isEmpty() || userPw == null) {
