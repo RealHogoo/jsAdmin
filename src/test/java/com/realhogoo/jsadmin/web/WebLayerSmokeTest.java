@@ -97,7 +97,7 @@ class WebLayerSmokeTest {
                 new MenuController(menuService),
                 new UserController(userService),
                 new NoticeController(noticeService),
-                new HealthController(dataSource, healthMapper, serviceRegistryMapper, serviceEndpointPolicy),
+                new HealthController(dataSource, healthMapper, serviceRegistryMapper, serviceEndpointPolicy, "dev", "dev-media-internal-token"),
                 new MainController("https://adm.js65.myds.me")
             )
             .setControllerAdvice(new GlobalExceptionHandler())
@@ -173,6 +173,33 @@ class WebLayerSmokeTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.ok").value(true))
             .andExpect(jsonPath("$.data.status").value("UP"));
+    }
+
+    @Test
+    void serviceListRequiresAdminRequest() throws Exception {
+        mockMvc.perform(post("/health/service/list.json"))
+            .andExpect(status().is4xxClientError());
+    }
+
+    @Test
+    void internalServiceUseStatusRequiresInternalToken() throws Exception {
+        mockMvc.perform(post("/internal/service/use-status.json")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"service_cd\":\"admin-service\"}"))
+            .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void internalServiceUseStatusRespondsWithMinimalStatus() throws Exception {
+        mockMvc.perform(post("/internal/service/use-status.json")
+                .header("X-Internal-Api-Token", "dev-media-internal-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"service_cd\":\"admin-service\"}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.ok").value(true))
+            .andExpect(jsonPath("$.data.service_cd").value("admin-service"))
+            .andExpect(jsonPath("$.data.use_yn").value("Y"))
+            .andExpect(jsonPath("$.data.base_url").doesNotExist());
     }
 
     @Test

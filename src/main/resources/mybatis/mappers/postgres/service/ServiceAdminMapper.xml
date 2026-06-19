@@ -88,4 +88,12 @@
      WHERE service_seq = #{service_seq,jdbcType=NUMERIC}
   </update>
 
+  <update id="updateServiceUseYn" parameterType="map">
+    UPDATE adm_service_mst
+       SET use_yn = #{use_yn,jdbcType=VARCHAR},
+           updated_at = CURRENT_TIMESTAMP,
+           updated_by = #{updated_by,jdbcType=VARCHAR}
+     WHERE service_seq = #{service_seq,jdbcType=NUMERIC}
+  </update>
+
 </mapper>

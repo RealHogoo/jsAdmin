@@ -16,4 +16,6 @@ public interface ServiceAdminMapper {
     void insertService(Map<String, Object> param);
 
     int updateService(Map<String, Object> param);
+
+    int updateServiceUseYn(Map<String, Object> param);
 }

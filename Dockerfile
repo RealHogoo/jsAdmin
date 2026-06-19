@@ -10,5 +10,8 @@ COPY docker/lib/ojdbc8.jar /usr/local/tomcat/lib/
 # 빌드된 WAR 복사
 COPY admin-service.war /usr/local/tomcat/webapps/admin-service.war
 
+RUN chown -R 1000:0 /usr/local/tomcat && chmod -R g=u /usr/local/tomcat
+USER 1000
+
 ENV CATALINA_OPTS="-Xms512m -Xmx512m"
 EXPOSE 8080

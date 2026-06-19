@@ -58,6 +58,18 @@
         return mins + "m";
     }
 
+    function statusClass(status) {
+        if (status === "UP") return "health-badge up";
+        if (status === "DOWN") return "health-badge down";
+        if (status === "DISABLED") return "health-badge disabled";
+        return "health-badge degraded";
+    }
+
+    function renderStatusBadge(status) {
+        var value = status || "-";
+        return "<span class='" + statusClass(value) + "'>" + UX.esc(value) + "</span>";
+    }
+
     function renderDependencies(list) {
         var tbody = UX.qs("#healthDependencyBody", root());
         if (!tbody) return;
@@ -68,13 +80,10 @@
 
         tbody.innerHTML = list.map(function (row) {
             var status = row && row.status ? String(row.status) : "-";
-            var statusClass = status === "UP"
-                ? "health-badge up"
-                : (status === "DOWN" ? "health-badge down" : (status === "DISABLED" ? "health-badge disabled" : "health-badge degraded"));
             return "<tr>"
                 + "<td>" + UX.esc(row.name) + "</td>"
                 + "<td>" + UX.esc(row.type) + "</td>"
-                + "<td><span class='" + statusClass + "'>" + UX.esc(status) + "</span></td>"
+                + "<td>" + renderStatusBadge(status) + "</td>"
                 + "<td>" + UX.esc(fmtMs(row.latency_ms)) + "</td>"
                 + "<td>" + UX.esc(row.message) + "</td>"
                 + "</tr>";

@@ -2,18 +2,23 @@ package com.realhogoo.jsadmin.health.web;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.realhogoo.jsadmin.auth.AuthRequestSupport;
 import com.realhogoo.jsadmin.health.mapper.HealthMapper;
 import com.realhogoo.jsadmin.health.mapper.ServiceRegistryMapper;
 import com.realhogoo.jsadmin.serviceregistry.service.ServiceEndpointPolicy;
 import com.zaxxer.hikari.HikariDataSource;
 import com.zaxxer.hikari.HikariPoolMXBean;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.server.ResponseStatusException;
 
 import javax.sql.DataSource;
+import javax.servlet.http.HttpServletRequest;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.management.ManagementFactory;
@@ -43,18 +48,24 @@ public class HealthController {
     private final HealthMapper healthMapper;
     private final ServiceRegistryMapper serviceRegistryMapper;
     private final ServiceEndpointPolicy serviceEndpointPolicy;
+    private final String appEnv;
+    private final String internalApiToken;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public HealthController(
         DataSource dataSource,
         HealthMapper healthMapper,
         ServiceRegistryMapper serviceRegistryMapper,
-        ServiceEndpointPolicy serviceEndpointPolicy
+        ServiceEndpointPolicy serviceEndpointPolicy,
+        @Value("${app.env:dev}") String appEnv,
+        @Value("${admin.internal-api-token:}") String internalApiToken
     ) {
         this.dataSource = dataSource;
         this.healthMapper = healthMapper;
         this.serviceRegistryMapper = serviceRegistryMapper;
         this.serviceEndpointPolicy = serviceEndpointPolicy;
+        this.appEnv = appEnv == null ? "dev" : appEnv.trim();
+        this.internalApiToken = internalApiToken == null ? "" : internalApiToken.trim();
     }
 
     @RequestMapping(value = {"/health/main.do", "/dashboard/health.do"}, method = RequestMethod.POST)
@@ -64,8 +75,20 @@ public class HealthController {
 
     @ResponseBody
     @RequestMapping(value = "/health/service/list.json", method = RequestMethod.POST)
-    public Map<String, Object> serviceList() {
+    public Map<String, Object> serviceList(HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
         return ok(serviceRegistryMapper.selectServiceRegistryList());
+    }
+
+    @ResponseBody
+    @RequestMapping(value = "/internal/service/use-status.json", method = RequestMethod.POST)
+    public Map<String, Object> internalServiceUseStatus(@RequestBody(required = false) String body, HttpServletRequest request) {
+        ensureInternalRequest(request);
+        Map<String, Object> service = requestedService(parseBody(body));
+        Map<String, Object> data = new LinkedHashMap<String, Object>();
+        data.put("service_cd", stringValue(service.get("service_cd")));
+        data.put("use_yn", stringValue(service.get("use_yn")));
+        return ok(data);
     }
 
     @ResponseBody
@@ -124,6 +147,25 @@ public class HealthController {
         return ok(healthDetail(requestedService(parseBody(body))));
     }
 
+    @ResponseBody
+    @RequestMapping(value = "/health/overview.json", method = RequestMethod.POST)
+    public Map<String, Object> overview(HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
+        List<Map<String, Object>> services = serviceRegistryMapper.selectServiceRegistryList();
+        List<Map<String, Object>> rows = new ArrayList<Map<String, Object>>();
+        for (Map<String, Object> service : services) {
+            rows.add(serviceOverview(service));
+        }
+        return ok(rows);
+    }
+
+    @ResponseBody
+    @RequestMapping(value = "/health/probe.json", method = RequestMethod.POST)
+    public Map<String, Object> probe(@RequestBody(required = false) String body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
+        return ok(serviceOverview(requestedService(parseBody(body))));
+    }
+
     private Map<String, Object> requestedService(Map<String, Object> body) {
         String serviceCd = body == null ? null : stringValue(body.get("service_cd"));
         Map<String, Object> service = serviceCd == null
@@ -133,6 +175,74 @@ public class HealthController {
             throw new IllegalArgumentException("service_cd is invalid");
         }
         return service;
+    }
+
+    private void ensureInternalRequest(HttpServletRequest request) {
+        if (internalApiToken.isEmpty() || ("prod".equalsIgnoreCase(appEnv) && "dev-media-internal-token".equals(internalApiToken))) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "internal API token is not configured");
+        }
+        String requestedToken = request.getHeader("X-Internal-Api-Token");
+        if (!internalApiToken.equals(requestedToken == null ? "" : requestedToken.trim())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "invalid internal API token");
+        }
+    }
+
+    private Map<String, Object> serviceOverview(Map<String, Object> service) {
+        Map<String, Object> row = new LinkedHashMap<String, Object>();
+        row.put("service_seq", service.get("service_seq"));
+        row.put("service_cd", service.get("service_cd"));
+        row.put("service_nm", service.get("service_nm"));
+        row.put("base_url", service.get("base_url"));
+        row.put("use_yn", service.get("use_yn"));
+        row.put("sort_ord", service.get("sort_ord"));
+
+        if ("N".equalsIgnoreCase(stringValue(service.get("use_yn")))) {
+            row.put("overall_status", "DISABLED");
+            row.put("liveness", "DISABLED");
+            row.put("readiness", "DISABLED");
+            row.put("latency_ms", null);
+            row.put("checked_at", Instant.now().toString());
+            row.put("dependency_down_count", 0);
+            row.put("message", "Service is disabled");
+            return row;
+        }
+
+        Map<String, Object> detail = healthDetail(service);
+        Map<String, Object> summary = mapValue(detail.get("summary"));
+        Map<String, Object> db = mapValue(detail.get("db"));
+        List<Map<String, Object>> dependencies = listValue(detail.get("dependencies"));
+        int downCount = 0;
+        for (Map<String, Object> dependency : dependencies) {
+            String status = statusValue(dependency, "UNKNOWN");
+            if (!"UP".equals(status) && !"DISABLED".equals(status)) {
+                downCount++;
+            }
+        }
+
+        String overallStatus = stringValue(summary.get("overall_status"));
+        row.put("overall_status", overallStatus == null ? "DEGRADED" : overallStatus);
+        row.put("liveness", stringValue(summary.get("liveness")));
+        row.put("readiness", stringValue(summary.get("readiness")));
+        row.put("latency_ms", firstNonNull(db.get("elapsed_ms"), summary.get("latency_ms")));
+        row.put("checked_at", firstNonNull(summary.get("checked_at"), Instant.now().toString()));
+        row.put("dependency_down_count", downCount);
+        row.put("message", overviewMessage(row, db, downCount));
+        return row;
+    }
+
+    private String overviewMessage(Map<String, Object> row, Map<String, Object> db, int downCount) {
+        String status = stringValue(row.get("overall_status"));
+        if ("UP".equals(status)) {
+            return downCount > 0 ? "Some dependencies need attention" : "Service is healthy";
+        }
+        String error = stringValue(db.get("error"));
+        if (error != null) {
+            return error;
+        }
+        if (downCount > 0) {
+            return downCount + " dependency check failed";
+        }
+        return "Health check requires attention";
     }
 
     private Map<String, Object> parseBody(String body) {
@@ -421,6 +531,22 @@ public class HealthController {
             return new LinkedHashMap<String, Object>(cast);
         }
         return new LinkedHashMap<String, Object>();
+    }
+
+    private List<Map<String, Object>> listValue(Object value) {
+        if (!(value instanceof List)) {
+            return Collections.emptyList();
+        }
+        List<?> source = (List<?>) value;
+        List<Map<String, Object>> result = new ArrayList<Map<String, Object>>();
+        for (Object item : source) {
+            if (item instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> cast = (Map<String, Object>) item;
+                result.add(new LinkedHashMap<String, Object>(cast));
+            }
+        }
+        return result;
     }
 
     private String extractHost(String baseUrl) {

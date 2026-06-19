@@ -81,6 +81,28 @@ public class ServiceAdminServiceImpl implements ServiceAdminService {
         return serviceSeq;
     }
 
+    @Override
+    @Transactional
+    public Map<String, Object> setServiceUseYn(Long serviceSeq, String useYn, String actor) {
+        if (serviceSeq == null) {
+            throw new IllegalArgumentException("service_seq is required");
+        }
+        String normalizedUseYn = defaultText(useYn, "Y").toUpperCase();
+        if (!"Y".equals(normalizedUseYn) && !"N".equals(normalizedUseYn)) {
+            throw new IllegalArgumentException("use_yn must be Y or N");
+        }
+
+        Map<String, Object> payload = new HashMap<String, Object>();
+        payload.put("service_seq", serviceSeq);
+        payload.put("use_yn", normalizedUseYn);
+        payload.put("updated_by", defaultActor(actor));
+        int updated = serviceAdminMapper.updateServiceUseYn(payload);
+        if (updated == 0) {
+            throw new IllegalArgumentException("service not found");
+        }
+        return getServiceDetail(serviceSeq);
+    }
+
     private String defaultActor(String actor) {
         return actor == null || actor.trim().isEmpty() ? "SYSTEM" : actor.trim();
     }

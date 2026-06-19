@@ -9,4 +9,6 @@ public interface ServiceAdminService {
     Map<String, Object> getServiceDetail(Long serviceSeq);
 
     Long saveService(Map<String, Object> param, String actor);
+
+    Map<String, Object> setServiceUseYn(Long serviceSeq, String useYn, String actor);
 }

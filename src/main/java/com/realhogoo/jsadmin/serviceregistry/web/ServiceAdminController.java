@@ -63,6 +63,16 @@ public class ServiceAdminController {
         return ok(Collections.singletonMap("service_seq", serviceSeq));
     }
 
+    @PostMapping("/service/use.json")
+    @ResponseBody
+    public Map<String, Object> use(@RequestBody Map<String, Object> body, HttpServletRequest request) {
+        AuthRequestSupport.ensureAdmin(request);
+        Long serviceSeq = toLong(body == null ? null : body.get("service_seq"));
+        String useYn = toNullableString(body == null ? null : body.get("use_yn"));
+        String actor = request.getAttribute("user_id") == null ? null : String.valueOf(request.getAttribute("user_id"));
+        return ok(serviceAdminService.setServiceUseYn(serviceSeq, useYn, actor));
+    }
+
     private Map<String, Object> ok(Object data) {
         Map<String, Object> res = new HashMap<String, Object>();
         res.put("ok", true);
