@@ -40,6 +40,7 @@ public class JwtAuthFilter implements Filter {
         "/auth/ping.json",
         "/auth/refresh.json",
         "/health/live.json",
+        "/internal/service/use-status.json",
         "/menu/tree.json",
         "/home/intro.json",
         "/notice/list.json",
