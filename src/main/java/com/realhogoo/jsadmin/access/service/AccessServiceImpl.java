@@ -156,7 +156,8 @@ public class AccessServiceImpl implements AccessService {
     private String extractClientIp(HttpServletRequest request) {
         if (request == null) return null;
 
-        String forwarded = header(request, "X-Forwarded-For");
+        boolean trustForwardedHeaders = trustForwardedHeaders();
+        String forwarded = trustForwardedHeaders ? header(request, "X-Forwarded-For") : null;
         if (forwarded != null) {
             String[] parts = forwarded.split(",");
             if (parts.length > 0) {
@@ -165,9 +166,17 @@ public class AccessServiceImpl implements AccessService {
             }
         }
 
-        String realIp = trimToNull(header(request, "X-Real-IP"), 45);
+        String realIp = trustForwardedHeaders ? trimToNull(header(request, "X-Real-IP"), 45) : null;
         if (realIp != null) return realIp;
         return trimToNull(request.getRemoteAddr(), 45);
+    }
+
+    private boolean trustForwardedHeaders() {
+        String configured = trimToNull(System.getProperty("app.trust-forwarded-headers"), 16);
+        if (configured == null) {
+            configured = trimToNull(System.getenv("TRUST_FORWARDED_HEADERS"), 16);
+        }
+        return "true".equalsIgnoreCase(configured);
     }
 
     private String trimToNull(String value, int maxLength) {

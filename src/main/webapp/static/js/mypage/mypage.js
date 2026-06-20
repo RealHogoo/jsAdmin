@@ -77,13 +77,17 @@
             return;
         }
 
-        app.callJson("/mypage/changePassword.json", {
+        app.encryptPayload({
             current_password: currentPassword,
             new_password: newPassword
-        }, function () {
+        }).then(function (payload) {
+            return app.callJson("/mypage/changePassword.json", payload, function () {
             clearPasswordForm();
             setMsg("비밀번호가 변경되었습니다.", true);
             loadDetail();
+            });
+        }).catch(function (err) {
+            setMsg(err && err.message ? err.message : "PASSWORD_CHANGE_FAILED", false);
         });
     }
 

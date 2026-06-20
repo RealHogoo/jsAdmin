@@ -99,7 +99,7 @@ class WebLayerSmokeTest {
                 new LoginController(authService, loginCryptoService, "dev"),
                 new AuthController(authService),
                 new MenuController(menuService),
-                new UserController(userService),
+                new UserController(userService, loginCryptoService, "dev"),
                 new NoticeController(noticeService),
                 new HealthController(dataSource, healthMapper, serviceRegistryMapper, serviceEndpointPolicy, "dev", "dev-media-internal-token"),
                 new MainController("https://adm.js65.myds.me")

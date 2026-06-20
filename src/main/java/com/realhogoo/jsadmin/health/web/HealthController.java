@@ -178,7 +178,7 @@ public class HealthController {
     }
 
     private void ensureInternalRequest(HttpServletRequest request) {
-        if (internalApiToken.isEmpty() || ("prod".equalsIgnoreCase(appEnv) && "dev-media-internal-token".equals(internalApiToken))) {
+        if (internalApiToken.isEmpty() || (isProduction() && "dev-media-internal-token".equals(internalApiToken))) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "internal API token is not configured");
         }
         String requestedToken = request.getHeader("X-Internal-Api-Token");
@@ -490,6 +490,10 @@ public class HealthController {
 
     private boolean isLocalService(Map<String, Object> service) {
         return "admin-service".equalsIgnoreCase(stringValue(service.get("service_cd")));
+    }
+
+    private boolean isProduction() {
+        return "prod".equalsIgnoreCase(appEnv) || "production".equalsIgnoreCase(appEnv);
     }
 
     private String endpointPath(Map<String, Object> service, String mode) {

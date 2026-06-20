@@ -119,8 +119,13 @@
         if (!payload.user_nm) return global.alert("사용자명을 입력하세요.");
         if (!payload.user_seq && !payload.user_pw) return global.alert("비밀번호를 입력하세요.");
 
-        app.callJson("/user/save.json", payload, function () {
-            loadList().then(clearForm);
+        var request = payload.user_pw ? app.encryptPayload(payload) : Promise.resolve(payload);
+        request.then(function (requestPayload) {
+            return app.callJson("/user/save.json", requestPayload, function () {
+                loadList().then(clearForm);
+            });
+        }).catch(function (err) {
+            global.alert(err && err.message ? err.message : "USER_SAVE_FAILED");
         });
     }
 

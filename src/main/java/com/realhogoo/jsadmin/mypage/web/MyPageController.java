@@ -2,7 +2,9 @@ package com.realhogoo.jsadmin.mypage.web;
 
 import com.realhogoo.jsadmin.access.service.AccessService;
 import com.realhogoo.jsadmin.auth.dto.LoginUser;
+import com.realhogoo.jsadmin.auth.service.LoginCryptoService;
 import com.realhogoo.jsadmin.user.service.UserService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -18,10 +20,19 @@ public class MyPageController {
 
     private final UserService userService;
     private final AccessService accessService;
+    private final LoginCryptoService loginCryptoService;
+    private final String appEnv;
 
-    public MyPageController(UserService userService, AccessService accessService) {
+    public MyPageController(
+        UserService userService,
+        AccessService accessService,
+        LoginCryptoService loginCryptoService,
+        @Value("${app.env:dev}") String appEnv
+    ) {
         this.userService = userService;
         this.accessService = accessService;
+        this.loginCryptoService = loginCryptoService;
+        this.appEnv = appEnv == null ? "dev" : appEnv.trim();
     }
 
     @PostMapping("/mypage/main.do")
@@ -53,11 +64,29 @@ public class MyPageController {
     @ResponseBody
     public Map<String, Object> changePassword(@RequestBody Map<String, Object> body, HttpServletRequest request) {
         String currentUserId = currentUserId(request);
-        String currentPassword = body == null || body.get("current_password") == null ? null : String.valueOf(body.get("current_password"));
-        String newPassword = body == null || body.get("new_password") == null ? null : String.valueOf(body.get("new_password"));
+        Map<String, Object> payload = resolveSensitiveBody(body);
+        String currentPassword = payload == null || payload.get("current_password") == null ? null : String.valueOf(payload.get("current_password"));
+        String newPassword = payload == null || payload.get("new_password") == null ? null : String.valueOf(payload.get("new_password"));
         int changed = userService.changeMyPassword(currentUserId, currentPassword, newPassword, currentUserId);
         accessService.recordLoginHistory(loginUser(request), currentUserId, true, "MYPAGE_PASSWORD_CHANGE", sessionId(request), request);
         return ok(changed);
+    }
+
+    private Map<String, Object> resolveSensitiveBody(Map<String, Object> body) {
+        if (body != null && body.get("login_payload_enc") != null) {
+            return loginCryptoService.decryptPayload(
+                toNullableString(body.get("login_key_id")),
+                toNullableString(body.get("login_payload_enc"))
+            );
+        }
+        if (isProduction()) {
+            throw new IllegalArgumentException("encrypted payload is required");
+        }
+        return body;
+    }
+
+    private boolean isProduction() {
+        return "prod".equalsIgnoreCase(appEnv) || "production".equalsIgnoreCase(appEnv);
     }
 
     private String currentUserId(HttpServletRequest request) {

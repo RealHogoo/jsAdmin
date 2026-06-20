@@ -10,6 +10,7 @@
     };
     var loadingDepth = 0;
     var refreshPromise = null;
+    var cryptoKeyPromise = null;
 
     function ensureFavicon() {
         var head = document.head || document.getElementsByTagName("head")[0];
@@ -85,6 +86,69 @@
             "Content-Type": "application/json; charset=UTF-8",
             "Accept": "application/json"
         };
+    }
+
+    function base64ToArrayBuffer(base64) {
+        var binary = global.atob(base64);
+        var bytes = new Uint8Array(binary.length);
+        for (var i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+
+    function arrayBufferToBase64(buffer) {
+        var bytes = new Uint8Array(buffer);
+        var chunkSize = 0x8000;
+        var binary = "";
+        for (var i = 0; i < bytes.length; i += chunkSize) {
+            var chunk = bytes.subarray(i, i + chunkSize);
+            binary += String.fromCharCode.apply(null, chunk);
+        }
+        return global.btoa(binary);
+    }
+
+    function fetchCryptoKey() {
+        if (cryptoKeyPromise) {
+            return cryptoKeyPromise;
+        }
+        cryptoKeyPromise = requestJson("/auth/login-key.json", {}).then(function (data) {
+            if (!data || !data.key_id || !data.public_key) {
+                throw new Error("LOGIN_CRYPTO_KEY_INVALID");
+            }
+            return data;
+        }).catch(function (err) {
+            cryptoKeyPromise = null;
+            throw err;
+        });
+        return cryptoKeyPromise;
+    }
+
+    function encryptPayload(data) {
+        if (!global.crypto || !global.crypto.subtle) {
+            return Promise.reject(new Error("CRYPTO_NOT_SUPPORTED"));
+        }
+        return fetchCryptoKey().then(function (keyData) {
+            return global.crypto.subtle.importKey(
+                "spki",
+                base64ToArrayBuffer(keyData.public_key),
+                { name: "RSA-OAEP", hash: "SHA-256" },
+                false,
+                ["encrypt"]
+            ).then(function (publicKey) {
+                var plain = normalizePayload(data || {});
+                return global.crypto.subtle.encrypt(
+                    { name: "RSA-OAEP" },
+                    publicKey,
+                    new TextEncoder().encode(plain)
+                );
+            }).then(function (cipherBuffer) {
+                return {
+                    login_key_id: keyData.key_id,
+                    login_payload_enc: arrayBufferToBase64(cipherBuffer)
+                };
+            });
+        });
     }
 
     function storeAuthState(data) {
@@ -559,6 +623,7 @@
     app.storeAuthState = storeAuthState;
     app.getAuthState = getAuthState;
     app.refreshAuth = refreshAuth;
+    app.encryptPayload = encryptPayload;
     app.bindPage = bindPage;
     app.createChunkListController = createChunkListController;
     app.destroyComponent = destroyComponent;
