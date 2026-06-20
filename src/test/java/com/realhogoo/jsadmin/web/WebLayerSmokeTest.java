@@ -4,6 +4,7 @@ import com.realhogoo.jsadmin.api.ApiResponse;
 import com.realhogoo.jsadmin.api.GlobalExceptionHandler;
 import com.realhogoo.jsadmin.api.SecurityHeadersFilter;
 import com.realhogoo.jsadmin.auth.service.AuthService;
+import com.realhogoo.jsadmin.auth.service.LoginCryptoService;
 import com.realhogoo.jsadmin.auth.web.AuthController;
 import com.realhogoo.jsadmin.auth.web.LoginController;
 import com.realhogoo.jsadmin.health.mapper.HealthMapper;
@@ -49,6 +50,7 @@ class WebLayerSmokeTest {
     private MenuService menuService;
     private UserService userService;
     private NoticeService noticeService;
+    private LoginCryptoService loginCryptoService;
 
     @BeforeEach
     void setUp() {
@@ -56,6 +58,8 @@ class WebLayerSmokeTest {
         menuService = mock(MenuService.class);
         userService = mock(UserService.class);
         noticeService = mock(NoticeService.class);
+        loginCryptoService = new LoginCryptoService();
+        loginCryptoService.init();
         DataSource dataSource = mock(DataSource.class);
         HealthMapper healthMapper = mock(HealthMapper.class);
         ServiceRegistryMapper serviceRegistryMapper = mock(ServiceRegistryMapper.class);
@@ -92,7 +96,7 @@ class WebLayerSmokeTest {
 
         mockMvc = MockMvcBuilders
             .standaloneSetup(
-                new LoginController(authService),
+                new LoginController(authService, loginCryptoService, "dev"),
                 new AuthController(authService),
                 new MenuController(menuService),
                 new UserController(userService),
@@ -173,6 +177,18 @@ class WebLayerSmokeTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.ok").value(true))
             .andExpect(jsonPath("$.data.status").value("UP"));
+    }
+
+    @Test
+    void loginKeyRespondsWithoutPlainPrivateMaterial() throws Exception {
+        mockMvc.perform(post("/auth/login-key.json")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.ok").value(true))
+            .andExpect(jsonPath("$.data.key_id").isNotEmpty())
+            .andExpect(jsonPath("$.data.public_key").isNotEmpty())
+            .andExpect(jsonPath("$.data.private_key").doesNotExist());
     }
 
     @Test

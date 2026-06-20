@@ -13,6 +13,8 @@
     var MSG_FAIL = "\uB85C\uADF8\uC778\uC5D0 \uC2E4\uD328\uD588\uC2B5\uB2C8\uB2E4.";
     var MSG_SUCCESS = "\uB85C\uADF8\uC778\uB418\uC5C8\uC2B5\uB2C8\uB2E4.";
     var MSG_SERVER_ERROR = "\uC11C\uBC84 \uC624\uB958\uAC00 \uBC1C\uC0DD\uD588\uC2B5\uB2C8\uB2E4. \uC7A0\uC2DC \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.";
+    var MSG_CRYPTO_ERROR = "\uB85C\uADF8\uC778 \uC554\uD638\uD654\uB97C \uC900\uBE44\uD558\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4. \uC0C8\uB85C\uACE0\uCE68 \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.";
+    var loginKeyCache = null;
 
     function clearAuthStorage() {
         UX.localRemove(["JWT", "REFRESH_TOKEN", "LOGIN_USER", "LOGIN_SESSION_ID"]);
@@ -112,6 +114,78 @@
                 throw new Error("HTTP " + response.status + " (non-json): " + text);
             });
         });
+    }
+
+    function postJson(path, body) {
+        return fetch((global.CTX || "") + path, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            },
+            body: JSON.stringify(body || {})
+        }).then(function (response) {
+            return response.json();
+        });
+    }
+
+    function fetchLoginKey() {
+        if (loginKeyCache) {
+            return Promise.resolve(loginKeyCache);
+        }
+        return postJson("/auth/login-key.json", {}).then(function (res) {
+            if (!res || res.ok !== true || !res.data || !res.data.public_key || !res.data.key_id) {
+                throw new Error("login key is unavailable");
+            }
+            loginKeyCache = res.data;
+            return loginKeyCache;
+        });
+    }
+
+    function encryptLoginPayload(userId, userPw) {
+        if (!global.crypto || !global.crypto.subtle || typeof TextEncoder === "undefined") {
+            return Promise.reject(new Error("web crypto is unavailable"));
+        }
+        return fetchLoginKey().then(function (keyInfo) {
+            return global.crypto.subtle.importKey(
+                "spki",
+                base64ToArrayBuffer(keyInfo.public_key),
+                { name: "RSA-OAEP", hash: "SHA-256" },
+                false,
+                ["encrypt"]
+            ).then(function (publicKey) {
+                var payload = JSON.stringify({ user_id: userId, user_pw: userPw });
+                return global.crypto.subtle.encrypt(
+                    { name: "RSA-OAEP" },
+                    publicKey,
+                    new TextEncoder().encode(payload)
+                );
+            }).then(function (cipherBuffer) {
+                return {
+                    login_key_id: keyInfo.key_id,
+                    login_payload_enc: arrayBufferToBase64(cipherBuffer)
+                };
+            });
+        });
+    }
+
+    function base64ToArrayBuffer(value) {
+        var binary = global.atob(String(value || ""));
+        var bytes = new Uint8Array(binary.length);
+        for (var i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+
+    function arrayBufferToBase64(buffer) {
+        var bytes = new Uint8Array(buffer);
+        var chunkSize = 8192;
+        var binary = "";
+        for (var i = 0; i < bytes.length; i += chunkSize) {
+            binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+        }
+        return global.btoa(binary);
     }
 
     function normalizeBaseUrl(value) {
@@ -247,7 +321,8 @@
             return;
         }
 
-        postLogin({ user_id: userId, user_pw: userPw })
+        encryptLoginPayload(userId, userPw)
+            .then(postLogin)
             .then(function (res) {
                 if (!res || res.ok !== true) {
                     clearAuthStorage();
@@ -276,7 +351,7 @@
             .catch(function (e) {
                 clearAuthStorage();
                 setDisabled(false);
-                setMsg(MSG_SERVER_ERROR, "error");
+                setMsg(e && /crypto|key|encrypt/i.test(e.message || "") ? MSG_CRYPTO_ERROR : MSG_SERVER_ERROR, "error");
             });
     }
 

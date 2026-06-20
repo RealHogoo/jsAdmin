@@ -2,6 +2,8 @@ package com.realhogoo.jsadmin.auth.web;
 
 import com.realhogoo.jsadmin.api.ApiResponse;
 import com.realhogoo.jsadmin.auth.service.AuthService;
+import com.realhogoo.jsadmin.auth.service.LoginCryptoService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,9 +20,24 @@ public class LoginController {
     private static final int MAX_PASSWORD_LENGTH = 1000;
 
     private final AuthService authService;
+    private final LoginCryptoService loginCryptoService;
+    private final String appEnv;
 
-    public LoginController(AuthService authService) {
+    public LoginController(
+        AuthService authService,
+        LoginCryptoService loginCryptoService,
+        @Value("${app.env:dev}") String appEnv
+    ) {
         this.authService = authService;
+        this.loginCryptoService = loginCryptoService;
+        this.appEnv = appEnv == null ? "dev" : appEnv.trim();
+    }
+
+    @ResponseBody
+    @RequestMapping(value = "/auth/login-key.json", method = RequestMethod.POST, produces = "application/json;charset=UTF-8")
+    public ApiResponse<Map<String, Object>> loginKey(HttpServletResponse response) {
+        applyNoStore(response);
+        return ApiResponse.ok(loginCryptoService.publicKey(), "");
     }
 
     @ResponseBody
@@ -33,8 +50,9 @@ public class LoginController {
         if (!CsrfOriginSupport.isSameOriginRequest(request)) {
             return ApiResponse.fail("FORBIDDEN", "허용되지 않은 출처의 로그인 요청입니다.", null, request);
         }
-        String userId = body.get("user_id") == null ? null : String.valueOf(body.get("user_id"));
-        String userPw = body.get("user_pw") == null ? null : String.valueOf(body.get("user_pw"));
+        Map<String, Object> loginBody = resolveLoginBody(body);
+        String userId = loginBody.get("user_id") == null ? null : String.valueOf(loginBody.get("user_id"));
+        String userPw = loginBody.get("user_pw") == null ? null : String.valueOf(loginBody.get("user_pw"));
         if (userId == null || userId.trim().isEmpty() || userPw == null) {
             return ApiResponse.fail("BAD_REQUEST", "\uC544\uC774\uB514\uC640 \uBE44\uBC00\uBC88\uD638\uB97C \uC785\uB825\uD558\uC138\uC694.", null, request);
         }
@@ -55,6 +73,23 @@ public class LoginController {
             AuthCookieSupport.clearAuthCookies(request, response);
         }
         return result;
+    }
+
+    private Map<String, Object> resolveLoginBody(Map<String, Object> body) {
+        if (body != null && body.get("login_payload_enc") != null) {
+            return loginCryptoService.decryptPayload(
+                stringValue(body.get("login_key_id")),
+                stringValue(body.get("login_payload_enc"))
+            );
+        }
+        if (isProduction()) {
+            throw new IllegalArgumentException("encrypted login payload is required");
+        }
+        return body;
+    }
+
+    private boolean isProduction() {
+        return "prod".equalsIgnoreCase(appEnv) || "production".equalsIgnoreCase(appEnv);
     }
 
     private void applyNoStore(HttpServletResponse response) {
