@@ -139,7 +139,7 @@
     <update id="resetPassword" parameterType="map">
         UPDATE adm_user_mst
            SET pwd_hash = #{reset_pw},
-               pwd_reset_yn = 'Y',
+               pwd_reset_yn = 'N',
                login_fail_cnt = 0,
                lock_yn = 'N',
                lock_until_at = NULL,

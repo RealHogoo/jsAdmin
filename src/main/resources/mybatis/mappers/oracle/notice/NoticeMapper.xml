@@ -37,6 +37,27 @@
         ORDER BY NVL(PIN_YN, 'N') DESC, NVL(START_DT, DATE '1900-01-01') DESC, NOTI_SEQ DESC
     </select>
 
+    <select id="selectPopupNoticeList" resultType="map">
+        SELECT
+            NOTI_SEQ AS noti_seq,
+            NOTI_TYPE_CD AS noti_type_cd,
+            TITLE AS title,
+            DBMS_LOB.SUBSTR(CONTENT, 4000, 1) AS content,
+            TO_CHAR(START_DT, 'YYYY-MM-DD') AS start_dt,
+            TO_CHAR(END_DT, 'YYYY-MM-DD') AS end_dt,
+            NVL(PIN_YN, 'N') AS pin_yn,
+            NVL(POPUP_YN, 'N') AS popup_yn,
+            NVL(USE_YN, 'Y') AS use_yn,
+            TO_CHAR(UPDATED_AT, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+        FROM ADM_NOTI_MST
+        WHERE NVL(USE_YN, 'Y') = 'Y'
+          AND NVL(POPUP_YN, 'N') = 'Y'
+          AND (START_DT IS NULL OR START_DT &lt;= TRUNC(SYSDATE))
+          AND (END_DT IS NULL OR END_DT &gt;= TRUNC(SYSDATE))
+        ORDER BY NVL(PIN_YN, 'N') DESC, NVL(START_DT, DATE '1900-01-01') DESC, NOTI_SEQ DESC
+        FETCH FIRST 5 ROWS ONLY
+    </select>
+
     <select id="selectNoticeDetail" parameterType="long" resultType="map">
         SELECT
             NOTI_SEQ AS noti_seq,

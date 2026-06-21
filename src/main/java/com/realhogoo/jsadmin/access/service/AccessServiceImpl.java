@@ -144,6 +144,11 @@ public class AccessServiceImpl implements AccessService {
         return expired;
     }
 
+    @Override
+    public int countActiveLoginSessions() {
+        return accessMapper.countActiveLoginSessions();
+    }
+
     private String defaultActor(String actor) {
         String safe = trimToNull(actor, 100);
         return safe == null ? "SYSTEM" : safe;

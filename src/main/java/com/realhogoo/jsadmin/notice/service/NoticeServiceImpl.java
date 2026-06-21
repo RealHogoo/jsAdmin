@@ -25,6 +25,11 @@ public class NoticeServiceImpl implements NoticeService {
     }
 
     @Override
+    public List<Map<String, Object>> selectPopupNoticeList() {
+        return noticeMapper.selectPopupNoticeList();
+    }
+
+    @Override
     public Map<String, Object> selectNoticeDetail(Long notiSeq) {
         if (notiSeq == null) {
             throw new IllegalArgumentException("noti_seq is required");

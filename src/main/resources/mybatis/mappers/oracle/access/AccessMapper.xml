@@ -194,4 +194,11 @@
         ORDER BY LOGIN_AT DESC, HIST_SEQ DESC
     </select>
 
+    <select id="countActiveLoginSessions" resultType="int">
+        SELECT COUNT(*)
+        FROM ADM_LOGIN_SESN
+        WHERE STATUS_CD = 'ACTIVE'
+          AND (EXPIRES_AT IS NULL OR EXPIRES_AT &gt;= SYSTIMESTAMP)
+    </select>
+
 </mapper>

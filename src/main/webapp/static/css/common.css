@@ -1400,6 +1400,83 @@ body.app-shell {
     padding: 10px 0;
 }
 
+.notice-popup-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.38);
+}
+
+.notice-popup-panel {
+    width: min(560px, 100%);
+    max-height: min(680px, calc(100vh - 48px));
+    display: flex;
+    flex-direction: column;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid #dbe3ef;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+    overflow: hidden;
+}
+
+.notice-popup-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 18px 20px 10px;
+}
+
+.notice-popup-title {
+    margin: 8px 0 0;
+    font-size: 20px;
+    line-height: 1.35;
+    color: #0f172a;
+}
+
+.notice-popup-close {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #d1d5db;
+    border-radius: 50%;
+    background: #fff;
+    color: #334155;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.notice-popup-period {
+    padding: 0 20px 12px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.notice-popup-body {
+    flex: 1 1 auto;
+    min-height: 120px;
+    overflow: auto;
+    padding: 16px 20px;
+    border-top: 1px solid #e5e7eb;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: pre-wrap;
+    line-height: 1.65;
+    color: #1f2937;
+    background: #f8fafc;
+}
+
+.notice-popup-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 14px 20px;
+}
+
 @media (max-width: 1024px) {
     .dashboard-page .home-grid {
         grid-template-columns: 1fr;
@@ -1495,6 +1572,9 @@ body.app-shell {
 .health-page {
     gap: 16px;
     position: relative;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding-right: 4px;
 }
 
 .health-toolbar {
@@ -1514,6 +1594,31 @@ body.app-shell {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
+}
+
+.health-content-tabs {
+    margin-top: 2px;
+}
+
+.health-content-tab {
+    min-width: 110px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.health-page .health-tab-pane {
+    display: block;
+    flex: 0 0 auto;
+    min-height: 0;
+}
+
+.health-page .health-tab-pane[hidden] {
+    display: none;
+}
+
+.health-page .health-tab-pane > * + * {
+    margin-top: 12px;
 }
 
 .health-service-tab {
@@ -1548,6 +1653,12 @@ body.app-shell {
 }
 
 .health-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.health-resource-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
@@ -1706,6 +1817,10 @@ body.app-shell {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
+    .health-resource-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .health-main-grid {
         grid-template-columns: 1fr;
     }
@@ -1722,6 +1837,10 @@ body.app-shell {
     }
 
     .health-summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .health-resource-grid {
         grid-template-columns: 1fr;
     }
 

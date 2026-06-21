@@ -45,6 +45,7 @@ public class JwtAuthFilter implements Filter {
         "/menu/tree.json",
         "/home/intro.json",
         "/notice/list.json",
+        "/notice/popup/list.json",
         "/timeline/list.json",
         "/timeline/detail.json"
     ));

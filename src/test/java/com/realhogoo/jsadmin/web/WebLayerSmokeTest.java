@@ -3,6 +3,7 @@ package com.realhogoo.jsadmin.web;
 import com.realhogoo.jsadmin.api.ApiResponse;
 import com.realhogoo.jsadmin.api.GlobalExceptionHandler;
 import com.realhogoo.jsadmin.api.SecurityHeadersFilter;
+import com.realhogoo.jsadmin.access.service.AccessService;
 import com.realhogoo.jsadmin.auth.service.AuthService;
 import com.realhogoo.jsadmin.auth.service.LoginCryptoService;
 import com.realhogoo.jsadmin.auth.web.AuthController;
@@ -51,6 +52,7 @@ class WebLayerSmokeTest {
     private UserService userService;
     private NoticeService noticeService;
     private LoginCryptoService loginCryptoService;
+    private AccessService accessService;
 
     @BeforeEach
     void setUp() {
@@ -58,6 +60,7 @@ class WebLayerSmokeTest {
         menuService = mock(MenuService.class);
         userService = mock(UserService.class);
         noticeService = mock(NoticeService.class);
+        accessService = mock(AccessService.class);
         loginCryptoService = new LoginCryptoService();
         loginCryptoService.init();
         DataSource dataSource = mock(DataSource.class);
@@ -101,7 +104,7 @@ class WebLayerSmokeTest {
                 new MenuController(menuService),
                 new UserController(userService, loginCryptoService, "dev"),
                 new NoticeController(noticeService),
-                new HealthController(dataSource, healthMapper, serviceRegistryMapper, serviceEndpointPolicy, "dev", "dev-media-internal-token"),
+                new HealthController(dataSource, healthMapper, serviceRegistryMapper, serviceEndpointPolicy, accessService, "dev", "dev-media-internal-token"),
                 new MainController("https://adm.js65.myds.me")
             )
             .setControllerAdvice(new GlobalExceptionHandler())

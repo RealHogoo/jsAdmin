@@ -23,4 +23,6 @@ public interface AccessService {
     int expireSessionsByLoginId(String loginId, String actor);
 
     int logout(String sessionId, String actor, HttpServletRequest request);
+
+    int countActiveLoginSessions();
 }

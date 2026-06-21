@@ -22,40 +22,45 @@
         <a href="#" class="btn" id="btnHealthRefresh" role="button">&#xc0c8;&#xb85c;&#xace0;&#xce68;</a>
     </div>
 
-    <div class="health-summary-grid">
-        <div class="panel health-kpi" data-health-card="overall">
-            <div class="health-kpi-label">Overall</div>
-            <div class="health-kpi-value" id="healthOverallStatus">-</div>
-            <div class="health-kpi-sub" id="healthServiceName">admin-service</div>
-        </div>
-        <div class="panel health-kpi" data-health-card="live">
-            <div class="health-kpi-label">Liveness</div>
-            <div class="health-kpi-value" id="healthLiveness">-</div>
-            <div class="health-kpi-sub">&#xd504;&#xb85c;&#xc138;&#xc2a4; &#xc751;&#xb2f5; &#xac00;&#xb2a5; &#xc5ec;&#xbd80;</div>
-        </div>
-        <div class="panel health-kpi" data-health-card="ready">
-            <div class="health-kpi-label">Readiness</div>
-            <div class="health-kpi-value" id="healthReadiness">-</div>
-            <div class="health-kpi-sub">&#xc758;&#xc874; &#xc790;&#xc6d0;&#xc758; &#xc0ac;&#xc6a9; &#xac00;&#xb2a5; &#xc5ec;&#xbd80;</div>
-        </div>
-        <div class="panel health-kpi" data-health-card="db">
-            <div class="health-kpi-label">DB Latency</div>
-            <div class="health-kpi-value" id="healthDbLatency">-</div>
-            <div class="health-kpi-sub" id="healthDbMessage">-</div>
-        </div>
+    <div class="tabs health-content-tabs" id="healthContentTabs">
+        <a href="javascript:void(0)" class="tab health-content-tab is-active" data-health-tab="service">서비스 상태</a>
+        <a href="javascript:void(0)" class="tab health-content-tab" data-health-tab="resource">서버 리소스</a>
     </div>
 
-    <div class="panel health-meta-panel">
-        <div class="panel-title">&#xc11c;&#xbe44;&#xc2a4; &#xc815;&#xbcf4;</div>
-        <div class="health-detail-grid">
-            <div class="health-field"><span>Base URL</span><b id="healthBaseUrl">-</b></div>
-            <div class="health-field"><span>Use</span><b id="healthUseYn">-</b></div>
-            <div class="health-field"><span>Remark</span><b id="healthRemark">-</b></div>
-            <div class="health-field"><span>Selected Service</span><b id="healthServiceLabel">-</b></div>
+    <div class="tab-pane health-tab-pane is-active" data-health-pane="service">
+        <div class="health-summary-grid">
+            <div class="panel health-kpi" data-health-card="overall">
+                <div class="health-kpi-label">Overall</div>
+                <div class="health-kpi-value" id="healthOverallStatus">-</div>
+                <div class="health-kpi-sub" id="healthServiceName">admin-service</div>
+            </div>
+            <div class="panel health-kpi" data-health-card="live">
+                <div class="health-kpi-label">Liveness</div>
+                <div class="health-kpi-value" id="healthLiveness">-</div>
+                <div class="health-kpi-sub">&#xd504;&#xb85c;&#xc138;&#xc2a4; &#xc751;&#xb2f5; &#xac00;&#xb2a5; &#xc5ec;&#xbd80;</div>
+            </div>
+            <div class="panel health-kpi" data-health-card="ready">
+                <div class="health-kpi-label">Readiness</div>
+                <div class="health-kpi-value" id="healthReadiness">-</div>
+                <div class="health-kpi-sub">&#xc758;&#xc874; &#xc790;&#xc6d0;&#xc758; &#xc0ac;&#xc6a9; &#xac00;&#xb2a5; &#xc5ec;&#xbd80;</div>
+            </div>
+            <div class="panel health-kpi" data-health-card="db">
+                <div class="health-kpi-label">DB Latency</div>
+                <div class="health-kpi-value" id="healthDbLatency">-</div>
+                <div class="health-kpi-sub" id="healthDbMessage">-</div>
+            </div>
         </div>
-    </div>
 
-    <div class="health-main-grid">
+        <div class="panel health-meta-panel">
+            <div class="panel-title">&#xc11c;&#xbe44;&#xc2a4; &#xc815;&#xbcf4;</div>
+            <div class="health-detail-grid">
+                <div class="health-field"><span>Base URL</span><b id="healthBaseUrl">-</b></div>
+                <div class="health-field"><span>Use</span><b id="healthUseYn">-</b></div>
+                <div class="health-field"><span>Remark</span><b id="healthRemark">-</b></div>
+                <div class="health-field"><span>Selected Service</span><b id="healthServiceLabel">-</b></div>
+            </div>
+        </div>
+
         <div class="panel">
             <div class="panel-title">DB &#xc0c1;&#xd0dc;</div>
             <div class="health-detail-grid">
@@ -73,6 +78,49 @@
         </div>
 
         <div class="panel">
+            <div class="panel-title">&#xc758;&#xc874; &#xc11c;&#xbe44;&#xc2a4;</div>
+            <table class="tbl">
+                <thead>
+                <tr>
+                    <th style="width:200px;">Name</th>
+                    <th style="width:120px;">Type</th>
+                    <th style="width:120px;">Status</th>
+                    <th style="width:120px;">Latency</th>
+                    <th>Message</th>
+                </tr>
+                </thead>
+                <tbody id="healthDependencyBody">
+                <tr><td colspan="5">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tab-pane health-tab-pane" data-health-pane="resource" hidden>
+        <div class="health-resource-grid">
+            <div class="panel health-kpi" data-health-resource-card="cpu">
+                <div class="health-kpi-label">CPU 사용률</div>
+                <div class="health-kpi-value" id="svCpuUsage">-</div>
+                <div class="health-kpi-sub" id="svCpuDetail">-</div>
+            </div>
+            <div class="panel health-kpi" data-health-resource-card="memory">
+                <div class="health-kpi-label">메모리 사용률</div>
+                <div class="health-kpi-value" id="svMemoryUsage">-</div>
+                <div class="health-kpi-sub" id="svMemoryDetail">-</div>
+            </div>
+            <div class="panel health-kpi" data-health-resource-card="network">
+                <div class="health-kpi-label">네트워크 상태</div>
+                <div class="health-kpi-value" id="svNetworkStatus">-</div>
+                <div class="health-kpi-sub" id="svNetworkDetail">-</div>
+            </div>
+            <div class="panel health-kpi" data-health-resource-card="users">
+                <div class="health-kpi-label">접속자수</div>
+                <div class="health-kpi-value" id="svActiveUsers">-</div>
+                <div class="health-kpi-sub">활성 로그인 세션</div>
+            </div>
+        </div>
+
+        <div class="panel">
             <div class="panel-title">&#xc11c;&#xbc84; &#xc0c1;&#xd0dc;</div>
             <div class="health-detail-grid">
                 <div class="health-field"><span>Host</span><b id="svHost">-</b></div>
@@ -83,26 +131,10 @@
                 <div class="health-field"><span>Server</span><b id="svInfo">-</b></div>
                 <div class="health-field"><span>Threads</span><b id="svThreads">-</b></div>
                 <div class="health-field"><span>Heap</span><b id="svHeap">-</b></div>
+                <div class="health-field"><span>Disk</span><b id="svDisk">-</b></div>
+                <div class="health-field"><span>Network IP</span><b id="svNetworkIp">-</b></div>
             </div>
         </div>
-    </div>
-
-    <div class="panel">
-        <div class="panel-title">&#xc758;&#xc874; &#xc11c;&#xbe44;&#xc2a4;</div>
-        <table class="tbl">
-            <thead>
-            <tr>
-                <th style="width:200px;">Name</th>
-                <th style="width:120px;">Type</th>
-                <th style="width:120px;">Status</th>
-                <th style="width:120px;">Latency</th>
-                <th>Message</th>
-            </tr>
-            </thead>
-            <tbody id="healthDependencyBody">
-            <tr><td colspan="5">Loading...</td></tr>
-            </tbody>
-        </table>
     </div>
 </div>
 

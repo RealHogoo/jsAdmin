@@ -2,6 +2,7 @@ package com.realhogoo.jsadmin.health.web;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.realhogoo.jsadmin.access.service.AccessService;
 import com.realhogoo.jsadmin.auth.AuthRequestSupport;
 import com.realhogoo.jsadmin.health.mapper.HealthMapper;
 import com.realhogoo.jsadmin.health.mapper.ServiceRegistryMapper;
@@ -19,6 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import javax.sql.DataSource;
 import javax.servlet.http.HttpServletRequest;
+import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.management.ManagementFactory;
@@ -27,6 +29,7 @@ import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadMXBean;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
@@ -38,6 +41,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Enumeration;
 
 @Controller
 public class HealthController {
@@ -48,6 +52,7 @@ public class HealthController {
     private final HealthMapper healthMapper;
     private final ServiceRegistryMapper serviceRegistryMapper;
     private final ServiceEndpointPolicy serviceEndpointPolicy;
+    private final AccessService accessService;
     private final String appEnv;
     private final String internalApiToken;
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -57,6 +62,7 @@ public class HealthController {
         HealthMapper healthMapper,
         ServiceRegistryMapper serviceRegistryMapper,
         ServiceEndpointPolicy serviceEndpointPolicy,
+        AccessService accessService,
         @Value("${app.env:dev}") String appEnv,
         @Value("${admin.internal-api-token:}") String internalApiToken
     ) {
@@ -64,6 +70,7 @@ public class HealthController {
         this.healthMapper = healthMapper;
         this.serviceRegistryMapper = serviceRegistryMapper;
         this.serviceEndpointPolicy = serviceEndpointPolicy;
+        this.accessService = accessService;
         this.appEnv = appEnv == null ? "dev" : appEnv.trim();
         this.internalApiToken = internalApiToken == null ? "" : internalApiToken.trim();
     }
@@ -311,9 +318,16 @@ public class HealthController {
         s.put("heap_free", rt.freeMemory());
         s.put("heap_total", rt.totalMemory());
         s.put("heap_max", rt.maxMemory());
+        s.put("heap_used", rt.totalMemory() - rt.freeMemory());
+        s.put("heap_used_pct", percent(rt.totalMemory() - rt.freeMemory(), rt.maxMemory()));
         s.put("threads_live", tmx.getThreadCount());
         s.put("threads_peak", tmx.getPeakThreadCount());
         s.put("server_info", System.getProperty("catalina.base") != null ? "Tomcat" : "Unknown");
+        s.put("active_users", activeUsers());
+        s.put("cpu", cpuStatus(os));
+        s.put("memory", memoryStatus(os));
+        s.put("disk", diskStatus());
+        s.put("network", networkStatus());
 
         try {
             s.put("host", InetAddress.getLocalHost().getHostName());
@@ -321,6 +335,128 @@ public class HealthController {
         }
 
         return s;
+    }
+
+    private Map<String, Object> cpuStatus(OperatingSystemMXBean os) {
+        Map<String, Object> cpu = new LinkedHashMap<String, Object>();
+        cpu.put("processors", os.getAvailableProcessors());
+        cpu.put("system_load_avg", os.getSystemLoadAverage());
+        if (os instanceof com.sun.management.OperatingSystemMXBean) {
+            com.sun.management.OperatingSystemMXBean sunOs = (com.sun.management.OperatingSystemMXBean) os;
+            cpu.put("system_cpu_load_pct", percentValue(sunOs.getSystemCpuLoad()));
+            cpu.put("process_cpu_load_pct", percentValue(sunOs.getProcessCpuLoad()));
+        } else {
+            cpu.put("system_cpu_load_pct", null);
+            cpu.put("process_cpu_load_pct", null);
+        }
+        return cpu;
+    }
+
+    private Map<String, Object> memoryStatus(OperatingSystemMXBean os) {
+        Map<String, Object> memory = new LinkedHashMap<String, Object>();
+        Runtime rt = Runtime.getRuntime();
+        long heapUsed = rt.totalMemory() - rt.freeMemory();
+        memory.put("heap_used", heapUsed);
+        memory.put("heap_total", rt.totalMemory());
+        memory.put("heap_max", rt.maxMemory());
+        memory.put("heap_used_pct", percent(heapUsed, rt.maxMemory()));
+        if (os instanceof com.sun.management.OperatingSystemMXBean) {
+            com.sun.management.OperatingSystemMXBean sunOs = (com.sun.management.OperatingSystemMXBean) os;
+            long total = sunOs.getTotalPhysicalMemorySize();
+            long free = sunOs.getFreePhysicalMemorySize();
+            memory.put("physical_total", total);
+            memory.put("physical_free", free);
+            memory.put("physical_used", total > 0 && free >= 0 ? total - free : null);
+            memory.put("physical_used_pct", total > 0 && free >= 0 ? percent(total - free, total) : null);
+        } else {
+            memory.put("physical_total", null);
+            memory.put("physical_free", null);
+            memory.put("physical_used", null);
+            memory.put("physical_used_pct", null);
+        }
+        return memory;
+    }
+
+    private Map<String, Object> diskStatus() {
+        Map<String, Object> disk = new LinkedHashMap<String, Object>();
+        long total = 0L;
+        long free = 0L;
+        List<Map<String, Object>> roots = new ArrayList<Map<String, Object>>();
+        File[] files = File.listRoots();
+        if (files != null) {
+            for (File file : files) {
+                long rootTotal = file.getTotalSpace();
+                long rootFree = file.getUsableSpace();
+                if (rootTotal <= 0) {
+                    continue;
+                }
+                Map<String, Object> root = new LinkedHashMap<String, Object>();
+                root.put("path", file.getAbsolutePath());
+                root.put("total", rootTotal);
+                root.put("free", rootFree);
+                root.put("used", rootTotal - rootFree);
+                root.put("used_pct", percent(rootTotal - rootFree, rootTotal));
+                roots.add(root);
+                total += rootTotal;
+                free += rootFree;
+            }
+        }
+        disk.put("total", total);
+        disk.put("free", free);
+        disk.put("used", total - free);
+        disk.put("used_pct", percent(total - free, total));
+        disk.put("roots", roots);
+        return disk;
+    }
+
+    private Map<String, Object> networkStatus() {
+        Map<String, Object> network = new LinkedHashMap<String, Object>();
+        int activeCount = 0;
+        List<String> addresses = new ArrayList<String>();
+        try {
+            Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
+            while (interfaces != null && interfaces.hasMoreElements()) {
+                NetworkInterface nif = interfaces.nextElement();
+                if (!nif.isUp() || nif.isLoopback() || nif.isVirtual()) {
+                    continue;
+                }
+                activeCount++;
+                Enumeration<InetAddress> inetAddresses = nif.getInetAddresses();
+                while (inetAddresses.hasMoreElements()) {
+                    InetAddress address = inetAddresses.nextElement();
+                    if (!address.isLoopbackAddress()) {
+                        addresses.add(address.getHostAddress());
+                    }
+                }
+            }
+        } catch (Exception ignore) {
+        }
+        network.put("status", activeCount > 0 ? "UP" : "UNKNOWN");
+        network.put("active_interfaces", activeCount);
+        network.put("addresses", addresses);
+        return network;
+    }
+
+    private int activeUsers() {
+        try {
+            return accessService == null ? 0 : accessService.countActiveLoginSessions();
+        } catch (Exception ignore) {
+            return 0;
+        }
+    }
+
+    private Double percent(long used, long total) {
+        if (total <= 0 || used < 0) {
+            return null;
+        }
+        return Math.round((used * 10000.0d / total)) / 100.0d;
+    }
+
+    private Double percentValue(double load) {
+        if (Double.isNaN(load) || load < 0) {
+            return null;
+        }
+        return Math.round(load * 10000.0d) / 100.0d;
     }
 
     private Map<String, Object> healthDetail(Map<String, Object> service) {
@@ -364,10 +500,7 @@ public class HealthController {
         Map<String, Object> readyData = remoteBasicStatus(service, "ready");
         Map<String, Object> liveData = remoteBasicStatus(service, "live");
 
-        Map<String, Object> remoteDb = mapValue(statusData.get("db"));
-        if (remoteDb.isEmpty()) {
-            remoteDb = mapValue(readyData.get("db"));
-        }
+        Map<String, Object> remoteDb = remoteDbStatus(statusData, readyData);
 
         Map<String, Object> summary = new LinkedHashMap<String, Object>();
         summary.put("service", stringValue(service.get("service_cd")));
@@ -400,6 +533,13 @@ public class HealthController {
         server.put("threads_peak", "-");
         server.put("heap_total", null);
         server.put("heap_max", null);
+        server.put("heap_used", null);
+        server.put("heap_used_pct", null);
+        server.put("active_users", null);
+        server.put("cpu", Collections.emptyMap());
+        server.put("memory", Collections.emptyMap());
+        server.put("disk", Collections.emptyMap());
+        server.put("network", Collections.emptyMap());
 
         List<Map<String, Object>> dependencies = new ArrayList<Map<String, Object>>();
         dependencies.add(dependencyRow("remote-liveness", "http", statusValue(liveData, "DOWN"), liveData));
@@ -434,6 +574,31 @@ public class HealthController {
 
     private Map<String, Object> remoteDatabaseStatus(Map<String, Object> service) {
         return mapValue(remoteHealthDetail(service).get("db"));
+    }
+
+    private Map<String, Object> remoteDbStatus(Map<String, Object> statusData, Map<String, Object> readyData) {
+        Map<String, Object> remoteDb = mapValue(statusData.get("db"));
+        if (remoteDb.isEmpty()) {
+            remoteDb = mapValue(readyData.get("db"));
+        }
+        if (!remoteDb.isEmpty()) {
+            return remoteDb;
+        }
+
+        String dbStatus = stringValue(firstNonNull(statusData.get("db"), readyData.get("db")));
+        if (dbStatus == null) {
+            dbStatus = stringValue(firstNonNull(statusData.get("mongo"), readyData.get("mongo")));
+        }
+        if (dbStatus == null) {
+            return remoteDb;
+        }
+
+        boolean ok = "UP".equalsIgnoreCase(dbStatus);
+        remoteDb.put("ok", ok);
+        remoteDb.put("ping", ok ? 1 : null);
+        remoteDb.put("elapsed_ms", firstNonNull(statusData.get("latency_ms"), readyData.get("latency_ms")));
+        remoteDb.put("error", ok ? null : dbStatus);
+        return remoteDb;
     }
 
     private Map<String, Object> remoteServerStatus(Map<String, Object> service) {

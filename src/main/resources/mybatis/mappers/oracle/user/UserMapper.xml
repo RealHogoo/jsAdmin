@@ -154,7 +154,7 @@
     <update id="resetPassword" parameterType="map">
         UPDATE ADM_USER_MST
            SET PWD_HASH = #{reset_pw},
-               PWD_RESET_YN = 'Y',
+               PWD_RESET_YN = 'N',
                LOGIN_FAIL_CNT = 0,
                LOCK_YN = 'N',
                LOCK_UNTIL_AT = NULL,

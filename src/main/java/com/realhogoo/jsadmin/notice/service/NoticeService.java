@@ -5,6 +5,7 @@ import java.util.Map;
 
 public interface NoticeService {
     List<Map<String, Object>> selectNoticeList(Map<String, Object> param);
+    List<Map<String, Object>> selectPopupNoticeList();
     Map<String, Object> selectNoticeDetail(Long notiSeq);
     Long saveNotice(Map<String, Object> param, String userId);
     int deleteNotice(Long notiSeq, String userId);

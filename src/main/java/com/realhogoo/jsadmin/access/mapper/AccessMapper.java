@@ -24,4 +24,6 @@ public interface AccessMapper {
     List<Map<String, Object>> selectLoginSessionList(Map<String, Object> param);
 
     List<Map<String, Object>> selectLoginHistoryList(Map<String, Object> param);
+
+    int countActiveLoginSessions();
 }

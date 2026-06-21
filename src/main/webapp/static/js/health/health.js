@@ -22,6 +22,16 @@
     function setCardStatus(cardKey, status) {
         var card = UX.qs("[data-health-card='" + cardKey + "']", root());
         if (!card) return;
+        applyStatusClass(card, status);
+    }
+
+    function setResourceCardStatus(cardKey, status) {
+        var card = UX.qs("[data-health-resource-card='" + cardKey + "']", root());
+        if (!card) return;
+        applyStatusClass(card, status);
+    }
+
+    function applyStatusClass(card, status) {
         card.classList.remove("health-up", "health-down", "health-degraded", "health-disabled");
         if (status === "UP") card.classList.add("health-up");
         else if (status === "DOWN") card.classList.add("health-down");
@@ -46,6 +56,11 @@
         return Number.isFinite(n) ? (n + " ms") : "-";
     }
 
+    function fmtPct(value) {
+        var n = Number(value);
+        return Number.isFinite(n) ? (n.toFixed(1) + "%") : "-";
+    }
+
     function fmtUptime(ms) {
         var n = Number(ms || 0);
         if (!Number.isFinite(n) || n < 0) return "-";
@@ -56,6 +71,22 @@
         if (days > 0) return days + "d " + hours + "h " + mins + "m";
         if (hours > 0) return hours + "h " + mins + "m";
         return mins + "m";
+    }
+
+    function usageStatus(value) {
+        var n = Number(value);
+        if (!Number.isFinite(n)) return "DEGRADED";
+        if (n >= 90) return "DOWN";
+        if (n >= 75) return "DEGRADED";
+        return "UP";
+    }
+
+    function firstNumber() {
+        for (var i = 0; i < arguments.length; i++) {
+            var n = Number(arguments[i]);
+            if (Number.isFinite(n)) return n;
+        }
+        return null;
     }
 
     function statusClass(status) {
@@ -118,10 +149,31 @@
         return currentServiceCd;
     }
 
+    function activateContentTab(tabKey) {
+        var page = root();
+        var key = tabKey || "service";
+        UX.qsa("[data-health-tab]", page).forEach(function (tab) {
+            tab.classList.toggle("is-active", tab.getAttribute("data-health-tab") === key);
+        });
+        UX.qsa("[data-health-pane]", page).forEach(function (pane) {
+            var active = pane.getAttribute("data-health-pane") === key;
+            pane.classList.toggle("is-active", active);
+            pane.hidden = !active;
+        });
+    }
+
     function render(data) {
         var summary = data && data.summary ? data.summary : {};
         var db = data && data.db ? data.db : {};
         var server = data && data.server ? data.server : {};
+        var cpu = server.cpu || {};
+        var memory = server.memory || {};
+        var disk = server.disk || {};
+        var network = server.network || {};
+        var cpuUsage = firstNumber(cpu.system_cpu_load_pct, cpu.process_cpu_load_pct);
+        var memoryUsage = firstNumber(memory.physical_used_pct, memory.heap_used_pct, server.heap_used_pct);
+        var diskUsage = firstNumber(disk.used_pct);
+        var networkAddresses = Array.isArray(network.addresses) ? network.addresses : [];
 
         setText("healthOverallStatus", summary.overall_status);
         setText("healthServiceName", summary.service);
@@ -156,7 +208,21 @@
         setText("svUptime", fmtUptime(server.uptime_ms));
         setText("svInfo", server.server_info || "-");
         setText("svThreads", (server.threads_live || "-") + " / peak " + (server.threads_peak || "-"));
-        setText("svHeap", fmtBytes(server.heap_total) + " / max " + fmtBytes(server.heap_max));
+        setText("svHeap", fmtBytes(server.heap_used || 0) + " / max " + fmtBytes(server.heap_max));
+        setText("svCpuUsage", fmtPct(cpuUsage));
+        setText("svCpuDetail", "process " + fmtPct(cpu.process_cpu_load_pct) + " / load avg " + (Number.isFinite(Number(cpu.system_load_avg)) ? Number(cpu.system_load_avg).toFixed(2) : "-"));
+        setText("svMemoryUsage", fmtPct(memoryUsage));
+        setText("svMemoryDetail", fmtBytes(memory.physical_used || memory.heap_used || 0) + " / " + fmtBytes(memory.physical_total || memory.heap_max || server.heap_max || 0));
+        setText("svNetworkStatus", network.status || "-");
+        setText("svNetworkDetail", (network.active_interfaces || 0) + " active interface(s)");
+        setText("svActiveUsers", server.active_users == null ? "-" : server.active_users);
+        setText("svDisk", fmtPct(diskUsage) + " · " + fmtBytes(disk.used || 0) + " / " + fmtBytes(disk.total || 0));
+        setText("svNetworkIp", networkAddresses.length ? networkAddresses.join(", ") : "-");
+
+        setResourceCardStatus("cpu", usageStatus(cpuUsage));
+        setResourceCardStatus("memory", usageStatus(memoryUsage));
+        setResourceCardStatus("network", network.status === "UP" ? "UP" : "DEGRADED");
+        setResourceCardStatus("users", "UP");
 
         renderDependencies(data && data.dependencies ? data.dependencies : []);
     }
@@ -189,6 +255,13 @@
             renderServiceTabs(serviceListCache);
             refresh();
         });
+
+        UX.bindOnce(UX.qs("#healthContentTabs", root()), "click", function (e) {
+            var button = e.target.closest("[data-health-tab]");
+            if (!button) return;
+            e.preventDefault();
+            activateContentTab(button.getAttribute("data-health-tab"));
+        });
     }
 
     function init() {
@@ -196,6 +269,7 @@
         if (!page || page.dataset.healthInited === "1") return;
         page.dataset.healthInited = "1";
         bind();
+        activateContentTab("service");
         refreshServiceList().then(refresh);
 
         if (timerId) clearInterval(timerId);

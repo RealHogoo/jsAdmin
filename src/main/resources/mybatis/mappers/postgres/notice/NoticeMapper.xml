@@ -37,6 +37,27 @@
         ORDER BY COALESCE(pin_yn, 'N') DESC, COALESCE(start_dt, DATE '1900-01-01') DESC, noti_seq DESC
     </select>
 
+    <select id="selectPopupNoticeList" resultType="map">
+        SELECT
+            noti_seq AS noti_seq,
+            noti_type_cd AS noti_type_cd,
+            title AS title,
+            content AS content,
+            TO_CHAR(start_dt, 'YYYY-MM-DD') AS start_dt,
+            TO_CHAR(end_dt, 'YYYY-MM-DD') AS end_dt,
+            COALESCE(pin_yn, 'N') AS pin_yn,
+            COALESCE(popup_yn, 'N') AS popup_yn,
+            COALESCE(use_yn, 'Y') AS use_yn,
+            TO_CHAR(updated_at, 'YYYY-MM-DD HH24:MI:SS') AS updated_at
+        FROM adm_noti_mst
+        WHERE COALESCE(use_yn, 'Y') = 'Y'
+          AND COALESCE(popup_yn, 'N') = 'Y'
+          AND (start_dt IS NULL OR start_dt &lt;= CURRENT_DATE)
+          AND (end_dt IS NULL OR end_dt &gt;= CURRENT_DATE)
+        ORDER BY COALESCE(pin_yn, 'N') DESC, COALESCE(start_dt, DATE '1900-01-01') DESC, noti_seq DESC
+        LIMIT 5
+    </select>
+
     <select id="selectNoticeDetail" parameterType="long" resultType="map">
         SELECT
             noti_seq AS noti_seq,

@@ -42,6 +42,12 @@ public class NoticeController {
         return ok(list);
     }
 
+    @PostMapping("/notice/popup/list.json")
+    @ResponseBody
+    public Map<String, Object> popupList() {
+        return ok(noticeService.selectPopupNoticeList());
+    }
+
     @PostMapping("/notice/detail.json")
     @ResponseBody
     public Map<String, Object> detail(@RequestBody Map<String, Object> param) {
