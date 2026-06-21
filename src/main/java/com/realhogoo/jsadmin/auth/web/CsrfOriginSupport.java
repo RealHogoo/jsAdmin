@@ -24,6 +24,10 @@ final class CsrfOriginSupport {
             String sourceHost = normalize(sourceUri.getHost());
             int sourcePort = normalizedPort(sourceUri.getPort(), sourceScheme);
 
+            if (isConfiguredPublicOrigin(sourceScheme, sourceHost, sourcePort)) {
+                return true;
+            }
+
             String requestScheme = normalize(forwardedScheme(request));
             String requestHost = normalize(forwardedHost(request));
             int requestPort = normalizedPort(forwardedPort(request), requestScheme);
@@ -31,6 +35,27 @@ final class CsrfOriginSupport {
             return sourceScheme.equals(requestScheme)
                 && sourceHost.equals(requestHost)
                 && sourcePort == requestPort;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean isConfiguredPublicOrigin(String sourceScheme, String sourceHost, int sourcePort) {
+        String configured = trimToNull(System.getProperty("admin.service.public-base-url"));
+        if (configured == null) {
+            configured = trimToNull(System.getenv("ADMIN_SERVICE_PUBLIC_BASE_URL"));
+        }
+        if (configured == null) {
+            return false;
+        }
+        try {
+            URI configuredUri = URI.create(configured);
+            String configuredScheme = normalize(configuredUri.getScheme());
+            String configuredHost = normalize(configuredUri.getHost());
+            int configuredPort = normalizedPort(configuredUri.getPort(), configuredScheme);
+            return normalize(sourceScheme).equals(configuredScheme)
+                && normalize(sourceHost).equals(configuredHost)
+                && sourcePort == configuredPort;
         } catch (Exception ignored) {
             return false;
         }
