@@ -483,6 +483,31 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
+    @Transactional
+    public ApiResponse<Map<String, Object>> issueQrLogin(String userId, HttpServletRequest request) {
+        String normalizedUserId = normalizeLoginId(userId);
+        validateLength("user_id", normalizedUserId, MAX_LOGIN_ID_LENGTH);
+        LoginUser user = authMapper.selectUserForLogin(normalizedUserId);
+        if (user == null) {
+            return ApiResponse.fail("UNAUTHORIZED", "사용자 정보를 찾을 수 없습니다.", null, request);
+        }
+        Date now = new Date();
+        if ("Y".equalsIgnoreCase(user.getLockYn()) || (user.getLockUntilAt() != null && user.getLockUntilAt().after(now))) {
+            return ApiResponse.fail("LOGIN_FAIL", "로그인할 수 없는 계정 상태입니다.", null, request);
+        }
+        if ("Y".equalsIgnoreCase(user.getPwdResetYn())) {
+            accessService.recordLoginHistory(user, normalizedUserId, false, "PASSWORD_RESET_REQUIRED", null, request);
+            return ApiResponse.fail("PASSWORD_RESET_REQUIRED", "비밀번호 재설정이 필요합니다.", null, request);
+        }
+        authMapper.resetLoginFailState(user.getUserSeq(), normalizedUserId);
+        authMapper.updateLastLoginAt(user.getUserSeq(), normalizedUserId);
+        List<String> roles = resolveRoles(user);
+        TokenBundle tokenBundle = issueTokens(user, roles, request, null);
+        accessService.recordLoginHistory(user, normalizedUserId, true, "QR_LOGIN_SUCCESS", tokenBundle.sessionId, request);
+        return ApiResponse.ok(tokenResponse(user, roles, tokenBundle), request);
+    }
+
+    @Override
     public Map<String, Object> me(String userId, List<String> roles, String sessionId) {
         if (userId == null || userId.trim().isEmpty()) {
             throw new IllegalArgumentException("login required");

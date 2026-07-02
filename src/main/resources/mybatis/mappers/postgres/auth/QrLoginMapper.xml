@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.realhogoo.jsadmin.auth.mapper.QrLoginMapper">
+
+    <insert id="insertQrLoginRequest" parameterType="map">
+        <selectKey keyProperty="qr_login_seq" resultType="long" order="BEFORE">
+            SELECT nextval('adm_qr_login_req_seq')
+        </selectKey>
+        INSERT INTO adm_qr_login_req (
+            qr_login_seq, request_id, request_token_hash, status_cd,
+            client_ip, user_agent, expires_at,
+            created_at, created_by, updated_at, updated_by
+        ) VALUES (
+            #{qr_login_seq,jdbcType=NUMERIC}, #{request_id,jdbcType=VARCHAR}, #{request_token_hash,jdbcType=VARCHAR}, 'WAITING',
+            #{client_ip,jdbcType=VARCHAR}, #{user_agent,jdbcType=VARCHAR}, #{expires_at,jdbcType=TIMESTAMP},
+            CURRENT_TIMESTAMP, 'SYSTEM', CURRENT_TIMESTAMP, 'SYSTEM'
+        )
+    </insert>
+
+    <select id="selectQrLoginRequestById" resultType="map">
+        SELECT qr_login_seq, request_id, request_token_hash, status_cd,
+               approved_user_seq, approved_login_id, approved_user_nm, approved_session_id, mobile_session_id,
+               client_ip, user_agent, expires_at, approved_at, consumed_at, created_at
+          FROM adm_qr_login_req
+         WHERE request_id = #{requestId}
+    </select>
+
+    <select id="selectQrLoginRequestByTokenHash" resultType="map">
+        SELECT qr_login_seq, request_id, request_token_hash, status_cd,
+               approved_user_seq, approved_login_id, approved_user_nm, approved_session_id, mobile_session_id,
+               client_ip, user_agent, expires_at, approved_at, consumed_at, created_at
+          FROM adm_qr_login_req
+         WHERE request_token_hash = #{tokenHash}
+    </select>
+
+    <update id="approveQrLoginRequest" parameterType="map">
+        UPDATE adm_qr_login_req
+           SET status_cd = 'APPROVED',
+               approved_user_seq = #{approved_user_seq,jdbcType=NUMERIC},
+               approved_login_id = #{approved_login_id,jdbcType=VARCHAR},
+               approved_user_nm = #{approved_user_nm,jdbcType=VARCHAR},
+               approved_session_id = #{approved_session_id,jdbcType=VARCHAR},
+               mobile_session_id = #{mobile_session_id,jdbcType=VARCHAR},
+               approved_at = CURRENT_TIMESTAMP,
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{approved_login_id,jdbcType=VARCHAR}
+         WHERE request_token_hash = #{request_token_hash}
+           AND status_cd = 'WAITING'
+           AND expires_at > CURRENT_TIMESTAMP
+    </update>
+
+    <update id="consumeQrLoginRequest">
+        UPDATE adm_qr_login_req
+           SET status_cd = 'CONSUMED',
+               consumed_at = CURRENT_TIMESTAMP,
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = #{updatedBy}
+         WHERE request_id = #{requestId}
+           AND status_cd = 'APPROVED'
+           AND expires_at > CURRENT_TIMESTAMP
+    </update>
+
+    <update id="expireQrLoginRequest">
+        UPDATE adm_qr_login_req
+           SET status_cd = 'EXPIRED',
+               updated_at = CURRENT_TIMESTAMP,
+               updated_by = 'SYSTEM'
+         WHERE request_id = #{requestId}
+           AND status_cd = 'WAITING'
+           AND expires_at &lt;= CURRENT_TIMESTAMP
+    </update>
+
+    <select id="countRecentQrLoginRequests" resultType="int">
+        SELECT COUNT(1)
+          FROM adm_qr_login_req
+         WHERE client_ip = #{clientIp}
+           AND created_at &gt;= CURRENT_TIMESTAMP - (#{windowSeconds,jdbcType=NUMERIC} * INTERVAL '1 second')
+    </select>
+
+</mapper>

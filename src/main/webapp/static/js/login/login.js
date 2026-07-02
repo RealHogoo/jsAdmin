@@ -6,6 +6,11 @@
     var adminServicePublicBaseUrl = normalizeBaseUrl(global.ADMIN_SERVICE_PUBLIC_BASE_URL || "");
 
     var countdownTimer = null;
+    var qrPollTimer = null;
+    var qrRequestId = "";
+    var qrExpiresAt = 0;
+    var qrToken = "";
+    var qrApproving = false;
     var retryUntilMs = 0;
     var MSG_READY = "\uB2E4\uC2DC \uB85C\uADF8\uC778\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.";
     var MSG_RETRY_SUFFIX = "\uCD08 \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD558\uC138\uC694.";
@@ -22,6 +27,20 @@
 
     function setMsg(text, type) {
         var el = UX.byId("loginMsg");
+        if (!el) return;
+        el.textContent = text || "";
+        el.className = "login-msg" + (type ? " is-" + type : "");
+    }
+
+    function setQrMsg(text, type) {
+        var el = UX.byId("qrLoginMsg");
+        if (!el) return;
+        el.textContent = text || "";
+        el.className = "login-msg" + (type ? " is-" + type : "");
+    }
+
+    function setQrApproveMsg(text, type) {
+        var el = UX.byId("qrApproveMsg");
         if (!el) return;
         el.textContent = text || "";
         el.className = "login-msg" + (type ? " is-" + type : "");
@@ -127,6 +146,142 @@
         }).then(function (response) {
             return response.json();
         });
+    }
+
+    function clearMobileAuthState() {
+        clearAuthStorage();
+        if (global.app && typeof global.app.clearAuthState === "function") {
+            global.app.clearAuthState();
+        }
+        document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+    }
+
+    function stopQrPolling() {
+        if (qrPollTimer) {
+            global.clearInterval(qrPollTimer);
+            qrPollTimer = null;
+        }
+    }
+
+    function startQrLogin() {
+        stopQrPolling();
+        qrRequestId = "";
+        qrExpiresAt = 0;
+        var image = UX.byId("qrLoginImage");
+        if (image) image.innerHTML = "";
+        setQrMsg("QR 코드를 생성하는 중입니다.", "info");
+
+        postJson("/auth/qr/create.json", {})
+            .then(function (res) {
+                if (!res || res.ok !== true || !res.data) {
+                    setQrMsg((res && res.message) || "QR 코드를 생성하지 못했습니다.", "error");
+                    return;
+                }
+                qrRequestId = res.data.request_id || "";
+                qrExpiresAt = Number(res.data.expires_at || 0);
+                if (image) image.innerHTML = res.data.qr_svg || "";
+                setQrMsg("모바일에서 QR을 스캔한 뒤 승인을 눌러주세요.", "info");
+                pollQrLogin();
+                qrPollTimer = global.setInterval(pollQrLogin, 1500);
+            })
+            .catch(function () {
+                setQrMsg(MSG_SERVER_ERROR, "error");
+            });
+    }
+
+    function pollQrLogin() {
+        if (!qrRequestId) return;
+        if (qrExpiresAt && qrExpiresAt <= Date.now()) {
+            stopQrPolling();
+            setQrMsg("QR 로그인 요청이 만료되어 새 QR을 생성합니다.", "warn");
+            startQrLogin();
+            return;
+        }
+        postJson("/auth/qr/status.json", { request_id: qrRequestId })
+            .then(function (res) {
+                if (!res || res.ok !== true || !res.data) return;
+                var status = String(res.data.status_cd || "");
+                if (status === "APPROVED") {
+                    stopQrPolling();
+                    setQrMsg("승인되었습니다. 로그인 처리 중입니다.", "success");
+                    consumeQrLogin();
+                } else if (status === "EXPIRED" || status === "CANCELLED" || status === "CONSUMED") {
+                    stopQrPolling();
+                    setQrMsg("QR 로그인 요청이 만료되었거나 이미 처리되었습니다.", "warn");
+                }
+            })
+            .catch(function () {});
+    }
+
+    function consumeQrLogin() {
+        postJson("/auth/qr/consume.json", { request_id: qrRequestId })
+            .then(function (res) {
+                if (!res || res.ok !== true) {
+                    setQrMsg((res && res.message) || "QR 로그인에 실패했습니다.", "error");
+                    return;
+                }
+                if (global.app && typeof global.app.storeAuthState === "function") {
+                    global.app.storeAuthState(res.data || {});
+                }
+                document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
+                setQrMsg(MSG_SUCCESS, "success");
+                if (returnUrl) {
+                    location.href = returnUrl;
+                } else {
+                    location.href = resolveDefaultTarget();
+                }
+            })
+            .catch(function () {
+                setQrMsg(MSG_SERVER_ERROR, "error");
+            });
+    }
+
+    function approveQrLogin() {
+        if (qrApproving) return;
+        if (!qrToken) {
+            setQrApproveMsg("QR 로그인 토큰이 없습니다. PC에서 QR 코드를 다시 생성해주세요.", "error");
+            UX.setDisabled(UX.byId("btnQrApprove"), true);
+            return;
+        }
+
+        qrApproving = true;
+        UX.setDisabled(UX.byId("btnQrApprove"), true);
+        setQrApproveMsg("승인 처리 중입니다.", "info");
+
+        postJson("/auth/qr/approve.json", { token: qrToken })
+            .then(function (res) {
+                qrApproving = false;
+                if (res && res.ok === true) {
+                    clearMobileAuthState();
+                    setQrApproveMsg("승인되었습니다. 이 모바일 인증은 만료되었습니다. PC 화면에서 계속 진행됩니다.", "success");
+                    UX.setDisabled(UX.byId("btnQrApprove"), true);
+                    return;
+                }
+
+                UX.setDisabled(UX.byId("btnQrApprove"), false);
+                setQrApproveMsg((res && res.message) || "QR 로그인 승인에 실패했습니다.", "error");
+            })
+            .catch(function () {
+                qrApproving = false;
+                UX.setDisabled(UX.byId("btnQrApprove"), false);
+                setQrApproveMsg(MSG_SERVER_ERROR, "error");
+            });
+    }
+
+    function applyQrApproveMode() {
+        var approveBox = UX.byId("qrApproveBox");
+        var qrBox = UX.byId("qrLoginBox");
+        if (!qrToken) {
+            if (approveBox) approveBox.hidden = true;
+            if (qrBox) qrBox.hidden = false;
+            return;
+        }
+
+        if (approveBox) approveBox.hidden = false;
+        if (qrBox) qrBox.hidden = true;
+        setQrApproveMsg("모바일 로그인이 되어 있으면 승인 버튼을 눌러주세요. 로그인이 필요하면 아이디와 비밀번호로 먼저 로그인하세요.", "info");
+        var btn = UX.byId("btnQrApprove");
+        if (btn) btn.onclick = approveQrLogin;
     }
 
     function fetchLoginKey() {
@@ -285,6 +440,18 @@
         }
     }
 
+    function resolveQrToken() {
+        try {
+            var params = new URLSearchParams(global.location.search || "");
+            var value = params.get("qr_token");
+            if (!value) value = params.get("token");
+            value = String(value || "").trim();
+            return value.replace(/[^A-Za-z0-9_-]/g, "");
+        } catch (e) {
+            return "";
+        }
+    }
+
     function normalizeRedirectUrl(value) {
         if (!value || global.location.protocol !== "https:") {
             return value;
@@ -342,6 +509,11 @@
                 setMsg(MSG_SUCCESS, "success");
                 document.dispatchEvent(new CustomEvent("jsadmin:authChanged"));
 
+                if (qrToken) {
+                    approveQrLogin();
+                    return;
+                }
+
                 if (returnUrl) {
                     location.href = returnUrl;
                 } else {
@@ -361,6 +533,8 @@
         btn.setAttribute("data-bound", "Y");
 
         btn.onclick = doLogin;
+        var qrBtn = UX.byId("btnQrLogin");
+        if (qrBtn) qrBtn.onclick = startQrLogin;
 
         function handleEnter(e) {
             if (e.key === "Enter" && !(btn && btn.disabled)) {
@@ -373,6 +547,11 @@
         if (userId) userId.onkeydown = handleEnter;
         if (pw) pw.onkeydown = handleEnter;
 
+        qrToken = resolveQrToken();
+        applyQrApproveMode();
+        if (!qrToken && UX.byId("qrLoginBox")) {
+            startQrLogin();
+        }
         returnUrl = resolveReturnUrl();
         restoreCountdown();
     }

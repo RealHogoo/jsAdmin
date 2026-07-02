@@ -4,6 +4,7 @@ import com.realhogoo.jsadmin.access.mapper.AccessMapper;
 import com.realhogoo.jsadmin.apipolicy.mapper.ApiPolicyMapper;
 import com.realhogoo.jsadmin.auth.jwt.JwtProvider;
 import com.realhogoo.jsadmin.auth.mapper.AuthMapper;
+import com.realhogoo.jsadmin.auth.mapper.QrLoginMapper;
 import com.realhogoo.jsadmin.code.mapper.CodeMapper;
 import com.realhogoo.jsadmin.common.interceptor.LowercaseMapKeyInterceptor;
 import com.realhogoo.jsadmin.health.mapper.HealthMapper;
@@ -44,6 +45,7 @@ import java.util.Properties;
     AccessMapper.class,
     ApiPolicyMapper.class,
     AuthMapper.class,
+    QrLoginMapper.class,
     CodeMapper.class,
     HealthMapper.class,
     MenuMapper.class,

@@ -190,7 +190,7 @@ CREATE TABLE adm_login_hist (
     login_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_at       TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     created_by       VARCHAR(100),
-    CONSTRAINT ck_adm_login_hist_result CHECK (result_cd IN ('SUCCESS', 'FAIL', 'LOGOUT', 'MYPAGE_UPDATE', 'MYPAGE_PASSWORD_CHANGE')),
+    CONSTRAINT ck_adm_login_hist_result CHECK (result_cd IN ('SUCCESS', 'FAIL', 'LOGOUT', 'MYPAGE_UPDATE', 'MYPAGE_PASSWORD_CHANGE', 'QR_LOGIN_SUCCESS')),
     CONSTRAINT fk_adm_login_hist_usr FOREIGN KEY (user_seq) REFERENCES adm_user_mst (user_seq)
 );
 
@@ -208,6 +208,28 @@ CREATE TABLE adm_refresh_token (
     updated_by       VARCHAR(100),
     CONSTRAINT ck_adm_refresh_token_revoke CHECK (revoked_yn IN ('Y', 'N')),
     CONSTRAINT fk_adm_refresh_token_usr FOREIGN KEY (user_seq) REFERENCES adm_user_mst (user_seq)
+);
+
+CREATE TABLE adm_qr_login_req (
+    qr_login_seq       BIGINT PRIMARY KEY,
+    request_id         VARCHAR(64) NOT NULL UNIQUE,
+    request_token_hash VARCHAR(64) NOT NULL UNIQUE,
+    status_cd          VARCHAR(20) NOT NULL,
+    approved_user_seq  BIGINT,
+    approved_login_id  VARCHAR(100),
+    approved_user_nm   VARCHAR(100),
+    approved_session_id VARCHAR(64),
+    mobile_session_id  VARCHAR(64),
+    client_ip          VARCHAR(45),
+    user_agent         VARCHAR(500),
+    expires_at         TIMESTAMP(6) NOT NULL,
+    approved_at        TIMESTAMP(6),
+    consumed_at        TIMESTAMP(6),
+    created_at         TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by         VARCHAR(100) NOT NULL DEFAULT 'SYSTEM',
+    updated_at         TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_by         VARCHAR(100),
+    CONSTRAINT ck_adm_qr_login_req_01 CHECK (status_cd IN ('WAITING', 'APPROVED', 'CONSUMED', 'EXPIRED', 'CANCELLED'))
 );
 
 CREATE TABLE adm_api_mst (
@@ -257,6 +279,7 @@ CREATE SEQUENCE adm_timeline_mst_seq START 1 INCREMENT 1;
 CREATE SEQUENCE adm_login_sesn_seq START 1 INCREMENT 1;
 CREATE SEQUENCE adm_login_hist_seq START 1 INCREMENT 1;
 CREATE SEQUENCE adm_refresh_token_seq START 1 INCREMENT 1;
+CREATE SEQUENCE adm_qr_login_req_seq START 1 INCREMENT 1;
 CREATE SEQUENCE adm_api_mst_seq START 1 INCREMENT 1;
 CREATE SEQUENCE adm_service_mst_seq START 1 INCREMENT 1;
 
@@ -272,6 +295,8 @@ CREATE INDEX idx_adm_login_sesn_01 ON adm_login_sesn (login_id, status_cd, login
 CREATE INDEX idx_adm_login_hist_01 ON adm_login_hist (login_id, login_at DESC);
 CREATE INDEX idx_adm_refresh_token_01 ON adm_refresh_token (token_hash, revoked_yn, expires_at);
 CREATE INDEX idx_adm_refresh_token_02 ON adm_refresh_token (session_id, revoked_yn);
+CREATE INDEX idx_adm_qr_login_req_01 ON adm_qr_login_req (request_id, status_cd, expires_at);
+CREATE INDEX idx_adm_qr_login_req_02 ON adm_qr_login_req (request_token_hash, status_cd, expires_at);
 CREATE INDEX idx_adm_api_mst_01 ON adm_api_mst (api_type, use_yn, api_seq DESC);
 CREATE INDEX idx_adm_api_mst_02 ON adm_api_mst (caller_id, target_service, http_method);
 CREATE INDEX idx_adm_service_mst_01 ON adm_service_mst (use_yn, sort_ord, service_seq);

@@ -61,6 +61,10 @@ dependencies {
     // JWT
     implementation "com.auth0:java-jwt:4.4.0"
 
+    // QR code generation
+    implementation "com.google.zxing:core:3.5.3"
+    implementation "com.google.zxing:javase:3.5.3"
+
     // Password hashing
     implementation "org.springframework.security:spring-security-crypto"
 

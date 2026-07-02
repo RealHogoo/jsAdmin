@@ -46,6 +46,8 @@ public interface AuthService {
 
     ApiResponse<Map<String, Object>> refresh(String refreshToken, HttpServletRequest request);
 
+    ApiResponse<Map<String, Object>> issueQrLogin(String userId, HttpServletRequest request);
+
     Map<String, Object> me(String userId, List<String> roles, String sessionId);
 
     int revokeRefreshTokensBySessionId(String sessionId, String actor);

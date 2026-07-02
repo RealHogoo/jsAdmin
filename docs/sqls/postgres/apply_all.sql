@@ -5,3 +5,4 @@
 \i ./baseline/V000__baseline.sql
 \i ./migrations/V008__default_service_seed.sql
 \i ./migrations/V009__webhard_media_service_seed.sql
+\i ./migrations/V010__qr_login.sql
