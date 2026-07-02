@@ -80,4 +80,9 @@
            AND created_at &gt;= CURRENT_TIMESTAMP - (#{windowSeconds,jdbcType=NUMERIC} * INTERVAL '1 second')
     </select>
 
+    <delete id="deleteOldQrLoginRequests">
+        DELETE FROM adm_qr_login_req
+         WHERE created_at &lt; CURRENT_TIMESTAMP - (#{retentionDays,jdbcType=NUMERIC} * INTERVAL '1 day')
+    </delete>
+
 </mapper>

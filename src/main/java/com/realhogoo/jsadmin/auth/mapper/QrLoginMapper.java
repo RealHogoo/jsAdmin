@@ -1,11 +1,9 @@
 package com.realhogoo.jsadmin.auth.mapper;
 
-import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.Map;
 
-@Mapper
 public interface QrLoginMapper {
     int insertQrLoginRequest(Map<String, Object> param);
 
@@ -23,4 +21,6 @@ public interface QrLoginMapper {
         @Param("clientIp") String clientIp,
         @Param("windowSeconds") long windowSeconds
     );
+
+    int deleteOldQrLoginRequests(@Param("retentionDays") int retentionDays);
 }

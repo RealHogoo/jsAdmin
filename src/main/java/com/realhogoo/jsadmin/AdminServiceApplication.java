@@ -13,11 +13,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.servlet.view.InternalResourceViewResolver;
 
 import java.io.File;
 
 @SpringBootApplication(scanBasePackages = "com.realhogoo.jsadmin")
+@EnableScheduling
 public class AdminServiceApplication extends SpringBootServletInitializer {
 
     public static void main(String[] args) {

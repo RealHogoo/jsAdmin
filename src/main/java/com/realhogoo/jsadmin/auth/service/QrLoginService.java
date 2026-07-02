@@ -12,6 +12,7 @@ import com.realhogoo.jsadmin.auth.mapper.AuthMapper;
 import com.realhogoo.jsadmin.auth.mapper.QrLoginMapper;
 import com.realhogoo.jsadmin.auth.web.AuthCookieSupport;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +42,7 @@ public class QrLoginService {
     private final AccessService accessService;
     private final long ttlSeconds;
     private final int maxCreatesPerMinute;
+    private final int cleanupRetentionDays;
     private final String configuredPublicBaseUrl;
 
     public QrLoginService(
@@ -49,7 +51,8 @@ public class QrLoginService {
         AuthService authService,
         AccessService accessService,
         @Value("${auth.qr-login.ttl-seconds:180}") long ttlSeconds,
-        @Value("${auth.qr-login.create-rate-limit.max-per-minute:20}") int maxCreatesPerMinute,
+        @Value("${auth.qr-login.create-rate-limit.max-per-minute:60}") int maxCreatesPerMinute,
+        @Value("${auth.qr-login.cleanup-retention-days:30}") int cleanupRetentionDays,
         @Value("${app.public-base-url:http://localhost:8081}") String configuredPublicBaseUrl
     ) {
         this.qrLoginMapper = qrLoginMapper;
@@ -58,6 +61,7 @@ public class QrLoginService {
         this.accessService = accessService;
         this.ttlSeconds = Math.max(30L, Math.min(ttlSeconds, 300L));
         this.maxCreatesPerMinute = Math.max(3, maxCreatesPerMinute);
+        this.cleanupRetentionDays = Math.max(1, cleanupRetentionDays);
         this.configuredPublicBaseUrl = normalizeBaseUrl(configuredPublicBaseUrl);
     }
 
@@ -128,12 +132,14 @@ public class QrLoginService {
         param.put("mobile_session_id", sessionId);
         int updated = qrLoginMapper.approveQrLoginRequest(param);
         if (updated <= 0) {
+            accessService.recordLoginHistory(user, user.getUserId(), false, "QR_APPROVE_FAILED", null, request);
             throw new IllegalArgumentException("QR 로그인 승인에 실패했습니다.");
         }
 
         authService.revokeRefreshTokensBySessionId(sessionId, userId);
         accessService.logout(sessionId, userId, request);
         AuthCookieSupport.clearAuthCookies(request, response);
+        accessService.recordLoginHistory(user, user.getUserId(), true, "QR_APPROVED_MOBILE_EXPIRED", null, request);
 
         return Collections.singletonMap("approved", true);
     }
@@ -142,19 +148,23 @@ public class QrLoginService {
     public ApiResponse<Map<String, Object>> consume(String requestId, HttpServletRequest request) {
         Map<String, Object> row = requestRow(requestId);
         if (!isSameClient(row, request)) {
+            accessService.recordLoginHistory(null, null, false, "QR_CONSUME_CLIENT_MISMATCH", null, request);
             return ApiResponse.fail("FORBIDDEN", "QR 로그인 요청을 생성한 브라우저에서만 처리할 수 있습니다.", null, request);
         }
         if (isExpired(row)) {
             qrLoginMapper.expireQrLoginRequest(requestId);
+            accessService.recordLoginHistory(null, null, false, "QR_CONSUME_EXPIRED", null, request);
             return ApiResponse.fail("EXPIRED", "QR 로그인 요청이 만료되었습니다.", statusData(row, false), request);
         }
         String status = stringValue(row.get("status_cd"));
         if (!"APPROVED".equalsIgnoreCase(status)) {
+            accessService.recordLoginHistory(null, null, false, "QR_CONSUME_NOT_APPROVED", null, request);
             return ApiResponse.fail("NOT_APPROVED", "아직 승인되지 않았습니다.", statusData(row, false), request);
         }
         String loginId = stringValue(row.get("approved_login_id"));
         int consumed = qrLoginMapper.consumeQrLoginRequest(requestId, loginId);
         if (consumed <= 0) {
+            accessService.recordLoginHistory(null, loginId, false, "QR_CONSUME_ALREADY_USED", null, request);
             return ApiResponse.fail("ALREADY_USED", "이미 사용된 QR 로그인 요청입니다.", null, request);
         }
         return authService.issueQrLogin(loginId, request);
@@ -205,6 +215,12 @@ public class QrLoginService {
         if (recentCount >= maxCreatesPerMinute) {
             throw new IllegalStateException("QR 로그인 요청이 너무 많습니다. 잠시 후 다시 시도하세요.");
         }
+    }
+
+    @Scheduled(cron = "${auth.qr-login.cleanup-cron:0 25 3 * * *}")
+    @Transactional
+    public void cleanupOldRequests() {
+        qrLoginMapper.deleteOldQrLoginRequests(cleanupRetentionDays);
     }
 
     private Map<String, Object> statusData(Map<String, Object> row, boolean includeUser) {
