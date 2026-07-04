@@ -29,6 +29,8 @@ import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 @Service
 public class QrLoginService {
@@ -44,6 +46,7 @@ public class QrLoginService {
     private final int maxCreatesPerMinute;
     private final int cleanupRetentionDays;
     private final String configuredPublicBaseUrl;
+    private final String tokenSecret;
 
     public QrLoginService(
         QrLoginMapper qrLoginMapper,
@@ -53,6 +56,7 @@ public class QrLoginService {
         @Value("${auth.qr-login.ttl-seconds:180}") long ttlSeconds,
         @Value("${auth.qr-login.create-rate-limit.max-per-minute:60}") int maxCreatesPerMinute,
         @Value("${auth.qr-login.cleanup-retention-days:30}") int cleanupRetentionDays,
+        @Value("${auth.qr-login.token-secret:}") String tokenSecret,
         @Value("${app.public-base-url:http://localhost:8081}") String configuredPublicBaseUrl
     ) {
         this.qrLoginMapper = qrLoginMapper;
@@ -62,6 +66,7 @@ public class QrLoginService {
         this.ttlSeconds = Math.max(30L, Math.min(ttlSeconds, 300L));
         this.maxCreatesPerMinute = Math.max(3, maxCreatesPerMinute);
         this.cleanupRetentionDays = Math.max(1, cleanupRetentionDays);
+        this.tokenSecret = tokenSecret == null ? "" : tokenSecret.trim();
         this.configuredPublicBaseUrl = normalizeBaseUrl(configuredPublicBaseUrl);
     }
 
@@ -273,8 +278,16 @@ public class QrLoginService {
 
     private String hashToken(String token) {
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashed = digest.digest(String.valueOf(token).getBytes(StandardCharsets.UTF_8));
+            byte[] tokenBytes = String.valueOf(token).getBytes(StandardCharsets.UTF_8);
+            byte[] hashed;
+            if (!tokenSecret.isEmpty()) {
+                Mac mac = Mac.getInstance("HmacSHA256");
+                mac.init(new SecretKeySpec(tokenSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+                hashed = mac.doFinal(tokenBytes);
+            } else {
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                hashed = digest.digest(tokenBytes);
+            }
             return java.util.HexFormat.of().formatHex(hashed);
         } catch (Exception e) {
             throw new IllegalStateException("failed to hash QR token", e);
