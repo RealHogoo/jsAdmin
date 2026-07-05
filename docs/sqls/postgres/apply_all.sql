@@ -6,3 +6,4 @@
 \i ./migrations/V008__default_service_seed.sql
 \i ./migrations/V009__webhard_media_service_seed.sql
 \i ./migrations/V010__qr_login.sql
+\i ./migrations/V011__login_rate_limit.sql

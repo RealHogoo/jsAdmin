@@ -78,4 +78,12 @@ public interface AuthMapper {
     int revokeRefreshToken(@Param("tokenHash") String tokenHash, @Param("updatedBy") String updatedBy);
 
     int revokeRefreshTokensBySessionId(@Param("sessionId") String sessionId, @Param("updatedBy") String updatedBy);
+
+    Map<String, Object> selectLoginRateLimit(@Param("clientKey") String clientKey);
+
+    int upsertLoginRateLimit(Map<String, Object> param);
+
+    int deleteLoginRateLimit(@Param("clientKey") String clientKey);
+
+    int deleteOldLoginRateLimits(@Param("retentionHours") long retentionHours);
 }

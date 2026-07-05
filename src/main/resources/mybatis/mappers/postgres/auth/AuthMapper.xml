@@ -443,6 +443,39 @@
            AND revoked_yn = 'N'
     </update>
 
+    <select id="selectLoginRateLimit" resultType="map">
+        SELECT client_key, failure_count, window_started_at, blocked_until_at
+          FROM adm_login_rate_limit
+         WHERE client_key = #{clientKey}
+    </select>
+
+    <insert id="upsertLoginRateLimit" parameterType="map">
+        INSERT INTO adm_login_rate_limit (
+            client_key, failure_count, window_started_at, blocked_until_at,
+            created_at, updated_at
+        ) VALUES (
+            #{client_key,jdbcType=VARCHAR}, #{failure_count,jdbcType=NUMERIC},
+            #{window_started_at,jdbcType=TIMESTAMP}, #{blocked_until_at,jdbcType=TIMESTAMP},
+            CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        )
+        ON CONFLICT (client_key) DO UPDATE
+           SET failure_count = EXCLUDED.failure_count,
+               window_started_at = EXCLUDED.window_started_at,
+               blocked_until_at = EXCLUDED.blocked_until_at,
+               updated_at = CURRENT_TIMESTAMP
+    </insert>
+
+    <delete id="deleteLoginRateLimit">
+        DELETE FROM adm_login_rate_limit
+         WHERE client_key = #{clientKey}
+    </delete>
+
+    <delete id="deleteOldLoginRateLimits">
+        DELETE FROM adm_login_rate_limit
+         WHERE updated_at &lt; CURRENT_TIMESTAMP - (#{retentionHours,jdbcType=NUMERIC} * INTERVAL '1 hour')
+           AND (blocked_until_at IS NULL OR blocked_until_at &lt;= CURRENT_TIMESTAMP)
+    </delete>
+
     <resultMap id="LoginUserMap" type="com.realhogoo.jsadmin.auth.dto.LoginUser">
         <result property="userSeq" column="USER_SEQ"/>
         <result property="userId" column="LOGIN_ID"/>

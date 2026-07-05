@@ -502,6 +502,47 @@
            AND REVOKED_YN = 'N'
     </update>
 
+    <select id="selectLoginRateLimit" resultType="map">
+        SELECT CLIENT_KEY, FAILURE_COUNT, WINDOW_STARTED_AT, BLOCKED_UNTIL_AT
+          FROM ADM_LOGIN_RATE_LIMIT
+         WHERE CLIENT_KEY = #{clientKey}
+    </select>
+
+    <update id="upsertLoginRateLimit" parameterType="map">
+        MERGE INTO ADM_LOGIN_RATE_LIMIT target
+        USING (
+            SELECT #{client_key,jdbcType=VARCHAR} AS CLIENT_KEY,
+                   #{failure_count,jdbcType=NUMERIC} AS FAILURE_COUNT,
+                   #{window_started_at,jdbcType=TIMESTAMP} AS WINDOW_STARTED_AT,
+                   #{blocked_until_at,jdbcType=TIMESTAMP} AS BLOCKED_UNTIL_AT
+              FROM DUAL
+        ) source
+           ON (target.CLIENT_KEY = source.CLIENT_KEY)
+         WHEN MATCHED THEN UPDATE
+              SET target.FAILURE_COUNT = source.FAILURE_COUNT,
+                  target.WINDOW_STARTED_AT = source.WINDOW_STARTED_AT,
+                  target.BLOCKED_UNTIL_AT = source.BLOCKED_UNTIL_AT,
+                  target.UPDATED_AT = SYSTIMESTAMP
+         WHEN NOT MATCHED THEN INSERT (
+                  CLIENT_KEY, FAILURE_COUNT, WINDOW_STARTED_AT, BLOCKED_UNTIL_AT,
+                  CREATED_AT, UPDATED_AT
+              ) VALUES (
+                  source.CLIENT_KEY, source.FAILURE_COUNT, source.WINDOW_STARTED_AT, source.BLOCKED_UNTIL_AT,
+                  SYSTIMESTAMP, SYSTIMESTAMP
+              )
+    </update>
+
+    <delete id="deleteLoginRateLimit">
+        DELETE FROM ADM_LOGIN_RATE_LIMIT
+         WHERE CLIENT_KEY = #{clientKey}
+    </delete>
+
+    <delete id="deleteOldLoginRateLimits">
+        DELETE FROM ADM_LOGIN_RATE_LIMIT
+         WHERE UPDATED_AT &lt; SYSTIMESTAMP - NUMTODSINTERVAL(#{retentionHours,jdbcType=NUMERIC}, 'HOUR')
+           AND (BLOCKED_UNTIL_AT IS NULL OR BLOCKED_UNTIL_AT &lt;= SYSTIMESTAMP)
+    </delete>
+
     <resultMap id="LoginUserMap" type="com.realhogoo.jsadmin.auth.dto.LoginUser">
         <result property="userSeq" column="USER_SEQ"/>
         <result property="userId" column="LOGIN_ID"/>

@@ -1,64 +1,90 @@
 package com.realhogoo.jsadmin.auth.service;
 
+import com.realhogoo.jsadmin.auth.mapper.AuthMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.servlet.http.HttpServletRequest;
 import java.net.InetAddress;
-import java.util.ArrayDeque;
-import java.util.Deque;
+import java.sql.Timestamp;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class LoginRateLimiter {
 
-    private final Map<String, AttemptWindow> windows = new ConcurrentHashMap<String, AttemptWindow>();
+    private final AuthMapper authMapper;
     private final int maxAttempts;
     private final long windowMs;
     private final long blockMs;
+    private final long cleanupRetentionHours;
 
     public LoginRateLimiter(
+        AuthMapper authMapper,
         @Value("${auth.login-rate-limit.max-attempts:8}") int maxAttempts,
         @Value("${auth.login-rate-limit.window-seconds:300}") long windowSeconds,
-        @Value("${auth.login-rate-limit.block-seconds:300}") long blockSeconds
+        @Value("${auth.login-rate-limit.block-seconds:300}") long blockSeconds,
+        @Value("${auth.login-rate-limit.cleanup-retention-hours:24}") long cleanupRetentionHours
     ) {
+        this.authMapper = authMapper;
         this.maxAttempts = Math.max(1, maxAttempts);
         this.windowMs = Math.max(1L, windowSeconds) * 1000L;
         this.blockMs = Math.max(1L, blockSeconds) * 1000L;
+        this.cleanupRetentionHours = Math.max(1L, cleanupRetentionHours);
     }
 
     public long retryAfterSeconds(HttpServletRequest request, long nowMs) {
-        AttemptWindow window = windows.get(clientKey(request));
-        if (window == null) {
+        Map<String, Object> row = authMapper.selectLoginRateLimit(clientKey(request));
+        if (row == null || row.isEmpty()) {
             return 0L;
         }
-        synchronized (window) {
-            window.compact(nowMs, windowMs);
-            if (window.blockedUntilMs <= nowMs) {
-                return 0L;
-            }
-            return Math.max(1L, (window.blockedUntilMs - nowMs + 999L) / 1000L);
+        Date blockedUntil = dateValue(row.get("blocked_until_at"));
+        if (blockedUntil == null || blockedUntil.getTime() <= nowMs) {
+            return 0L;
         }
+        return Math.max(1L, (blockedUntil.getTime() - nowMs + 999L) / 1000L);
     }
 
     public void recordFailure(HttpServletRequest request, long nowMs) {
-        AttemptWindow window = windows.computeIfAbsent(clientKey(request), key -> new AttemptWindow());
-        synchronized (window) {
-            window.compact(nowMs, windowMs);
-            if (window.blockedUntilMs > nowMs) {
-                return;
-            }
-            window.failures.addLast(Long.valueOf(nowMs));
-            if (window.failures.size() >= maxAttempts) {
-                window.blockedUntilMs = nowMs + blockMs;
-                window.failures.clear();
-            }
+        String key = clientKey(request);
+        Map<String, Object> row = authMapper.selectLoginRateLimit(key);
+        Date blockedUntil = row == null ? null : dateValue(row.get("blocked_until_at"));
+        if (blockedUntil != null && blockedUntil.getTime() > nowMs) {
+            return;
         }
+
+        Date windowStartedAt = row == null ? null : dateValue(row.get("window_started_at"));
+        boolean expiredWindow = windowStartedAt == null || windowStartedAt.getTime() < nowMs - windowMs;
+        int failureCount = expiredWindow ? 0 : intValue(row.get("failure_count"));
+        Date nextWindowStartedAt = expiredWindow ? new Date(nowMs) : windowStartedAt;
+        Date nextBlockedUntil = null;
+
+        failureCount++;
+        if (failureCount >= maxAttempts) {
+            nextBlockedUntil = new Date(nowMs + blockMs);
+            nextWindowStartedAt = new Date(nowMs);
+            failureCount = 0;
+        }
+
+        Map<String, Object> param = new HashMap<String, Object>();
+        param.put("client_key", key);
+        param.put("failure_count", Integer.valueOf(failureCount));
+        param.put("window_started_at", nextWindowStartedAt);
+        param.put("blocked_until_at", nextBlockedUntil);
+        authMapper.upsertLoginRateLimit(param);
     }
 
     public void reset(HttpServletRequest request) {
-        windows.remove(clientKey(request));
+        authMapper.deleteLoginRateLimit(clientKey(request));
+    }
+
+    @Scheduled(cron = "${auth.login-rate-limit.cleanup-cron:0 35 3 * * *}")
+    @Transactional
+    public void cleanupOldWindows() {
+        authMapper.deleteOldLoginRateLimits(cleanupRetentionHours);
     }
 
     private String clientKey(HttpServletRequest request) {
@@ -115,17 +141,29 @@ public class LoginRateLimiter {
         return trimmed;
     }
 
-    private static final class AttemptWindow {
-        private final Deque<Long> failures = new ArrayDeque<Long>();
-        private long blockedUntilMs;
+    private Date dateValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Date) {
+            return (Date) value;
+        }
+        if (value instanceof Timestamp) {
+            return new Date(((Timestamp) value).getTime());
+        }
+        return null;
+    }
 
-        private void compact(long nowMs, long windowMs) {
-            while (!failures.isEmpty() && failures.peekFirst().longValue() < nowMs - windowMs) {
-                failures.removeFirst();
-            }
-            if (blockedUntilMs <= nowMs && failures.isEmpty()) {
-                blockedUntilMs = 0L;
+    private int intValue(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).intValue();
+        }
+        if (value != null) {
+            try {
+                return Integer.parseInt(String.valueOf(value));
+            } catch (NumberFormatException ignored) {
             }
         }
+        return 0;
     }
 }

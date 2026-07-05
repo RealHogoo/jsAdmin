@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
@@ -356,11 +357,33 @@ public class QrLoginService {
 
     private String extractClientIp(HttpServletRequest request) {
         if (request == null) return null;
-        String forwarded = header(request, "X-Forwarded-For");
-        if (forwarded != null && !forwarded.trim().isEmpty()) {
-            return trimToNull(forwarded.split(",")[0], 45);
+        if (isTrustedForwardedSource(request)) {
+            String forwarded = header(request, "X-Forwarded-For");
+            if (forwarded != null && !forwarded.trim().isEmpty()) {
+                return trimToNull(forwarded.split(",")[0], 45);
+            }
+            String realIp = trimToNull(header(request, "X-Real-IP"), 45);
+            if (realIp != null) {
+                return realIp;
+            }
         }
         return trimToNull(request.getRemoteAddr(), 45);
+    }
+
+    private boolean isTrustedForwardedSource(HttpServletRequest request) {
+        String configured = trimToNull(System.getProperty("app.trust-forwarded-headers"), 16);
+        if (configured == null) {
+            configured = trimToNull(System.getenv("TRUST_FORWARDED_HEADERS"), 16);
+        }
+        if ("true".equalsIgnoreCase(configured)) {
+            return true;
+        }
+        try {
+            InetAddress address = InetAddress.getByName(request.getRemoteAddr());
+            return address.isLoopbackAddress();
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private String trimToNull(String value, int maxLength) {

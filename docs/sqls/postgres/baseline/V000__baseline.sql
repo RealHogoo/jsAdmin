@@ -232,6 +232,16 @@ CREATE TABLE adm_qr_login_req (
     CONSTRAINT ck_adm_qr_login_req_01 CHECK (status_cd IN ('WAITING', 'APPROVED', 'CONSUMED', 'EXPIRED', 'CANCELLED'))
 );
 
+CREATE TABLE adm_login_rate_limit (
+    client_key        VARCHAR(128) PRIMARY KEY,
+    failure_count     INTEGER NOT NULL DEFAULT 0,
+    window_started_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    blocked_until_at  TIMESTAMP(6),
+    created_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT ck_adm_login_rate_limit_count CHECK (failure_count >= 0)
+);
+
 CREATE TABLE adm_api_mst (
     api_seq          BIGINT PRIMARY KEY,
     api_type         VARCHAR(20) NOT NULL,
@@ -297,6 +307,8 @@ CREATE INDEX idx_adm_refresh_token_01 ON adm_refresh_token (token_hash, revoked_
 CREATE INDEX idx_adm_refresh_token_02 ON adm_refresh_token (session_id, revoked_yn);
 CREATE INDEX idx_adm_qr_login_req_01 ON adm_qr_login_req (request_id, status_cd, expires_at);
 CREATE INDEX idx_adm_qr_login_req_02 ON adm_qr_login_req (request_token_hash, status_cd, expires_at);
+CREATE INDEX idx_adm_login_rate_limit_01 ON adm_login_rate_limit (blocked_until_at);
+CREATE INDEX idx_adm_login_rate_limit_02 ON adm_login_rate_limit (updated_at, blocked_until_at);
 CREATE INDEX idx_adm_api_mst_01 ON adm_api_mst (api_type, use_yn, api_seq DESC);
 CREATE INDEX idx_adm_api_mst_02 ON adm_api_mst (caller_id, target_service, http_method);
 CREATE INDEX idx_adm_service_mst_01 ON adm_service_mst (use_yn, sort_ord, service_seq);
