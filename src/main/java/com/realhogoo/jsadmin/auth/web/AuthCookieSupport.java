@@ -81,7 +81,25 @@ public final class AuthCookieSupport {
             return stripLeadingDot(configured);
         }
 
-        return null;
+        String host = forwardedHost(request);
+        if (host == null || isLocalHost(host)) {
+            return null;
+        }
+        String[] parts = host.split("\\.");
+        if (parts.length < 3) {
+            return null;
+        }
+        int start = parts.length >= 4 ? parts.length - 3 : parts.length - 2;
+        return String.join(".", java.util.Arrays.copyOfRange(parts, start, parts.length));
+    }
+
+    private static boolean isLocalHost(String host) {
+        String normalized = host == null ? "" : host.trim().toLowerCase();
+        return normalized.isEmpty()
+            || "localhost".equals(normalized)
+            || "127.0.0.1".equals(normalized)
+            || "::1".equals(normalized)
+            || normalized.startsWith("127.");
     }
 
     private static String forwardedHost(HttpServletRequest request) {
