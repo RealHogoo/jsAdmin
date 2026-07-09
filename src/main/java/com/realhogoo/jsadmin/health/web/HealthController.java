@@ -56,7 +56,10 @@ public class HealthController {
     private final AccessService accessService;
     private final String appEnv;
     private final String internalApiToken;
+    private final String resourceProcRoot = normalizePath(System.getenv("ADMIN_RESOURCE_PROC_ROOT"), "/proc");
+    private final String resourceDiskRoot = normalizePath(System.getenv("ADMIN_RESOURCE_DISK_ROOT"), "/");
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private CpuSnapshot previousCpuSnapshot;
 
     public HealthController(
         DataSource dataSource,
@@ -329,6 +332,7 @@ public class HealthController {
         s.put("memory", memoryStatus(os));
         s.put("disk", diskStatus());
         s.put("network", networkStatus());
+        s.put("resource_scope", resourceScope());
 
         try {
             s.put("host", InetAddress.getLocalHost().getHostName());
@@ -340,14 +344,16 @@ public class HealthController {
 
     private Map<String, Object> cpuStatus(OperatingSystemMXBean os) {
         Map<String, Object> cpu = new LinkedHashMap<String, Object>();
-        cpu.put("processors", os.getAvailableProcessors());
-        cpu.put("system_load_avg", os.getSystemLoadAverage());
+        int processors = hostProcessorCount(os.getAvailableProcessors());
+        cpu.put("processors", processors);
+        cpu.put("system_load_avg", hostLoadAverage(os.getSystemLoadAverage()));
+        Double hostCpuLoad = hostCpuLoadPct();
         if (os instanceof com.sun.management.OperatingSystemMXBean) {
             com.sun.management.OperatingSystemMXBean sunOs = (com.sun.management.OperatingSystemMXBean) os;
-            cpu.put("system_cpu_load_pct", percentValue(sunOs.getSystemCpuLoad()));
+            cpu.put("system_cpu_load_pct", hostCpuLoad == null ? percentValue(sunOs.getSystemCpuLoad()) : hostCpuLoad);
             cpu.put("process_cpu_load_pct", percentValue(sunOs.getProcessCpuLoad()));
         } else {
-            cpu.put("system_cpu_load_pct", null);
+            cpu.put("system_cpu_load_pct", hostCpuLoad);
             cpu.put("process_cpu_load_pct", null);
         }
         return cpu;
@@ -383,7 +389,7 @@ public class HealthController {
     }
 
     private Map<String, Long> linuxMemoryInfo() {
-        File meminfo = new File("/proc/meminfo");
+        File meminfo = new File(resourceProcRoot, "meminfo");
         if (!meminfo.isFile()) {
             return Collections.emptyMap();
         }
@@ -405,6 +411,81 @@ public class HealthController {
         return result;
     }
 
+    private int hostProcessorCount(int fallback) {
+        File cpuinfo = new File(resourceProcRoot, "cpuinfo");
+        if (!cpuinfo.isFile()) {
+            return fallback;
+        }
+        try {
+            int processors = 0;
+            for (String line : Files.readAllLines(cpuinfo.toPath(), StandardCharsets.UTF_8)) {
+                if (line.startsWith("processor")) {
+                    processors++;
+                }
+            }
+            return processors > 0 ? processors : fallback;
+        } catch (Exception ignore) {
+            return fallback;
+        }
+    }
+
+    private double hostLoadAverage(double fallback) {
+        File loadavg = new File(resourceProcRoot, "loadavg");
+        if (!loadavg.isFile()) {
+            return fallback;
+        }
+        try {
+            String value = Files.readAllLines(loadavg.toPath(), StandardCharsets.UTF_8).get(0).trim().split("\\s+")[0];
+            return Double.parseDouble(value);
+        } catch (Exception ignore) {
+            return fallback;
+        }
+    }
+
+    private synchronized Double hostCpuLoadPct() {
+        CpuSnapshot current = readCpuSnapshot();
+        if (current == null) {
+            return null;
+        }
+        CpuSnapshot previous = previousCpuSnapshot;
+        previousCpuSnapshot = current;
+        if (previous == null) {
+            return null;
+        }
+        long totalDiff = current.total - previous.total;
+        long idleDiff = current.idle - previous.idle;
+        if (totalDiff <= 0 || idleDiff < 0) {
+            return null;
+        }
+        return Math.round(((totalDiff - idleDiff) * 10000.0d / totalDiff)) / 100.0d;
+    }
+
+    private CpuSnapshot readCpuSnapshot() {
+        File stat = new File(resourceProcRoot, "stat");
+        if (!stat.isFile()) {
+            return null;
+        }
+        try {
+            String firstLine = Files.readAllLines(stat.toPath(), StandardCharsets.UTF_8).get(0);
+            String[] parts = firstLine.trim().split("\\s+");
+            if (parts.length < 8 || !"cpu".equals(parts[0])) {
+                return null;
+            }
+            long user = Long.parseLong(parts[1]);
+            long nice = Long.parseLong(parts[2]);
+            long system = Long.parseLong(parts[3]);
+            long idle = Long.parseLong(parts[4]);
+            long iowait = Long.parseLong(parts[5]);
+            long irq = Long.parseLong(parts[6]);
+            long softirq = Long.parseLong(parts[7]);
+            long steal = parts.length > 8 ? Long.parseLong(parts[8]) : 0L;
+            long total = user + nice + system + idle + iowait + irq + softirq + steal;
+            return new CpuSnapshot(total, idle + iowait);
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+
     private long valueOrDefault(Long value, long fallback) {
         return value == null || value < 0 ? fallback : value;
     }
@@ -414,7 +495,7 @@ public class HealthController {
         long total = 0L;
         long free = 0L;
         List<Map<String, Object>> roots = new ArrayList<Map<String, Object>>();
-        File[] files = File.listRoots();
+        File[] files = resourceDiskRoots();
         if (files != null) {
             for (File file : files) {
                 long rootTotal = file.getTotalSpace();
@@ -424,6 +505,7 @@ public class HealthController {
                 }
                 Map<String, Object> root = new LinkedHashMap<String, Object>();
                 root.put("path", file.getAbsolutePath());
+                root.put("display_path", displayDiskPath(file));
                 root.put("total", rootTotal);
                 root.put("free", rootFree);
                 root.put("used", rootTotal - rootFree);
@@ -439,6 +521,49 @@ public class HealthController {
         disk.put("used_pct", percent(total - free, total));
         disk.put("roots", roots);
         return disk;
+    }
+
+    private File[] resourceDiskRoots() {
+        File configuredRoot = new File(resourceDiskRoot);
+        if (configuredRoot.exists()) {
+            return new File[] { configuredRoot };
+        }
+        return File.listRoots();
+    }
+
+    private String displayDiskPath(File file) {
+        String path = file.getAbsolutePath();
+        if ("/host/root".equals(path) || resourceDiskRoot.equals(path)) {
+            return "/";
+        }
+        return path;
+    }
+
+    private String resourceScope() {
+        File hostProc = new File(resourceProcRoot, "meminfo");
+        File hostDisk = new File(resourceDiskRoot);
+        return hostProc.isFile() || (hostDisk.exists() && !"/".equals(resourceDiskRoot)) ? "HOST" : "CONTAINER";
+    }
+
+    private static String normalizePath(String value, String fallback) {
+        if (value == null || value.trim().isEmpty()) {
+            return fallback;
+        }
+        String normalized = value.trim();
+        while (normalized.length() > 1 && normalized.endsWith("/")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
+    private static final class CpuSnapshot {
+        private final long total;
+        private final long idle;
+
+        private CpuSnapshot(long total, long idle) {
+            this.total = total;
+            this.idle = idle;
+        }
     }
 
     private Map<String, Object> networkStatus() {
