@@ -33,6 +33,7 @@ import java.net.NetworkInterface;
 import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.sql.Connection;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -362,19 +363,50 @@ public class HealthController {
         memory.put("heap_used_pct", percent(heapUsed, rt.maxMemory()));
         if (os instanceof com.sun.management.OperatingSystemMXBean) {
             com.sun.management.OperatingSystemMXBean sunOs = (com.sun.management.OperatingSystemMXBean) os;
-            long total = sunOs.getTotalPhysicalMemorySize();
-            long free = sunOs.getFreePhysicalMemorySize();
+            Map<String, Long> linuxMemory = linuxMemoryInfo();
+            long total = valueOrDefault(linuxMemory.get("MemTotal"), sunOs.getTotalPhysicalMemorySize());
+            long available = valueOrDefault(linuxMemory.get("MemAvailable"), sunOs.getFreePhysicalMemorySize());
+            long free = valueOrDefault(linuxMemory.get("MemFree"), sunOs.getFreePhysicalMemorySize());
             memory.put("physical_total", total);
             memory.put("physical_free", free);
-            memory.put("physical_used", total > 0 && free >= 0 ? total - free : null);
-            memory.put("physical_used_pct", total > 0 && free >= 0 ? percent(total - free, total) : null);
+            memory.put("physical_available", available);
+            memory.put("physical_used", total > 0 && available >= 0 ? total - available : null);
+            memory.put("physical_used_pct", total > 0 && available >= 0 ? percent(total - available, total) : null);
         } else {
             memory.put("physical_total", null);
             memory.put("physical_free", null);
+            memory.put("physical_available", null);
             memory.put("physical_used", null);
             memory.put("physical_used_pct", null);
         }
         return memory;
+    }
+
+    private Map<String, Long> linuxMemoryInfo() {
+        File meminfo = new File("/proc/meminfo");
+        if (!meminfo.isFile()) {
+            return Collections.emptyMap();
+        }
+        Map<String, Long> result = new HashMap<String, Long>();
+        try {
+            List<String> lines = Files.readAllLines(meminfo.toPath(), StandardCharsets.UTF_8);
+            for (String line : lines) {
+                int colon = line.indexOf(':');
+                if (colon < 1) {
+                    continue;
+                }
+                String key = line.substring(0, colon);
+                String rawValue = line.substring(colon + 1).trim().split("\\s+")[0];
+                result.put(key, Long.parseLong(rawValue) * 1024L);
+            }
+        } catch (Exception ignore) {
+            return Collections.emptyMap();
+        }
+        return result;
+    }
+
+    private long valueOrDefault(Long value, long fallback) {
+        return value == null || value < 0 ? fallback : value;
     }
 
     private Map<String, Object> diskStatus() {
