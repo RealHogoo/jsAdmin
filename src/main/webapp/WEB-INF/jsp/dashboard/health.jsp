@@ -151,14 +151,14 @@
                 <div class="health-kpi-sub" id="workerExpectedPods">-</div>
             </div>
             <div class="panel health-kpi" data-health-worker-card="youtube">
-                <div class="health-kpi-label">YouTube 작업</div>
+                <div class="health-kpi-label" id="workerJobLabel">YouTube 작업</div>
                 <div class="health-kpi-value" id="workerYoutubeJobs">-</div>
-                <div class="health-kpi-sub">queued / running / failed</div>
+                <div class="health-kpi-sub" id="workerJobHelp">queued / running / failed</div>
             </div>
             <div class="panel health-kpi" data-health-worker-card="locks">
-                <div class="health-kpi-label">중복 방지 Lock</div>
+                <div class="health-kpi-label" id="workerAuxLabel">중복 방지 Lock</div>
                 <div class="health-kpi-value" id="workerLocks">-</div>
-                <div class="health-kpi-sub">현재 보호 중인 영상</div>
+                <div class="health-kpi-sub" id="workerAuxHelp">현재 보호 중인 영상</div>
             </div>
         </div>
 
@@ -194,6 +194,26 @@
                 </thead>
                 <tbody id="workerLockBody">
                 <tr><td colspan="4">-</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">트랜스코딩 작업</div>
+            <table class="tbl">
+                <thead>
+                <tr>
+                    <th style="width:90px;">Job</th>
+                    <th style="width:90px;">File</th>
+                    <th>File Name</th>
+                    <th style="width:110px;">Status</th>
+                    <th style="width:90px;">Attempt</th>
+                    <th>Message</th>
+                    <th style="width:190px;">Updated</th>
+                </tr>
+                </thead>
+                <tbody id="transcodeJobBody">
+                <tr><td colspan="7">-</td></tr>
                 </tbody>
             </table>
         </div>

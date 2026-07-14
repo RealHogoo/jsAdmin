@@ -129,6 +129,11 @@
 
     function renderWorkers(workers) {
         workers = workers || {};
+        var kind = workers.kind || "";
+        if (kind === "webhard-transcode") {
+            renderTranscodeWorkers(workers);
+            return;
+        }
         var pods = Array.isArray(workers.pods) ? workers.pods : [];
         var locks = Array.isArray(workers.locks) ? workers.locks : [];
         var jobs = workers.jobs || {};
@@ -140,6 +145,10 @@
         var running = Number(youtube.RUNNING || 0);
         var failed = Number(youtube.FAILED || 0);
 
+        setText("workerJobLabel", "YouTube 작업");
+        setText("workerJobHelp", "queued / running / failed");
+        setText("workerAuxLabel", "중복 방지 Lock");
+        setText("workerAuxHelp", "현재 보호 중인 영상");
         setText("workerStatus", workerStatus);
         setText("workerCheckedAt", workers.checked_at ? new Date(workers.checked_at).toLocaleString() : (workers.error || "-"));
         setText("workerActivePods", expected ? (active + " / " + expected) : (active || "-"));
@@ -183,6 +192,66 @@
                         + "<td>" + UX.esc(lock.worker_id || "-") + "</td>"
                         + "<td>" + UX.esc(lock.lease_expires_at ? new Date(lock.lease_expires_at).toLocaleString() : "-") + "</td>"
                         + "<td>" + UX.esc(lock.updated_at ? new Date(lock.updated_at).toLocaleString() : "-") + "</td>"
+                        + "</tr>";
+                }).join("");
+            }
+        }
+        var jobBody = UX.qs("#transcodeJobBody", root());
+        if (jobBody) {
+            jobBody.innerHTML = "<tr><td colspan='7'>미디어 서비스는 유튜브 다운로드 worker 상태를 위 표에서 확인합니다.</td></tr>";
+        }
+    }
+
+    function renderTranscodeWorkers(workers) {
+        var counts = workers.counts || {};
+        var variants = workers.variants || {};
+        var items = Array.isArray(workers.items) ? workers.items : [];
+        var status = workers.status || "-";
+        var pending = Number(counts.PENDING || 0);
+        var running = Number(counts.RUNNING || 0);
+        var failed = Number(counts.FAILED || 0);
+        var done = Number(counts.DONE || 0);
+        var variant720 = Number(variants["720"] || 0);
+        var variant1080 = Number(variants["1080"] || 0);
+
+        setText("workerStatus", status);
+        setText("workerCheckedAt", workers.checked_at ? new Date(workers.checked_at).toLocaleString() : (workers.error || "-"));
+        setText("workerActivePods", workers.worker_running ? "RUNNING" : "IDLE");
+        setText("workerExpectedPods", "window " + (workers.start_hour == null ? "-" : workers.start_hour) + ":00-" + (workers.end_hour == null ? "-" : workers.end_hour) + ":00");
+        setText("workerJobLabel", "트랜스코딩 작업");
+        setText("workerJobHelp", "pending / running / failed");
+        setText("workerYoutubeJobs", pending + " / " + running + " / " + failed);
+        setText("workerAuxLabel", "변환본");
+        setText("workerAuxHelp", "720p / 1080p");
+        setText("workerLocks", variant720 + " / " + variant1080);
+
+        setWorkerCardStatus("status", status);
+        setWorkerCardStatus("pods", workers.worker_running ? "UP" : (pending > 0 ? "DEGRADED" : "UP"));
+        setWorkerCardStatus("youtube", failed > 0 ? "DEGRADED" : "UP");
+        setWorkerCardStatus("locks", "UP");
+
+        var podBody = UX.qs("#workerPodBody", root());
+        if (podBody) {
+            podBody.innerHTML = "<tr><td colspan='6'>웹하드는 별도 pod가 아니라 웹하드 서비스 내부 스케줄러가 트랜스코딩을 처리합니다.</td></tr>";
+        }
+        var lockBody = UX.qs("#workerLockBody", root());
+        if (lockBody) {
+            lockBody.innerHTML = "<tr><td colspan='4'>완료 " + UX.esc(done) + "건 · 대기 " + UX.esc(pending) + "건 · 실행 " + UX.esc(running) + "건</td></tr>";
+        }
+        var jobBody = UX.qs("#transcodeJobBody", root());
+        if (jobBody) {
+            if (!items.length) {
+                jobBody.innerHTML = "<tr><td colspan='7'>트랜스코딩 작업 이력이 없습니다.</td></tr>";
+            } else {
+                jobBody.innerHTML = items.map(function (item) {
+                    return "<tr>"
+                        + "<td>" + UX.esc(item.job_id || "-") + "</td>"
+                        + "<td>" + UX.esc(item.file_id || "-") + "</td>"
+                        + "<td>" + UX.esc(item.file_name || "-") + "</td>"
+                        + "<td>" + renderStatusBadge(item.status_cd || "-") + "</td>"
+                        + "<td>" + UX.esc(item.attempt_count == null ? "-" : item.attempt_count) + "</td>"
+                        + "<td>" + UX.esc(item.message || "-") + "</td>"
+                        + "<td>" + UX.esc(item.updated_at ? new Date(item.updated_at).toLocaleString() : "-") + "</td>"
                         + "</tr>";
                 }).join("");
             }

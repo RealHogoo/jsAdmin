@@ -716,19 +716,30 @@ public class HealthController {
         data.put("db", db);
         data.put("server", server);
         data.put("dependencies", dependencies);
-        data.put("workers", remoteWorkerStatus(service));
+        data.put("workers", remoteBackgroundWorkerStatus(service));
         return data;
     }
 
-    private Map<String, Object> remoteWorkerStatus(Map<String, Object> service) {
-        if (!"media-service".equalsIgnoreCase(stringValue(service.get("service_cd")))) {
+    private Map<String, Object> remoteBackgroundWorkerStatus(Map<String, Object> service) {
+        String serviceCd = stringValue(service.get("service_cd"));
+        if ("media-service".equalsIgnoreCase(serviceCd)) {
+            return remoteWorkerStatus(service, "/api/worker/pods/", "media-worker");
+        }
+        if ("webhard-service".equalsIgnoreCase(serviceCd)) {
+            return remoteWorkerStatus(service, "/internal/media/transcode-status.json", "webhard-transcode");
+        }
+        return Collections.emptyMap();
+    }
+
+    private Map<String, Object> remoteWorkerStatus(Map<String, Object> service, String path, String kind) {
+        if (path == null) {
             return Collections.emptyMap();
         }
         long startedAt = System.currentTimeMillis();
         try {
             String endpoint = serviceEndpointPolicy.resolveAllowedEndpoint(
                 stringValue(service.get("base_url")),
-                "/api/worker/pods/",
+                path,
                 "worker_pods_path"
             );
             HttpURLConnection connection = openPost(endpoint, timeoutMs(service), true);
@@ -737,6 +748,7 @@ public class HealthController {
             InputStream stream = statusCode >= 400 ? connection.getErrorStream() : connection.getInputStream();
             Map<String, Object> payload = stream == null ? Collections.<String, Object>emptyMap() : objectMapper.readValue(stream, MAP_TYPE);
             Map<String, Object> data = mapValue(payload.get("data"));
+            data.put("kind", kind);
             data.put("http_status", statusCode);
             data.put("latency_ms", System.currentTimeMillis() - startedAt);
             if (statusCode >= 400) {
@@ -746,6 +758,7 @@ public class HealthController {
             return data;
         } catch (Exception exception) {
             Map<String, Object> error = new LinkedHashMap<String, Object>();
+            error.put("kind", kind);
             error.put("status", "DOWN");
             error.put("checked_at", Instant.now().toString());
             error.put("latency_ms", System.currentTimeMillis() - startedAt);
