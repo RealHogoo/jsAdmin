@@ -716,7 +716,42 @@ public class HealthController {
         data.put("db", db);
         data.put("server", server);
         data.put("dependencies", dependencies);
+        data.put("workers", remoteWorkerStatus(service));
         return data;
+    }
+
+    private Map<String, Object> remoteWorkerStatus(Map<String, Object> service) {
+        if (!"media-service".equalsIgnoreCase(stringValue(service.get("service_cd")))) {
+            return Collections.emptyMap();
+        }
+        long startedAt = System.currentTimeMillis();
+        try {
+            String endpoint = serviceEndpointPolicy.resolveAllowedEndpoint(
+                stringValue(service.get("base_url")),
+                "/api/worker/pods/",
+                "worker_pods_path"
+            );
+            HttpURLConnection connection = openPost(endpoint, timeoutMs(service), true);
+            connection.connect();
+            int statusCode = connection.getResponseCode();
+            InputStream stream = statusCode >= 400 ? connection.getErrorStream() : connection.getInputStream();
+            Map<String, Object> payload = stream == null ? Collections.<String, Object>emptyMap() : objectMapper.readValue(stream, MAP_TYPE);
+            Map<String, Object> data = mapValue(payload.get("data"));
+            data.put("http_status", statusCode);
+            data.put("latency_ms", System.currentTimeMillis() - startedAt);
+            if (statusCode >= 400) {
+                data.put("status", "DOWN");
+                data.put("error", firstNonNull(payload.get("message"), "HTTP " + statusCode));
+            }
+            return data;
+        } catch (Exception exception) {
+            Map<String, Object> error = new LinkedHashMap<String, Object>();
+            error.put("status", "DOWN");
+            error.put("checked_at", Instant.now().toString());
+            error.put("latency_ms", System.currentTimeMillis() - startedAt);
+            error.put("error", exception.getClass().getSimpleName() + ": " + exception.getMessage());
+            return error;
+        }
     }
 
     private Map<String, Object> dependencyRow(String name, String type, String status, Map<String, Object> source) {
@@ -796,11 +831,18 @@ public class HealthController {
     }
 
     private HttpURLConnection openPost(String targetUrl, int timeoutMs) throws Exception {
+        return openPost(targetUrl, timeoutMs, false);
+    }
+
+    private HttpURLConnection openPost(String targetUrl, int timeoutMs, boolean includeInternalToken) throws Exception {
         URL url = URI.create(targetUrl).toURL();
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Content-Type", "application/json");
         connection.setRequestProperty("Accept", "application/json");
+        if (includeInternalToken && !internalApiToken.isEmpty()) {
+            connection.setRequestProperty("X-Internal-Api-Token", internalApiToken);
+        }
         connection.setConnectTimeout(timeoutMs);
         connection.setReadTimeout(timeoutMs);
         connection.setDoOutput(true);

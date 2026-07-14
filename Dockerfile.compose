@@ -2,7 +2,7 @@ FROM gradle:8.7-jdk17 AS build
 
 WORKDIR /workspace
 COPY . .
-RUN chmod +x gradlew && ./gradlew clean bootWar --no-daemon
+RUN --mount=type=cache,target=/home/gradle/.gradle gradle clean bootWar --no-daemon
 
 FROM eclipse-temurin:17-jre
 

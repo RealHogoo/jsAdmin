@@ -25,6 +25,7 @@
     <div class="tabs health-content-tabs" id="healthContentTabs">
         <a href="javascript:void(0)" class="tab health-content-tab is-active" data-health-tab="service">서비스 상태</a>
         <a href="javascript:void(0)" class="tab health-content-tab" data-health-tab="resource">서버 리소스</a>
+        <a href="javascript:void(0)" class="tab health-content-tab" data-health-tab="worker">Worker</a>
     </div>
 
     <div class="tab-pane health-tab-pane is-active" data-health-pane="service">
@@ -134,6 +135,67 @@
                 <div class="health-field"><span>Disk</span><b id="svDisk">-</b></div>
                 <div class="health-field"><span>Network IP</span><b id="svNetworkIp">-</b></div>
             </div>
+        </div>
+    </div>
+
+    <div class="tab-pane health-tab-pane" data-health-pane="worker" hidden>
+        <div class="health-summary-grid">
+            <div class="panel health-kpi" data-health-worker-card="status">
+                <div class="health-kpi-label">Worker 상태</div>
+                <div class="health-kpi-value" id="workerStatus">-</div>
+                <div class="health-kpi-sub" id="workerCheckedAt">-</div>
+            </div>
+            <div class="panel health-kpi" data-health-worker-card="pods">
+                <div class="health-kpi-label">활성 Pod</div>
+                <div class="health-kpi-value" id="workerActivePods">-</div>
+                <div class="health-kpi-sub" id="workerExpectedPods">-</div>
+            </div>
+            <div class="panel health-kpi" data-health-worker-card="youtube">
+                <div class="health-kpi-label">YouTube 작업</div>
+                <div class="health-kpi-value" id="workerYoutubeJobs">-</div>
+                <div class="health-kpi-sub">queued / running / failed</div>
+            </div>
+            <div class="panel health-kpi" data-health-worker-card="locks">
+                <div class="health-kpi-label">중복 방지 Lock</div>
+                <div class="health-kpi-value" id="workerLocks">-</div>
+                <div class="health-kpi-sub">현재 보호 중인 영상</div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">Worker Pod</div>
+            <table class="tbl">
+                <thead>
+                <tr>
+                    <th style="width:220px;">Worker</th>
+                    <th style="width:110px;">Status</th>
+                    <th style="width:180px;">Queue</th>
+                    <th style="width:180px;">Active Job</th>
+                    <th style="width:190px;">Heartbeat</th>
+                    <th>Message</th>
+                </tr>
+                </thead>
+                <tbody id="workerPodBody">
+                <tr><td colspan="6">-</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">진행 Lock</div>
+            <table class="tbl">
+                <thead>
+                <tr>
+                    <th style="width:180px;">Video ID</th>
+                    <th style="width:220px;">Worker</th>
+                    <th style="width:190px;">Expires</th>
+                    <th>Updated</th>
+                </tr>
+                </thead>
+                <tbody id="workerLockBody">
+                <tr><td colspan="4">-</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

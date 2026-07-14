@@ -31,6 +31,12 @@
         applyStatusClass(card, status);
     }
 
+    function setWorkerCardStatus(cardKey, status) {
+        var card = UX.qs("[data-health-worker-card='" + cardKey + "']", root());
+        if (!card) return;
+        applyStatusClass(card, status);
+    }
+
     function applyStatusClass(card, status) {
         card.classList.remove("health-up", "health-down", "health-degraded", "health-disabled");
         if (status === "UP") card.classList.add("health-up");
@@ -119,6 +125,68 @@
                 + "<td>" + UX.esc(row.message) + "</td>"
                 + "</tr>";
         }).join("");
+    }
+
+    function renderWorkers(workers) {
+        workers = workers || {};
+        var pods = Array.isArray(workers.pods) ? workers.pods : [];
+        var locks = Array.isArray(workers.locks) ? workers.locks : [];
+        var jobs = workers.jobs || {};
+        var youtube = jobs.youtube || {};
+        var workerStatus = workers.status || (pods.length ? "DEGRADED" : "-");
+        var active = Number(workers.active_count || 0);
+        var expected = Number(workers.expected_replicas || 0);
+        var queued = Number(youtube.QUEUED || 0);
+        var running = Number(youtube.RUNNING || 0);
+        var failed = Number(youtube.FAILED || 0);
+
+        setText("workerStatus", workerStatus);
+        setText("workerCheckedAt", workers.checked_at ? new Date(workers.checked_at).toLocaleString() : (workers.error || "-"));
+        setText("workerActivePods", expected ? (active + " / " + expected) : (active || "-"));
+        setText("workerExpectedPods", expected ? ("expected " + expected + " replica(s)") : "-");
+        setText("workerYoutubeJobs", queued + " / " + running + " / " + failed);
+        setText("workerLocks", locks.length);
+
+        setWorkerCardStatus("status", workerStatus);
+        setWorkerCardStatus("pods", expected && active >= expected ? "UP" : (active > 0 ? "DEGRADED" : "DOWN"));
+        setWorkerCardStatus("youtube", failed > 0 ? "DEGRADED" : "UP");
+        setWorkerCardStatus("locks", "UP");
+
+        var podBody = UX.qs("#workerPodBody", root());
+        if (podBody) {
+            if (!pods.length) {
+                podBody.innerHTML = "<tr><td colspan='6'>" + UX.esc(workers.error || "Worker pod 정보가 없습니다.") + "</td></tr>";
+            } else {
+                podBody.innerHTML = pods.map(function (pod) {
+                    var podStatus = pod.stale ? "STALE" : (pod.status || "-");
+                    var activeJob = [pod.active_job_type, pod.active_job_id, pod.active_video_id || pod.active_file_id].filter(Boolean).join(" / ") || "-";
+                    return "<tr>"
+                        + "<td>" + UX.esc(pod.worker_id || "-") + "</td>"
+                        + "<td>" + renderStatusBadge(podStatus === "STALE" ? "DEGRADED" : podStatus) + "</td>"
+                        + "<td>" + UX.esc(Array.isArray(pod.queues) ? pod.queues.join(", ") : "-") + "</td>"
+                        + "<td>" + UX.esc(activeJob) + "</td>"
+                        + "<td>" + UX.esc(pod.heartbeat_at ? new Date(pod.heartbeat_at).toLocaleString() : "-") + "</td>"
+                        + "<td>" + UX.esc(pod.message || "-") + "</td>"
+                        + "</tr>";
+                }).join("");
+            }
+        }
+
+        var lockBody = UX.qs("#workerLockBody", root());
+        if (lockBody) {
+            if (!locks.length) {
+                lockBody.innerHTML = "<tr><td colspan='4'>진행 중인 영상 lock이 없습니다.</td></tr>";
+            } else {
+                lockBody.innerHTML = locks.map(function (lock) {
+                    return "<tr>"
+                        + "<td>" + UX.esc(lock.video_id || "-") + "</td>"
+                        + "<td>" + UX.esc(lock.worker_id || "-") + "</td>"
+                        + "<td>" + UX.esc(lock.lease_expires_at ? new Date(lock.lease_expires_at).toLocaleString() : "-") + "</td>"
+                        + "<td>" + UX.esc(lock.updated_at ? new Date(lock.updated_at).toLocaleString() : "-") + "</td>"
+                        + "</tr>";
+                }).join("");
+            }
+        }
     }
 
     function renderServiceTabs(list) {
@@ -225,6 +293,7 @@
         setResourceCardStatus("users", "UP");
 
         renderDependencies(data && data.dependencies ? data.dependencies : []);
+        renderWorkers(data && data.workers ? data.workers : {});
     }
 
     function refreshServiceList() {
