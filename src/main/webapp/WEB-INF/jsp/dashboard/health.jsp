@@ -13,7 +13,7 @@
     <details class="page-help">
         <summary><span class="page-help-toggle">?</span></summary>
         <div class="page-help-body">
-            상단에서 서비스를 고르면 생존 여부, 요청 처리 가능 여부, DB/의존 서비스, 서버 자원을 확인합니다. 작업 상태는 실제 작업 정보가 있는 서비스에서만 표시됩니다.
+            상단에서 서비스를 고르면 생존 여부, 요청 처리 가능 여부, DB/의존 서비스, 서버 자원, 백그라운드 작업 상태를 같은 기준으로 확인합니다.
         </div>
     </details>
 
@@ -25,7 +25,7 @@
     <div class="tabs health-content-tabs" id="healthContentTabs">
         <a href="javascript:void(0)" class="tab health-content-tab is-active" data-health-tab="service">서비스 상태</a>
         <a href="javascript:void(0)" class="tab health-content-tab" data-health-tab="resource">서버 리소스</a>
-        <a href="javascript:void(0)" class="tab health-content-tab" data-health-tab="worker" hidden>작업 상태</a>
+        <a href="javascript:void(0)" class="tab health-content-tab" data-health-tab="worker">작업 상태</a>
     </div>
 
     <div class="tab-pane health-tab-pane is-active" data-health-pane="service">
@@ -144,14 +144,19 @@
     </div>
 
     <div class="tab-pane health-tab-pane" data-health-pane="worker" hidden>
-        <div class="health-summary-grid" data-worker-section="summary">
+        <div class="health-explain-panel">
+            <strong>작업 상태 읽는 법</strong>
+            <span>QUEUED는 대기, RUNNING은 처리 중, FAILED는 실패 후 자동 재시도하지 않는 항목입니다.</span>
+            <span>STALE은 마지막 heartbeat가 끊긴 워커로, 실제 RUNNING으로 보면 안 됩니다.</span>
+        </div>
+        <div class="health-summary-grid">
             <div class="panel health-kpi" data-health-worker-card="status">
-                <div class="health-kpi-label" id="workerStatusLabel">Worker 상태</div>
+                <div class="health-kpi-label">Worker 상태</div>
                 <div class="health-kpi-value" id="workerStatus">-</div>
                 <div class="health-kpi-sub" id="workerCheckedAt">-</div>
             </div>
             <div class="panel health-kpi" data-health-worker-card="pods">
-                <div class="health-kpi-label" id="workerRunnerLabel">정상 Worker</div>
+                <div class="health-kpi-label">정상 Worker</div>
                 <div class="health-kpi-value" id="workerActivePods">-</div>
                 <div class="health-kpi-sub" id="workerExpectedPods">-</div>
             </div>
@@ -167,7 +172,7 @@
             </div>
         </div>
 
-        <div class="panel" data-worker-section="media">
+        <div class="panel">
             <div class="panel-title">Worker Pod</div>
             <table class="tbl">
                 <thead>
@@ -186,7 +191,7 @@
             </table>
         </div>
 
-        <div class="panel" data-worker-section="media">
+        <div class="panel">
             <div class="panel-title">진행 Lock</div>
             <table class="tbl">
                 <thead>
@@ -203,7 +208,7 @@
             </table>
         </div>
 
-        <div class="panel" data-worker-section="webhard">
+        <div class="panel">
             <div class="panel-title">트랜스코딩 작업</div>
             <table class="tbl">
                 <thead>
@@ -211,10 +216,10 @@
                     <th style="width:90px;">Job</th>
                     <th style="width:90px;">File</th>
                     <th>File Name</th>
-                    <th style="width:110px;">상태</th>
-                    <th style="width:90px;">시도</th>
-                    <th>메시지</th>
-                    <th style="width:190px;">갱신</th>
+                    <th style="width:110px;">Status</th>
+                    <th style="width:90px;">Attempt</th>
+                    <th>Message</th>
+                    <th style="width:190px;">Updated</th>
                 </tr>
                 </thead>
                 <tbody id="transcodeJobBody">

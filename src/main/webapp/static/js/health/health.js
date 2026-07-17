@@ -128,42 +128,6 @@
         return "<span class='" + statusClass(value) + "' title='" + UX.esc(value) + "'>" + UX.esc(statusText(value)) + "</span>";
     }
 
-    function workerKind(workers) {
-        return workers && workers.kind ? String(workers.kind) : "";
-    }
-
-    function hasWorkerView(workers) {
-        var kind = workerKind(workers);
-        return kind === "media-worker" || kind === "webhard-transcode";
-    }
-
-    function activeContentTab() {
-        var active = UX.qs("[data-health-tab].is-active", root());
-        return active ? active.getAttribute("data-health-tab") : "service";
-    }
-
-    function setWorkerSections(kind) {
-        UX.qsa("[data-worker-section]", root()).forEach(function (section) {
-            var sectionKind = section.getAttribute("data-worker-section");
-            var visible = sectionKind === "summary"
-                || (kind === "media-worker" && sectionKind === "media")
-                || (kind === "webhard-transcode" && sectionKind === "webhard");
-            section.hidden = !visible;
-        });
-    }
-
-    function updateContentLayout(workers) {
-        var showWorker = hasWorkerView(workers);
-        var workerTab = UX.qs("[data-health-tab='worker']", root());
-        if (workerTab) {
-            workerTab.hidden = !showWorker;
-        }
-        setWorkerSections(showWorker ? workerKind(workers) : "");
-        if (!showWorker && activeContentTab() === "worker") {
-            activateContentTab("service");
-        }
-    }
-
     function renderDependencies(list) {
         var tbody = UX.qs("#healthDependencyBody", root());
         if (!tbody) return;
@@ -202,8 +166,6 @@
         var running = Number(youtube.RUNNING || 0);
         var failed = Number(youtube.FAILED || 0);
 
-        setText("workerStatusLabel", "Worker 상태");
-        setText("workerRunnerLabel", "정상 Worker");
         setText("workerJobLabel", "YouTube 작업");
         setText("workerJobHelp", "queued / running / failed");
         setText("workerAuxLabel", "중복 방지 Lock");
@@ -255,6 +217,10 @@
                 }).join("");
             }
         }
+        var jobBody = UX.qs("#transcodeJobBody", root());
+        if (jobBody) {
+            jobBody.innerHTML = "<tr><td colspan='7'>미디어 서비스는 유튜브 다운로드 worker 상태를 위 표에서 확인합니다.</td></tr>";
+        }
     }
 
     function renderTranscodeWorkers(workers) {
@@ -269,8 +235,6 @@
         var variant720 = Number(variants["720"] || 0);
         var variant1080 = Number(variants["1080"] || 0);
 
-        setText("workerStatusLabel", "트랜스코딩 상태");
-        setText("workerRunnerLabel", "스케줄러");
         setText("workerStatus", status);
         setText("workerCheckedAt", workers.checked_at ? "확인 " + new Date(workers.checked_at).toLocaleString() : (workers.error || "-"));
         setText("workerActivePods", workers.worker_running ? "실행 중" : "대기 중");
@@ -286,6 +250,15 @@
         setWorkerCardStatus("pods", workers.worker_running ? "UP" : (pending > 0 ? "DEGRADED" : "UP"));
         setWorkerCardStatus("youtube", failed > 0 ? "DEGRADED" : "UP");
         setWorkerCardStatus("locks", "UP");
+
+        var podBody = UX.qs("#workerPodBody", root());
+        if (podBody) {
+            podBody.innerHTML = "<tr><td colspan='6'>웹하드는 별도 pod가 아니라 웹하드 서비스 내부 스케줄러가 트랜스코딩을 처리합니다.</td></tr>";
+        }
+        var lockBody = UX.qs("#workerLockBody", root());
+        if (lockBody) {
+            lockBody.innerHTML = "<tr><td colspan='4'>완료 " + UX.esc(done) + "건 · 대기 " + UX.esc(pending) + "건 · 실행 " + UX.esc(running) + "건</td></tr>";
+        }
         var jobBody = UX.qs("#transcodeJobBody", root());
         if (jobBody) {
             if (!items.length) {
@@ -338,10 +311,6 @@
         var page = root();
         var key = tabKey || "service";
         UX.qsa("[data-health-tab]", page).forEach(function (tab) {
-            if (tab.hidden) {
-                tab.classList.remove("is-active");
-                return;
-            }
             tab.classList.toggle("is-active", tab.getAttribute("data-health-tab") === key);
         });
         UX.qsa("[data-health-pane]", page).forEach(function (pane) {
@@ -359,13 +328,10 @@
         var memory = server.memory || {};
         var disk = server.disk || {};
         var network = server.network || {};
-        var workers = data && data.workers ? data.workers : {};
         var cpuUsage = firstNumber(cpu.system_cpu_load_pct, cpu.process_cpu_load_pct);
         var memoryUsage = firstNumber(memory.physical_used_pct, memory.heap_used_pct, server.heap_used_pct);
         var diskUsage = firstNumber(disk.used_pct);
         var networkAddresses = Array.isArray(network.addresses) ? network.addresses : [];
-
-        updateContentLayout(workers);
 
         setText("healthOverallStatus", statusText(summary.overall_status));
         setText("healthServiceName", summary.service);
@@ -418,9 +384,7 @@
         setResourceCardStatus("users", "UP");
 
         renderDependencies(data && data.dependencies ? data.dependencies : []);
-        if (hasWorkerView(workers)) {
-            renderWorkers(workers);
-        }
+        renderWorkers(data && data.workers ? data.workers : {});
     }
 
     function refreshServiceList() {
