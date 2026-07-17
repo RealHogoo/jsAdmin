@@ -3,7 +3,10 @@
 <div id="healthPage" class="page-root health-page" data-page-url="/health/main.do">
     <div class="page-title-row">
         <div class="page-title-group">
-            <h2 class="page-title">서버 상태</h2>
+            <h2 class="page-title">&#xd5ec;&#xc2a4;&#xccb4;&#xd06c;</h2>
+            <div class="tabs health-service-tabs" id="healthServiceTabs">
+                <a href="javascript:void(0)" class="tab health-service-tab is-active">Loading...</a>
+            </div>
         </div>
     </div>
 
@@ -19,25 +22,13 @@
         <a href="#" class="btn" id="btnHealthRefresh" role="button">&#xc0c8;&#xb85c;&#xace0;&#xce68;</a>
     </div>
 
-    <div class="health-dashboard-layout">
-        <aside class="health-service-panel">
-            <div class="health-panel-heading">
-                <strong>서비스</strong>
-                <span>상태를 확인할 대상을 선택합니다.</span>
-            </div>
-            <div class="health-service-tabs" id="healthServiceTabs">
-                <a href="javascript:void(0)" class="health-service-tab is-active">Loading...</a>
-            </div>
-        </aside>
+    <div class="tabs health-content-tabs" id="healthContentTabs">
+        <a href="javascript:void(0)" class="tab health-content-tab is-active" data-health-tab="service">서비스 상태</a>
+        <a href="javascript:void(0)" class="tab health-content-tab" data-health-tab="resource">서버 리소스</a>
+        <a href="javascript:void(0)" class="tab health-content-tab" data-health-tab="worker" hidden>작업 상태</a>
+    </div>
 
-        <section class="health-main-panel">
-            <div class="tabs health-content-tabs" id="healthContentTabs">
-                <a href="javascript:void(0)" class="tab health-content-tab is-active" data-health-tab="service">서비스 상태</a>
-                <a href="javascript:void(0)" class="tab health-content-tab" data-health-tab="resource">서버 리소스</a>
-                <a href="javascript:void(0)" class="tab health-content-tab" data-health-tab="worker" hidden>작업 상태</a>
-            </div>
-
-            <div class="tab-pane health-tab-pane is-active" data-health-pane="service">
+    <div class="tab-pane health-tab-pane is-active" data-health-pane="service">
         <div class="health-summary-grid">
             <div class="panel health-kpi" data-health-card="overall">
                 <div class="health-kpi-label">종합 상태</div>
@@ -104,9 +95,9 @@
                 </tbody>
             </table>
         </div>
-            </div>
+    </div>
 
-            <div class="tab-pane health-tab-pane" data-health-pane="resource" hidden>
+    <div class="tab-pane health-tab-pane" data-health-pane="resource" hidden>
         <div class="health-explain-panel">
             <strong>서버 리소스 기준</strong>
             <span id="svResourceScope">-</span>
@@ -150,9 +141,9 @@
                 <div class="health-field"><span>Network IP</span><b id="svNetworkIp">-</b></div>
             </div>
         </div>
-            </div>
+    </div>
 
-            <div class="tab-pane health-tab-pane" data-health-pane="worker" hidden>
+    <div class="tab-pane health-tab-pane" data-health-pane="worker" hidden>
         <div class="health-summary-grid" data-worker-section="summary">
             <div class="panel health-kpi" data-health-worker-card="status">
                 <div class="health-kpi-label" id="workerStatusLabel">Worker 상태</div>
@@ -231,8 +222,6 @@
                 </tbody>
             </table>
         </div>
-            </div>
-        </section>
     </div>
 </div>
 

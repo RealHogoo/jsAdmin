@@ -310,7 +310,7 @@
         var target = UX.qs("#healthServiceTabs", root());
         if (!target) return;
         if (!Array.isArray(list) || !list.length) {
-            target.innerHTML = "<a href='javascript:void(0)' class='health-service-tab is-active'>No services</a>";
+            target.innerHTML = "<a href='javascript:void(0)' class='tab health-service-tab is-active'>No services</a>";
             return;
         }
 
@@ -319,11 +319,8 @@
             var active = serviceCd === currentServiceCd ? " is-active" : "";
             var disabled = row.use_yn === "N" ? " is-disabled" : "";
             var badge = row.use_yn === "N" ? "<span class='health-service-use'>OFF</span>" : "";
-            return "<a href='javascript:void(0)' class='health-service-tab" + active + disabled + "' data-service-cd='" + UX.esc(serviceCd) + "'>"
-                + "<span class='health-service-main'>"
-                + "<span class='health-service-name'>" + UX.esc(row.service_nm || serviceCd) + "</span>"
-                + "<span class='health-service-code'>" + UX.esc(serviceCd) + "</span>"
-                + "</span>"
+            return "<a href='javascript:void(0)' class='tab health-service-tab" + active + disabled + "' data-service-cd='" + UX.esc(serviceCd) + "'>"
+                + "<span>" + UX.esc(row.service_nm || serviceCd) + "</span>"
                 + badge
                 + "</a>";
         }).join("");

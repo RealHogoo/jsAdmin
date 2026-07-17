@@ -1693,61 +1693,14 @@ body.app-shell {
     padding-bottom: 14px;
 }
 
-.health-dashboard-layout {
-    display: grid;
-    grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
-    gap: 16px;
-    align-items: start;
-}
-
-.health-service-panel {
-    position: sticky;
-    top: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding: 14px;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    background: #ffffff;
-}
-
-.health-panel-heading {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.health-panel-heading strong {
-    color: #0f172a;
-    font-size: 15px;
-}
-
-.health-panel-heading span {
-    color: #64748b;
-    font-size: 12px;
-    line-height: 1.4;
-}
-
-.health-main-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-width: 0;
-}
-
 .health-service-tabs {
     display: flex;
-    flex-direction: column;
-    gap: 6px;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .health-content-tabs {
-    margin-top: 0;
-    padding: 4px;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    background: #f8fafc;
+    margin-top: 2px;
 }
 
 .health-content-tab {
@@ -1772,60 +1725,15 @@ body.app-shell {
 }
 
 .health-service-tab {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     gap: 8px;
-    min-height: 56px;
-    padding: 10px 12px;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    background: #ffffff;
-    color: #0f172a;
+    padding: 8px 14px;
     font-size: 13px;
     font-weight: 700;
-    text-decoration: none;
-}
-
-.health-service-tab:hover {
-    border-color: #94a3b8;
-    background: #f8fafc;
-}
-
-.health-service-tab.is-active {
-    border-color: #2563eb;
-    background: #eff6ff;
-    color: #1d4ed8;
 }
 
 .health-service-tab.is-disabled {
     opacity: 0.85;
     border-style: dashed;
-}
-
-.health-service-main {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 0;
-}
-
-.health-service-name,
-.health-service-code {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.health-service-name {
-    font-size: 13px;
-}
-
-.health-service-code {
-    color: #64748b;
-    font-size: 11px;
-    font-weight: 600;
 }
 
 .health-service-use {
@@ -2035,19 +1943,6 @@ body.app-shell {
 }
 
 @media (max-width: 1024px) {
-    .health-dashboard-layout {
-        grid-template-columns: 1fr;
-    }
-
-    .health-service-panel {
-        position: static;
-    }
-
-    .health-service-tabs {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
     .health-summary-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -2069,10 +1964,6 @@ body.app-shell {
     .health-toolbar {
         flex-direction: column;
         align-items: stretch;
-    }
-
-    .health-service-tabs {
-        grid-template-columns: 1fr;
     }
 
     .health-summary-grid {
