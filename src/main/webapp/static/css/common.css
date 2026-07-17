@@ -1767,6 +1767,28 @@ body.app-shell {
     gap: 12px;
 }
 
+.health-explain-panel {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+    background: #eff6ff;
+    color: #1e3a8a;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.health-explain-panel strong {
+    color: #1d4ed8;
+}
+
+.health-explain-panel span {
+    color: #334155;
+}
+
 .health-kpi {
     position: relative;
     overflow: hidden;
@@ -1908,6 +1930,11 @@ body.app-shell {
 .health-badge.disabled {
     background: #e2e8f0;
     color: #334155;
+}
+
+.health-badge.stale {
+    background: #ffedd5;
+    color: #9a3412;
 }
 
 .health-page .tbl th,

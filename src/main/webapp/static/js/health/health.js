@@ -67,6 +67,22 @@
         return Number.isFinite(n) ? (n.toFixed(1) + "%") : "-";
     }
 
+    function statusText(status) {
+        if (status === "UP") return "정상";
+        if (status === "DOWN") return "장애";
+        if (status === "DEGRADED") return "주의";
+        if (status === "DISABLED") return "비활성";
+        if (status === "STALE") return "신호 끊김";
+        if (status === "RUNNING") return "처리 중";
+        if (status === "IDLE") return "대기";
+        if (status === "QUEUED") return "대기";
+        if (status === "FAILED") return "실패";
+        if (status === "PENDING") return "예약됨";
+        if (status === "DONE") return "완료";
+        if (status === "SKIPPED") return "건너뜀";
+        return status || "-";
+    }
+
     function fmtUptime(ms) {
         var n = Number(ms || 0);
         if (!Number.isFinite(n) || n < 0) return "-";
@@ -97,14 +113,19 @@
 
     function statusClass(status) {
         if (status === "UP") return "health-badge up";
+        if (status === "RUNNING") return "health-badge up";
+        if (status === "IDLE") return "health-badge up";
+        if (status === "DONE") return "health-badge up";
         if (status === "DOWN") return "health-badge down";
+        if (status === "FAILED") return "health-badge down";
         if (status === "DISABLED") return "health-badge disabled";
+        if (status === "STALE") return "health-badge stale";
         return "health-badge degraded";
     }
 
     function renderStatusBadge(status) {
         var value = status || "-";
-        return "<span class='" + statusClass(value) + "'>" + UX.esc(value) + "</span>";
+        return "<span class='" + statusClass(value) + "' title='" + UX.esc(value) + "'>" + UX.esc(statusText(value)) + "</span>";
     }
 
     function renderDependencies(list) {
@@ -150,9 +171,9 @@
         setText("workerAuxLabel", "중복 방지 Lock");
         setText("workerAuxHelp", "현재 보호 중인 영상");
         setText("workerStatus", workerStatus);
-        setText("workerCheckedAt", workers.checked_at ? new Date(workers.checked_at).toLocaleString() : (workers.error || "-"));
+        setText("workerCheckedAt", workers.checked_at ? "확인 " + new Date(workers.checked_at).toLocaleString() : (workers.error || "-"));
         setText("workerActivePods", expected ? (active + " / " + expected) : (active || "-"));
-        setText("workerExpectedPods", expected ? ("expected " + expected + " replica(s)") : "-");
+        setText("workerExpectedPods", expected ? ("정상 heartbeat / 기대 worker " + expected) : "-");
         setText("workerYoutubeJobs", queued + " / " + running + " / " + failed);
         setText("workerLocks", locks.length);
 
@@ -171,7 +192,7 @@
                     var activeJob = [pod.active_job_type, pod.active_job_id, pod.active_video_id || pod.active_file_id].filter(Boolean).join(" / ") || "-";
                     return "<tr>"
                         + "<td>" + UX.esc(pod.worker_id || "-") + "</td>"
-                        + "<td>" + renderStatusBadge(podStatus === "STALE" ? "DEGRADED" : podStatus) + "</td>"
+                        + "<td>" + renderStatusBadge(podStatus) + "</td>"
                         + "<td>" + UX.esc(Array.isArray(pod.queues) ? pod.queues.join(", ") : "-") + "</td>"
                         + "<td>" + UX.esc(activeJob) + "</td>"
                         + "<td>" + UX.esc(pod.heartbeat_at ? new Date(pod.heartbeat_at).toLocaleString() : "-") + "</td>"
@@ -215,14 +236,14 @@
         var variant1080 = Number(variants["1080"] || 0);
 
         setText("workerStatus", status);
-        setText("workerCheckedAt", workers.checked_at ? new Date(workers.checked_at).toLocaleString() : (workers.error || "-"));
-        setText("workerActivePods", workers.worker_running ? "RUNNING" : "IDLE");
-        setText("workerExpectedPods", "window " + (workers.start_hour == null ? "-" : workers.start_hour) + ":00-" + (workers.end_hour == null ? "-" : workers.end_hour) + ":00");
+        setText("workerCheckedAt", workers.checked_at ? "확인 " + new Date(workers.checked_at).toLocaleString() : (workers.error || "-"));
+        setText("workerActivePods", workers.worker_running ? "실행 중" : "대기 중");
+        setText("workerExpectedPods", "허용 시간 " + (workers.start_hour == null ? "-" : workers.start_hour) + ":00-" + (workers.end_hour == null ? "-" : workers.end_hour) + ":00");
         setText("workerJobLabel", "트랜스코딩 작업");
-        setText("workerJobHelp", "pending / running / failed");
+        setText("workerJobHelp", "대기 / 실행 / 실패");
         setText("workerYoutubeJobs", pending + " / " + running + " / " + failed);
         setText("workerAuxLabel", "변환본");
-        setText("workerAuxHelp", "720p / 1080p");
+        setText("workerAuxHelp", "720p / 1080p 생성 완료");
         setText("workerLocks", variant720 + " / " + variant1080);
 
         setWorkerCardStatus("status", status);
@@ -312,15 +333,15 @@
         var diskUsage = firstNumber(disk.used_pct);
         var networkAddresses = Array.isArray(network.addresses) ? network.addresses : [];
 
-        setText("healthOverallStatus", summary.overall_status);
+        setText("healthOverallStatus", statusText(summary.overall_status));
         setText("healthServiceName", summary.service);
-        setText("healthLiveness", summary.liveness);
-        setText("healthReadiness", summary.readiness);
+        setText("healthLiveness", statusText(summary.liveness));
+        setText("healthReadiness", statusText(summary.readiness));
         setText("healthCheckedAt", summary.checked_at ? new Date(summary.checked_at).toLocaleString() : "-");
         setText("healthDbLatency", fmtMs(db.elapsed_ms));
-        setText("healthDbMessage", db.ok ? "DB connection OK" : (db.error || "DB connection failed"));
+        setText("healthDbMessage", db.ok ? "DB 연결 정상" : (db.error || "DB 연결 실패"));
         setText("healthBaseUrl", summary.base_url || "-");
-        setText("healthUseYn", summary.use_yn === "N" ? "DISABLED" : "ENABLED");
+        setText("healthUseYn", summary.use_yn === "N" ? "비활성" : "사용 중");
         setText("healthRemark", summary.remark || "-");
         setText("healthServiceLabel", summary.service_nm || summary.service || "-");
 
@@ -329,7 +350,7 @@
         setCardStatus("ready", summary.readiness);
         setCardStatus("db", summary.use_yn === "N" ? "DISABLED" : (db.ok ? "UP" : "DOWN"));
 
-        setText("dbStatusText", db.ok ? "UP" : (summary.use_yn === "N" ? "DISABLED" : "DOWN"));
+        setText("dbStatusText", statusText(db.ok ? "UP" : (summary.use_yn === "N" ? "DISABLED" : "DOWN")));
         setText("dbPing", db.ping);
         setText("dbElapsed", fmtMs(db.elapsed_ms));
         setText("dbError", db.error || "-");
@@ -347,14 +368,15 @@
         setText("svThreads", (server.threads_live || "-") + " / peak " + (server.threads_peak || "-"));
         setText("svHeap", fmtBytes(server.heap_used || 0) + " / max " + fmtBytes(server.heap_max));
         setText("svCpuUsage", fmtPct(cpuUsage));
-        setText("svCpuDetail", "process " + fmtPct(cpu.process_cpu_load_pct) + " / load avg " + (Number.isFinite(Number(cpu.system_load_avg)) ? Number(cpu.system_load_avg).toFixed(2) : "-"));
+        setText("svCpuDetail", "프로세스 " + fmtPct(cpu.process_cpu_load_pct) + " / 평균 부하 " + (Number.isFinite(Number(cpu.system_load_avg)) ? Number(cpu.system_load_avg).toFixed(2) : "-"));
         setText("svMemoryUsage", fmtPct(memoryUsage));
         setText("svMemoryDetail", fmtBytes(memory.physical_used || memory.heap_used || 0) + " / " + fmtBytes(memory.physical_total || memory.heap_max || server.heap_max || 0));
-        setText("svNetworkStatus", network.status || "-");
-        setText("svNetworkDetail", (network.active_interfaces || 0) + " active interface(s)");
+        setText("svNetworkStatus", statusText(network.status));
+        setText("svNetworkDetail", "활성 인터페이스 " + (network.active_interfaces || 0) + "개");
         setText("svActiveUsers", server.active_users == null ? "-" : server.active_users);
         setText("svDisk", fmtPct(diskUsage) + " · " + fmtBytes(disk.used || 0) + " / " + fmtBytes(disk.total || 0));
         setText("svNetworkIp", networkAddresses.length ? networkAddresses.join(", ") : "-");
+        setText("svResourceScope", server.resource_scope === "HOST" ? "호스트 기준" : (server.resource_scope === "CONTAINER" ? "컨테이너 기준" : "-"));
 
         setResourceCardStatus("cpu", usageStatus(cpuUsage));
         setResourceCardStatus("memory", usageStatus(memoryUsage));
