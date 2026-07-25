@@ -82,7 +82,7 @@ public final class AuthCookieSupport {
         }
 
         String host = forwardedHost(request);
-        if (host == null || isLocalHost(host)) {
+        if (host == null || isLocalHost(host) || isIpAddress(host)) {
             return null;
         }
         String[] parts = host.split("\\.");
@@ -100,6 +100,11 @@ public final class AuthCookieSupport {
             || "127.0.0.1".equals(normalized)
             || "::1".equals(normalized)
             || normalized.startsWith("127.");
+    }
+
+    private static boolean isIpAddress(String host) {
+        String normalized = host == null ? "" : host.trim().toLowerCase();
+        return normalized.matches("^\\d{1,3}(?:\\.\\d{1,3}){3}$") || normalized.contains(":");
     }
 
     private static String forwardedHost(HttpServletRequest request) {
